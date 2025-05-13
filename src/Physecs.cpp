@@ -22,7 +22,7 @@ void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity en
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
     for (int i = 0; i < col.colliders.size(); ++i) {
         auto& collider = col.colliders[i];
-        auto bounds = physecs::getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
+        auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
         int nodeId = bvh.insert(entity, i, bounds);
         colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
         broadPhaseEntries.push_back({ entity, i, bounds, nodeId, collider.enableSimulation });
@@ -43,6 +43,10 @@ void physecs::Scene::onRigidBodyDelete(entt::registry& registry, entt::entity en
 
 void physecs::Scene::onRigidBodyMove(entt::registry& registry, entt::entity entity) {
     if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
+    updateBoundsAndBVH(entity);
+}
+
+void physecs::Scene::updateBoundsAndBVH(entt::entity entity) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
     for (int i = 0; i < col.colliders.size(); ++i) {
@@ -437,11 +441,10 @@ void physecs::Scene::simulate(float timeStep) {
     triggerCache.swap(triggerCacheTemp);
     contactCache.swap(contactCacheTemp);
 
-    //Patch transforms
-    for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
+    //update bounds and BVH
+    for (auto [entity, rigidDynamic] : registry.view<RigidBodyDynamicComponent>().each()) {
         if (rigidDynamic.isKinematic) continue;
-
-        registry.patch<TransformComponent>(entity);
+        updateBoundsAndBVH(entity);
     }
 }
 

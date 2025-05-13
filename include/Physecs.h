@@ -156,6 +156,8 @@ namespace physecs {
         void onRigidBodyDelete(entt::registry& registry, entt::entity entity);
         void onRigidBodyMove(entt::registry& registry, entt::entity entity);
 
+        void updateBoundsAndBVH(entt::entity entity);
+
         entt::entity raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance);
         void overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, int filter, std::vector<OverlapHit>& out);
         void overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out);

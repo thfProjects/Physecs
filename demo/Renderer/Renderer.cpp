@@ -348,7 +348,8 @@ void Renderer::init(int width, int height) {
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -525,6 +526,8 @@ static void copyMultisampleColorBuffer() {
 
 static void renderHDR() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(hdrShader.id);
 

@@ -16,10 +16,11 @@ class Demo {
 
     physecs::Material defaultMaterial = { 0.4f, 0.4f };
 
-    const float physicsTimeStep = 1.0f / 120.0f;
+    const float physicsTimeStep = 1.0f / 240.0f;
     float physicsAccum = 0.f;
 
-    void spawnBox();
+    entt::entity spawnBox(glm::vec3 position);
+    entt::entity spawnCapsule(glm::vec3 position);
 public:
     void onCreate();
     void onUpdate(float deltaTime);

@@ -14,8 +14,6 @@ class Demo {
 
     CameraMovementSystem cameraMovementSystem = CameraMovementSystem(camera);
 
-    physecs::Material defaultMaterial = { 0.4f, 0.4f };
-
     const float physicsTimeStep = 1.0f / 240.0f;
     float physicsAccum = 0.f;
 

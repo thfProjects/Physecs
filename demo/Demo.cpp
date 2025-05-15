@@ -19,7 +19,7 @@ void Demo::onCreate() {
     registry.emplace<RenderComponent>(platform, VAO, elements, Assets::getTexture("white.png"), glm::mat4(1.0f));
     physecs::Geometry platformGeometry = { physecs::BOX };
     platformGeometry.box = { glm::vec3(20, 1, 20) };
-    physecs::Collider platformCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), platformGeometry, defaultMaterial, false, true, 0 };
+    physecs::Collider platformCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), platformGeometry, { 0.4, 0.4 }, false, true, 0 };
     registry.emplace<physecs::RigidBodyCollisionComponent>(platform, std::vector{ platformCollider });
 
     camera.position = glm::vec3(0, 5, 0);
@@ -49,7 +49,7 @@ entt::entity Demo::spawnCapsule(glm::vec3 position) {
     registry.emplace<RenderComponent>(capsule, VAO, elements, Assets::getTexture("physicsTest.png"), glm::mat4(1.0f));
     physecs::Geometry capsuleGeometry = { physecs::CAPSULE };
     capsuleGeometry.capsule = { 1, 0.5f };
-    physecs::Collider capsuleCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), capsuleGeometry, defaultMaterial, false, true, 0 };
+    physecs::Collider capsuleCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), capsuleGeometry, { 0.4, 0.4 }, false, true, 0 };
     auto col = registry.emplace<physecs::RigidBodyCollisionComponent>(capsule, std::vector{ capsuleCollider });
     glm::vec3 com;
     glm::mat3 invInertiaTensor;

@@ -22,19 +22,19 @@ struct TransformComponent {
 Additionally Physecs defines two components `RigidBodyCollisionComponent` and `RigidBodyDynamicComponent`. 
 
 ```c++
-  struct RigidBodyCollisionComponent {
-        std::vector<Collider> colliders;
-    };
+struct RigidBodyCollisionComponent {
+    std::vector<Collider> colliders;
+};
 
-  struct RigidBodyDynamicComponent {
-      float invMass;
-      glm::vec3 com;
-      glm::vec3 velocity;
-      glm::mat3 invInertiaTensor;
-      glm::vec3 angularVelocity;
-      bool isKinematic;
-      glm::mat3 invInertiaTensorWorld;
-  };
+struct RigidBodyDynamicComponent {
+    float invMass;
+    glm::vec3 com;
+    glm::vec3 velocity;
+    glm::mat3 invInertiaTensor;
+    glm::vec3 angularVelocity;
+    bool isKinematic;
+    glm::mat3 invInertiaTensorWorld;
+};
 ```
 
 `RigidBodyCollisionComponent` defines the shapes the entity uses for collision, and `RigidBodyDynamicComponent` defines the properties of the entity used for simulating motion. If an entity has a `RigidBodyCollisionComponent` but not a `RigidBodyDynamicComponent` it is treated as a static body.

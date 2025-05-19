@@ -89,7 +89,7 @@ I am developing this physics library for a specific game I am making and my engi
 
 ## Future plans
 
-- Fix boxes tilting when bounding off a flat surface
+- Fix bodies tilting when bounding off a flat surface when there is multiple contact points
 - Add multithreading
 - Continuous collision detection
 

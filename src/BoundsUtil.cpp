@@ -20,14 +20,14 @@ physecs::Bounds physecs::getBounds(entt::registry& registry, entt::entity entity
     return bounds;
 }
 
-physecs::Bounds physecs::getBounds(glm::vec3 pos, glm::quat or, const Geometry &geom) {
+physecs::Bounds physecs::getBounds(glm::vec3 pos, glm::quat ori, const Geometry &geom) {
     Bounds bounds;
     switch (geom.type) {
         case SPHERE: return getBoundsSphere(pos, geom.sphere.radius);
-        case CAPSULE: return getBoundsCapsule(pos, or, geom.capsule.halfHeight, geom.capsule.radius);
-        case BOX: return getBoundsBox(pos, or, geom.box.halfExtents);
-        case CONVEX_MESH: return getBoundsConvexMesh(pos, or, geom.convex.mesh, geom.convex.scale);
-        case TRIANGLE_MESH: return getBoundsTriangleMesh(pos, or, geom.triangleMesh.mesh);
+        case CAPSULE: return getBoundsCapsule(pos, ori, geom.capsule.halfHeight, geom.capsule.radius);
+        case BOX: return getBoundsBox(pos, ori, geom.box.halfExtents);
+        case CONVEX_MESH: return getBoundsConvexMesh(pos, ori, geom.convex.mesh, geom.convex.scale);
+        case TRIANGLE_MESH: return getBoundsTriangleMesh(pos, ori, geom.triangleMesh.mesh);
     }
     return bounds;
 }
@@ -36,17 +36,17 @@ physecs::Bounds physecs::getBoundsSphere(glm::vec3 pos, float radius) {
     return { pos - glm::vec3(radius), pos + glm::vec3(radius) };
 }
 
-physecs::Bounds physecs::getBoundsCapsule(glm::vec3 pos, glm::quat or, float halfHeight, float radius) {
-    glm::vec3 p0 = pos + or * glm::vec3(0, halfHeight, 0);
-    glm::vec3 p1 = pos + or * glm::vec3(0, -halfHeight, 0);
+physecs::Bounds physecs::getBoundsCapsule(glm::vec3 pos, glm::quat ori, float halfHeight, float radius) {
+    glm::vec3 p0 = pos + ori * glm::vec3(0, halfHeight, 0);
+    glm::vec3 p1 = pos + ori * glm::vec3(0, -halfHeight, 0);
     glm::vec3 min = glm::min(p0, p1) - radius;
     glm::vec3 max = glm::max(p0, p1) + radius;
     return { min, max };
 }
 
 
-physecs::Bounds physecs::getBoundsBox(glm::vec3 pos, glm::quat or, glm::vec3 halfExtents) {
-    glm::mat3 u = glm::toMat3(or);
+physecs::Bounds physecs::getBoundsBox(glm::vec3 pos, glm::quat ori, glm::vec3 halfExtents) {
+    glm::mat3 u = glm::toMat3(ori);
     glm::mat3 absU = glm::mat3(
         glm::abs(u[0]),
         glm::abs(u[1]),
@@ -58,10 +58,10 @@ physecs::Bounds physecs::getBoundsBox(glm::vec3 pos, glm::quat or, glm::vec3 hal
     return { pos - worldHalfExtents, pos + worldHalfExtents };
 }
 
-physecs::Bounds physecs::getBoundsConvexMesh(glm::vec3 pos, glm::quat or, ConvexMesh *mesh, glm::vec3 scale) {
+physecs::Bounds physecs::getBoundsConvexMesh(glm::vec3 pos, glm::quat ori, ConvexMesh *mesh, glm::vec3 scale) {
     glm::vec3 min(std::numeric_limits<float>().max()), max(std::numeric_limits<float>().lowest());
     for (auto& vertexPos : mesh->vertices) {
-        auto transformedPos = pos + or * (scale * vertexPos);
+        auto transformedPos = pos + ori * (scale * vertexPos);
         min = glm::min(min, transformedPos);
         max = glm::max(max, transformedPos);
     }
@@ -74,10 +74,10 @@ physecs::Bounds physecs::getBoundsTriangle(glm::vec3 a, glm::vec3 b, glm::vec3 c
     return { min, max };
 }
 
-physecs::Bounds physecs::getBoundsTriangleMesh(glm::vec3 pos, glm::quat or, TriangleMesh *mesh) {
+physecs::Bounds physecs::getBoundsTriangleMesh(glm::vec3 pos, glm::quat ori, TriangleMesh *mesh) {
     glm::vec3 min(std::numeric_limits<float>().max()), max(std::numeric_limits<float>().lowest());
     for (auto& vertex : mesh->vertices) {
-        auto transformedPos = pos + or * vertex;
+        auto transformedPos = pos + ori * vertex;
         min = glm::min(min, transformedPos);
         max = glm::max(max, transformedPos);
     }

@@ -22,7 +22,7 @@ void Demo::onCreate() {
     physecs::Collider platformCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), platformGeometry, { 0.4, 0.4 }, false, true, 0 };
     registry.emplace<physecs::RigidBodyCollisionComponent>(platform, std::vector{ platformCollider });
 
-    camera.position = glm::vec3(0, 5, 0);
+    camera.position = glm::vec3(0, 5, 10);
     light.direction = glm::vec3(-0.1, -1, -0.3);
 }
 

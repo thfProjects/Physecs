@@ -98,6 +98,7 @@ I am developing this physics library for a specific game I am making and my engi
 These are the some of the materials I used to learn about physics simulation and collision detection and other helpful resources:
 
 - https://box2d.org/publications/
+- https://box2d.org/posts/2024/02/solver2d/
 - Christer Ericson: "Real-Time Collision Detection"
 - Philip J. Schneider, David H. Eberly: "Geometric Tools for Computer Graphics"
 - David H. Eberly: "3D Game Engine Design: A Practical Approach to Real-Time Computer Graphics"

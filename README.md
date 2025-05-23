@@ -1,6 +1,6 @@
 # PhysECS
 
-Physecs is a real-time 3D rigid body physics engine using a sequential impulses TGS solver and built on top of EnTT ECS.
+Physecs is a real-time 3D rigid body physics engine using a sequential impulses TGS solver and built on top of [EnTT](https://github.com/skypjack/entt) ECS.
 
 ![ezgif-6eaa905df3ca2c](https://github.com/user-attachments/assets/413fecb5-1cd7-4276-a38b-a629f280085f)
 

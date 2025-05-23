@@ -69,6 +69,8 @@ physecs::Scene physicsScene = physecs::Scene(registry);
 In order to advance the simulation by an amount of time, call the `void simulate(float timeStep)` function on it.
 You can change the number of substeps and iterations on the physics scene to create more or less fidelity.
 
+Check out the demo for an example of usage.
+
 ## Dependencies
 
 - EnTT 3.12.2

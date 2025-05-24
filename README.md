@@ -71,6 +71,10 @@ You can change the number of substeps and iterations on the physics scene to cre
 
 Check out the demo for an example of usage.
 
+### Demo
+
+To build the demo, enable the `BUILD_DEMO` option in CMake.
+
 ## Dependencies
 
 - EnTT 3.12.2

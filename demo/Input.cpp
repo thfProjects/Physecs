@@ -1,4 +1,5 @@
 #include "Input.h"
+#include <algorithm>
 
 namespace {
     bool quit = false;

@@ -7,7 +7,7 @@ project(Physecs)
 
 include(FetchContent)
 
-option(BUILD_DEMO "Build demo" OFF)
+option(BUILD_DEMO "Build demo" ON)
 
 set(PHYSECS_LIB Physecs)
 
@@ -62,7 +62,10 @@ if (BUILD_DEMO)
 	target_include_directories("${PHYSECS_DEMO}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/entt-3.12.2/single_include/entt")
 	target_include_directories("${PHYSECS_DEMO}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glad3.3core/include")
 
-	target_link_libraries("${PHYSECS_DEMO}" PRIVATE "${PHYSECS_LIB}" SDL2::SDL2 SDL2::SDL2main opengl32)
+	target_link_libraries("${PHYSECS_DEMO}" PRIVATE "${PHYSECS_LIB}" SDL2::SDL2 SDL2::SDL2main)
+	if (MSVC)
+		target_link_libraries("${PHYSECS_DEMO}" PRIVATE opengl32)
+	endif ()
 
 	add_definitions(
 		-DTINYGLTF_IMPLEMENTATION

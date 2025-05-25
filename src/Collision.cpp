@@ -5,7 +5,7 @@
 #include "EPA.h"
 #include "GJK.h"
 #include "BoundsUtil.h"
-#include "collisionTriangleMesh.h"
+#include "CollisionTriangleMesh.h"
 #include "ContactsUtil.h"
 
 using namespace physecs;

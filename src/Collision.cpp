@@ -10,6 +10,19 @@
 
 using namespace physecs;
 
+#if __cplusplus >= 202302L
+    #define unreachable() std::unreachable()
+#else
+    #ifdef __GNUC__ // GCC, Clang, ICC
+        #define unreachable() (__builtin_unreachable())
+    #elifdef _MSC_VER // MSVC
+        #define unreachable() (__assume(false))
+    #else
+        [[noreturn]] inline void unreachable_impl() {}
+        #define unreachable() (unreachable_impl())
+    #endif
+#endif
+
 namespace {
     struct BoxEdgeContactInfo {
         int edge0;
@@ -912,6 +925,8 @@ bool physecs::collision(glm::vec3 pos0, glm::quat or0, Geometry &geom0, glm::vec
                     auto convex1 = geom1.convex;
                     return collisionSphereConvexMesh(pos0, sphere0.radius, pos1, or1, convex1.mesh, convex1.scale, results[0]);
                 }
+                default:
+                    unreachable();
             }
         }
         case CAPSULE: {
@@ -935,6 +950,8 @@ bool physecs::collision(glm::vec3 pos0, glm::quat or0, Geometry &geom0, glm::vec
                     auto convex1 = geom1.convex;
                     return collisionCapsuleConvexMesh(pos0, or0, capsule0.halfHeight, capsule0.radius, pos1, or1, convex1.mesh, convex1.scale, results[0]);
                 }
+                default:
+                    unreachable();
             }
         }
         case BOX: {
@@ -960,6 +977,8 @@ bool physecs::collision(glm::vec3 pos0, glm::quat or0, Geometry &geom0, glm::vec
                     auto convex1 = geom1.convex;
                     return collisionBoxConvexMesh(pos0, or0, box0.halfExtents, pos1, or1, convex1.mesh, convex1.scale, results[0]);
                 }
+                default:
+                    unreachable();
             }
         }
         case CONVEX_MESH: {
@@ -987,7 +1006,9 @@ bool physecs::collision(glm::vec3 pos0, glm::quat or0, Geometry &geom0, glm::vec
                     auto convex1 = geom1.convex;
                     return collisionConvexMeshConvexMesh(pos0, or0, convex0.mesh, convex0.scale, pos1, or1, convex1.mesh, convex1.scale, results[0]);
                 }
+                default: unreachable();
             }
         }
+        default: unreachable();
     }
 }

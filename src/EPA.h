@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include "GJK.h"
+#include <cstdio>
 
 namespace physecs {
 

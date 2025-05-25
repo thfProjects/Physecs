@@ -466,74 +466,76 @@ float sqrDistSegmentAABB(glm::vec3 p, glm::vec3 dir, float min, float max, glm::
 }
 
 float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3& q, TriangleFeature &triangleFeature, char &featureIndex) {
-    glm::vec3 ab = b - a;
-    glm::vec3 ac = c - a;
 
-    glm::vec3 ap = p - a;
+    {
+        glm::vec3 ab = b - a;
+        glm::vec3 ac = c - a;
+        glm::vec3 ap = p - a;
 
-    float d1 = glm::dot(ab, ap);
-    float d2 = glm::dot(ac, ap);
+        float d1 = glm::dot(ab, ap);
+        float d2 = glm::dot(ac, ap);
 
-    if (d1 <= 0.f && d2 <= 0.f) {
-        triangleFeature = TriangleFeature::VERTEX;
-        featureIndex = 0;
-        q = a;
-        goto end;
+        if (d1 <= 0.f && d2 <= 0.f) {
+            triangleFeature = TriangleFeature::VERTEX;
+            featureIndex = 0;
+            q = a;
+            goto end;
+        }
+
+        glm::vec3 bp = p - b;
+        float d3 = glm::dot(ab, bp);
+        float d4 = glm::dot(ac, bp);
+
+        if (d3 >= 0.f && d4 <= d3) {
+            triangleFeature = TriangleFeature::VERTEX;
+            featureIndex = 1;
+            q = b;
+            goto end;
+        }
+
+        float vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0.f && d3 <= 0.f) {
+            triangleFeature = TriangleFeature::EDGE;
+            featureIndex = 2;
+            q = a + d1 / (d1 - d3) * ab;
+            goto end;
+        }
+
+        glm::vec3 cp = p - c;
+        float d5 = glm::dot(ab, cp);
+        float d6 = glm::dot(ac, cp);
+
+        if (d6 >= 0.f && d5 <= d6) {
+            triangleFeature = TriangleFeature::VERTEX;
+            featureIndex = 2;
+            q = c;
+            goto end;
+        }
+
+        float va = d3 * d6 - d5 * d4;
+        if (va <= 0 && d4 >= d3 && d5 >= d6) {
+            triangleFeature = TriangleFeature::EDGE;
+            featureIndex = 0;
+            q = b + (d4 - d3) / (d4 - d3 + d5 - d6) * (c - b);
+            goto end;
+        }
+
+        float vb = d5 * d2 - d1 * d6;
+        if (vb <= 0 && d2 >= 0.f && d6 <= 0.f) {
+            triangleFeature = TriangleFeature::EDGE;
+            featureIndex = 1;
+            q = c + d2 / (d2 - d6) * ac;
+            goto end;
+        }
+
+        //p must project on face
+        triangleFeature = TriangleFeature::FACE;
+        float denom = va + vb + vc;
+        float u = va / denom;
+        float v = vb / denom;
+        float w = 1 - u - v;
+        q = u * a + v * b + w * c;
     }
-
-    glm::vec3 bp = p - b;
-    float d3 = glm::dot(ab, bp);
-    float d4 = glm::dot(ac, bp);
-
-    if (d3 >= 0.f && d4 <= d3) {
-        triangleFeature = TriangleFeature::VERTEX;
-        featureIndex = 1;
-        q = b;
-        goto end;
-    }
-
-    float vc = d1 * d4 - d3 * d2;
-    if (vc <= 0 && d1 >= 0.f && d3 <= 0.f) {
-        triangleFeature = TriangleFeature::EDGE;
-        featureIndex = 2;
-        q = a + d1 / (d1 - d3) * ab;
-        goto end;
-    }
-
-    glm::vec3 cp = p - c;
-    float d5 = glm::dot(ab, cp);
-    float d6 = glm::dot(ac, cp);
-
-    if (d6 >= 0.f && d5 <= d6) {
-        triangleFeature = TriangleFeature::VERTEX;
-        featureIndex = 2;
-        q = c;
-        goto end;
-    }
-
-    float va = d3 * d6 - d5 * d4;
-    if (va <= 0 && d4 >= d3 && d5 >= d6) {
-        triangleFeature = TriangleFeature::EDGE;
-        featureIndex = 0;
-        q = b + (d4 - d3) / (d4 - d3 + d5 - d6) * (c - b);
-        goto end;
-    }
-
-    float vb = d5 * d2 - d1 * d6;
-    if (vb <= 0 && d2 >= 0.f && d6 <= 0.f) {
-        triangleFeature = TriangleFeature::EDGE;
-        featureIndex = 1;
-        q = c + d2 / (d2 - d6) * ac;
-        goto end;
-    }
-
-    //p must project on face
-    triangleFeature = TriangleFeature::FACE;
-    float denom = va + vb + vc;
-    float u = va / denom;
-    float v = vb / denom;
-    float w = 1 - u - v;
-    q = u * a + v * b + w * c;
 
 end:
     glm::vec3 d = q - p;

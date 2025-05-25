@@ -1,4 +1,4 @@
-#include "collisionTriangleMesh.h"
+#include "CollisionTriangleMesh.h"
 #include "BoundsUtil.h"
 #include "Clipping.h"
 #include "GeomUtil.h"

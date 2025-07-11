@@ -22,6 +22,9 @@ namespace physecs {
     class PHYSECS_API TriangleMesh {
         const static int numBuckets = 6;
 
+        std::vector<int> stack;
+        std::vector<int> overlapTriangles;
+
         void updateNodeBounds(int nodeId);
         bool fillBuckets(int nodeId, int axis, Bounds* bucketsBounds, int* bucketsCounts);
         static bool evaluateSplit(int splitIndex, Bounds* bucketsBounds, int* bucketsCounts, float& cost, Bounds& boundsLeft, Bounds& boundsRight, int& countLeft, int& countRight);
@@ -37,6 +40,6 @@ namespace physecs {
 
         TriangleMesh(const std::vector<glm::vec3> &vertices, const std::vector<unsigned int>& indices);
 
-        std::vector<int> overlapBvh(const Bounds &bounds);
+        const std::vector<int>& overlapBvh(const Bounds &bounds);
     };
 }

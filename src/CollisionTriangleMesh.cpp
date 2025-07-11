@@ -882,7 +882,7 @@ bool physecs::collisionTriangleMesh(glm::vec3 pos0, glm::quat or0, const Geometr
     glm::quat localOr = invOr1 * or0;
     Bounds localBounds = getBounds(localPos, localOr, geom0);
 
-    std::vector<int> potentialOverlaps = mesh1->overlapBvh(localBounds);
+    const std::vector<int>& potentialOverlaps = mesh1->overlapBvh(localBounds);
 
     if (potentialOverlaps.empty()) return false;
 

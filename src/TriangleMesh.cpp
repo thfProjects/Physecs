@@ -1,4 +1,7 @@
 #include "TriangleMesh.h"
+
+#include <chrono>
+
 #include "BoundsUtil.h"
 
 void physecs::TriangleMesh::updateNodeBounds(int nodeId) {
@@ -158,25 +161,29 @@ physecs::TriangleMesh::TriangleMesh(const std::vector<glm::vec3> &vertices, cons
     bvh.push_back({ {}, static_cast<int>(triangles.size()), 0 });
     updateNodeBounds(rootId);
     subdivide(rootId);
+    stack.reserve(triangles.size());
 }
 
-void physecs::TriangleMesh::overlapBvhNode(const Bounds &bounds, int nodeId, std::vector<int>& overlapTriangles) {
-    const auto& node = bvh[nodeId];
-    if (intersects(bounds, node.bounds)) {
-        if (node.triCount) {
-            for (int i = 0; i < node.triCount; ++i) {
-                overlapTriangles.push_back(node.index + i);
+const std::vector<int>& physecs::TriangleMesh::overlapBvh(const Bounds &bounds) {
+    overlapTriangles.clear();
+
+    stack.clear();
+    stack.push_back(rootId);
+    while (!stack.empty()) {
+        const auto& node = bvh[stack.back()];
+        stack.pop_back();
+        if (intersects(bounds, node.bounds)) {
+            if (node.triCount) {
+                for (int i = 0; i < node.triCount; ++i) {
+                    overlapTriangles.push_back(node.index + i);
+                }
+            }
+            else {
+                stack.push_back(node.index + 1);
+                stack.push_back(node.index);
             }
         }
-        else {
-            overlapBvhNode(bounds, node.index, overlapTriangles);
-            overlapBvhNode(bounds, node.index + 1, overlapTriangles);
-        }
     }
-}
 
-std::vector<int> physecs::TriangleMesh::overlapBvh(const Bounds &bounds) {
-    std::vector<int> overlapTriangles;
-    overlapBvhNode(bounds, rootId, overlapTriangles);
     return overlapTriangles;
 }

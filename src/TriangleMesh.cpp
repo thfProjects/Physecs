@@ -27,7 +27,7 @@ bool physecs::TriangleMesh::fillBuckets(int nodeId, int axis, Bounds *bucketsBou
 
     for (int i = 0; i < node.triCount; ++i) {
         auto& tri = triangles[node.index + i];
-        int bucketIndex = static_cast<int>((tri.centroid[axis] - boundsStart) / boundsLength * numBuckets);
+        int bucketIndex = glm::min(numBuckets - 1, static_cast<int>((tri.centroid[axis] - boundsStart) / boundsLength * numBuckets));
         bucketsBounds[bucketIndex] = getUnion(bucketsBounds[bucketIndex], tri.bounds);
         bucketsCounts[bucketIndex]++;
     }

@@ -77,6 +77,7 @@ namespace physecs {
             int colliderIndex;
             Bounds bounds;
             int nodeId;
+            bool nodeDirty;
             bool enableSimulation;
         };
 
@@ -156,7 +157,8 @@ namespace physecs {
         void onRigidBodyDelete(entt::registry& registry, entt::entity entity);
         void onRigidBodyMove(entt::registry& registry, entt::entity entity);
 
-        void updateBoundsAndBVH(entt::entity entity);
+        void updateBounds(entt::entity entity);
+        void updateBVH();
 
         entt::entity raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance);
         void overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, int filter, std::vector<OverlapHit>& out);

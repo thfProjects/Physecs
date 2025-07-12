@@ -25,7 +25,7 @@ void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity en
         auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
         int nodeId = bvh.insert(entity, i, bounds);
         colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, collider.enableSimulation });
+        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation });
     }
 }
 
@@ -43,10 +43,10 @@ void physecs::Scene::onRigidBodyDelete(entt::registry& registry, entt::entity en
 
 void physecs::Scene::onRigidBodyMove(entt::registry& registry, entt::entity entity) {
     if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
-    updateBoundsAndBVH(entity);
+    updateBounds(entity);
 }
 
-void physecs::Scene::updateBoundsAndBVH(entt::entity entity) {
+void physecs::Scene::updateBounds(entt::entity entity) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
     for (int i = 0; i < col.colliders.size(); ++i) {
@@ -55,7 +55,7 @@ void physecs::Scene::updateBoundsAndBVH(entt::entity entity) {
         auto& broadPhaseEntry = broadPhaseEntries[broadPhaseId];
         broadPhaseEntry.bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
         broadPhaseEntry.bounds.addMargin(glm::vec3(0.01f));
-        bvh.update(broadPhaseEntry.nodeId, broadPhaseEntry.bounds);
+        broadPhaseEntry.nodeDirty = true;
     }
 }
 
@@ -441,10 +441,18 @@ void physecs::Scene::simulate(float timeStep) {
     triggerCache.swap(triggerCacheTemp);
     contactCache.swap(contactCacheTemp);
 
-    //update bounds and BVH
+    //update bounds
     for (auto [entity, rigidDynamic] : registry.view<RigidBodyDynamicComponent>().each()) {
         if (rigidDynamic.isKinematic) continue;
-        updateBoundsAndBVH(entity);
+        updateBounds(entity);
+    }
+}
+
+void physecs::Scene::updateBVH() {
+    for (auto& broadPhaseEntry : broadPhaseEntries) {
+        if (!broadPhaseEntry.nodeDirty) continue;
+        bvh.update(broadPhaseEntry.nodeId, broadPhaseEntry.bounds);
+        broadPhaseEntry.nodeDirty = false;
     }
 }
 
@@ -490,6 +498,7 @@ entt::entity physecs::Scene::raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 
 }
 
 entt::entity physecs::Scene::raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir, float maxDistance, glm::vec3* hitPos) {
+    updateBVH();
     float distance;
     entt::entity entity = raycastClosestBVHNode(rayOrig, rayDir, bvh.getRootId(), maxDistance, {}, distance);
     if (hitPos) *hitPos = rayOrig + rayDir * distance;
@@ -497,6 +506,7 @@ entt::entity physecs::Scene::raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir,
 }
 
 entt::entity physecs::Scene::raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir, float maxDistance, const std::function<bool(entt::entity)>& filter, glm::vec3 *hitPos) {
+    updateBVH();
     float distance;
     entt::entity entity = raycastClosestBVHNode(rayOrig, rayDir, bvh.getRootId(), maxDistance, filter, distance);
     if (hitPos) *hitPos = rayOrig + rayDir * distance;
@@ -521,6 +531,7 @@ void physecs::Scene::overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geome
 }
 
 std::vector<physecs::OverlapHit> physecs::Scene::overlap(glm::vec3 pos, glm::quat ori, Geometry geometry, int filter) {
+    updateBVH();
     auto bounds = getBounds(pos, ori, geometry);
     std::vector<OverlapHit> out;
     overlapBVHNode(pos, ori, geometry, bounds, bvh.getRootId(), filter, out);
@@ -557,6 +568,7 @@ void physecs::Scene::overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry ge
 }
 
 std::vector<physecs::OverlapMtdHit> physecs::Scene::overlapWithMinTranslationalDistance(glm::vec3 pos, glm::quat ori, Geometry geometry) {
+    updateBVH();
     auto bounds = getBounds(pos, ori, geometry);
     std::vector<OverlapMtdHit> out;
     overlapMtdBVHNode(pos, ori, geometry, bounds, bvh.getRootId(), out);
@@ -594,7 +606,7 @@ void physecs::Scene::addCollider(entt::entity entity, const Collider &collider) 
     auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
     int nodeId = bvh.insert(entity, i, bounds);
     colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, collider.enableSimulation });
+    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation });
 
     col.colliders.push_back(collider);
 }

@@ -1,5 +1,7 @@
 #include "Physecs.h"
 #include <chrono>
+#include <execution>
+
 #include "BoundsUtil.h"
 #include "Collision.h"
 #include "Constraint1D.h"
@@ -11,6 +13,10 @@
 #include "Overlap.h"
 #include "Raycast.h"
 #include "ContactManifold.h"
+#include <Tracy.hpp>
+#include <TracyC.h>
+
+const char* frameName = "Solver";
 
 physecs::ContactType physecs::defaultContactFilter(bool isTrigger0, int data0, bool isTrigger1, int data1) {
     if (isTrigger0 || isTrigger1) return TRIGGER;
@@ -293,10 +299,12 @@ void physecs::Scene::simulate(float timeStep) {
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
+    FrameMarkStart(frameName);
     float h = timeStep / numSubSteps;
     for (int m = 0; m < numSubSteps; ++m) {
 
         //update contact constraints
+        TracyCZoneN(ctx1, "update contact constraints", true);
         for (auto& contact : contactConstraints) {
 
             auto& n = contact.n;
@@ -354,8 +362,10 @@ void physecs::Scene::simulate(float timeStep) {
                 contactPoint.c = cn;
             }
         }
+        TracyCZoneEnd(ctx1);
 
         //update joint constraints
+        TracyCZoneN(ctx2, "update joint constraints", true);
         int index = 0;
         for (auto& joint : joints) {
             joint->makeConstraints(jointConstraints.data() + index, registry);
@@ -368,8 +378,10 @@ void physecs::Scene::simulate(float timeStep) {
             }
             index += numConstraints;
         }
+        TracyCZoneEnd(ctx2);
 
         //integrate velocities and update world space inertia tensors
+        TracyCZoneN(ctx3, "Integrate velocities", true);
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
@@ -390,9 +402,11 @@ void physecs::Scene::simulate(float timeStep) {
             //update world space inertia tensor
             rigidDynamic.invInertiaTensorWorld = rot * rigidDynamic.invInertiaTensor * invRot;
         }
+        TracyCZoneEnd(ctx3);
 
         //constraint solve
         for (int i = 0; i < numIterations; ++i) {
+            ZoneScopedN("constraint solve");
             for (auto& constraints : contactConstraints) {
                 constraints.solve(true, h);
             }
@@ -402,6 +416,7 @@ void physecs::Scene::simulate(float timeStep) {
         }
 
         //integrate positions
+        TracyCZoneN(ctx4, "integrate positions", true);
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
@@ -414,6 +429,7 @@ void physecs::Scene::simulate(float timeStep) {
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
         }
+        TracyCZoneEnd(ctx4);
 
         //relaxation
         for (auto& constraints : contactConstraints) {
@@ -425,6 +441,7 @@ void physecs::Scene::simulate(float timeStep) {
             constraint.solve(false);
         }
     }
+    FrameMarkEnd(frameName);
 
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms_double = t2 - t1;

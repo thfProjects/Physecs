@@ -439,10 +439,6 @@ void physecs::Scene::simulate(float timeStep) {
             if (constraints.isSoft) continue;
             constraints.solve(false);
         }
-        for (auto& constraint : jointConstraints) {
-            if (constraint.flags & Constraint1D::SOFT) continue;
-            constraint.solve(false);
-        }
         TracyCZoneEnd(ctx5);
     }
     FrameMarkEnd(frameName);

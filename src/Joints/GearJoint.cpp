@@ -33,7 +33,7 @@ void physecs::GearJoint::init() {
     }
 }
 
-void physecs::GearJoint::makeConstraints(Constraint1D *constraints, entt::registry &registry) {
+void physecs::GearJoint::makeConstraints(Constraint1D *constraints) {
     glm::vec3 p0, p1, r0, r1;
     glm::mat3 u0, u1;
     getJointData(p0, p1, r0, r1, u0, u1);

@@ -28,7 +28,7 @@ namespace physecs {
         Joint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or, int numConstraints = 0) : entity0(entity0), entity1(entity1), anchor0Pos(anchor0Pos), anchor0Or(anchor0Or), anchor1Pos(anchor1Pos), anchor1Or(anchor1Or), numConstraints(numConstraints) {}
         void getJointData(glm::vec3& p0, glm::vec3& p1, glm::vec3& r0, glm::vec3& r1, glm::mat3& u0, glm::mat3& u1) const;
     public:
-        virtual void makeConstraints(Constraint1D* constraints, entt::registry& registry) = 0;
+        virtual void makeConstraints(Constraint1D* constraints) = 0;
         virtual void calculateNumConstraints(entt::registry& registry) {}
         void update(entt::registry& registry);
         entt::entity getEntity0() const { return entity0; }

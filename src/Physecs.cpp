@@ -369,13 +369,14 @@ void physecs::Scene::simulate(float timeStep) {
         TracyCZoneN(ctx2, "update joint constraints", true);
         int index = 0;
         for (auto& joint : joints) {
-            joint->makeConstraints(jointConstraints.data() + index, registry);
+            joint->makeConstraints(jointConstraints.data() + index);
             int numConstraints = joint->getNumConstraints();
             int endIndex = index + numConstraints;
             for (int i = index; i < endIndex; ++i) {
-                jointConstraints[i].prepare();
-                jointConstraints[i].correctPositionError();
-                if (!(jointConstraints[i].flags & Constraint1D::SOFT) && glm::abs(jointConstraints[i].c) < 1e-4 && glm::abs(jointConstraints[i].totalLambda) < 10000) jointConstraints[i].warmStart();
+                auto& jointConstraint = jointConstraints[i];
+                jointConstraint.prepare();
+                jointConstraint.correctPositionError();
+                if (!(jointConstraint.flags & Constraint1D::SOFT) && glm::abs(jointConstraint.c) < 1e-4 && glm::abs(jointConstraint.totalLambda) < 10000) jointConstraint.warmStart();
             }
             index += numConstraints;
         }

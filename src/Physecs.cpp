@@ -375,7 +375,6 @@ void physecs::Scene::simulate(float timeStep) {
             for (int i = index; i < endIndex; ++i) {
                 auto& jointConstraint = jointConstraints[i];
                 jointConstraint.prepare();
-                jointConstraint.correctPositionError();
                 if (!(jointConstraint.flags & Constraint1D::SOFT) && glm::abs(jointConstraint.c) < 1e-4 && glm::abs(jointConstraint.totalLambda) < 10000) jointConstraint.warmStart();
             }
             index += numConstraints;

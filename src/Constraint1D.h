@@ -36,6 +36,5 @@ namespace physecs {
         void prepare();
         void solve(bool useBias, float timeStep = 0);
         void warmStart();
-        void correctPositionError();
     };
 }

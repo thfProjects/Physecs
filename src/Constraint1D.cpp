@@ -23,6 +23,24 @@ void physecs::Constraint1D::prepare() {
     if (!(flags & ANGULAR)) {
         invEffMass += glm::dot(n, n) * (invMass0 + invMass1);
     }
+
+    //correct position error
+    if (flags & SOFT || !c || !invEffMass) return;
+
+    float lambda = 0.2f * c / invEffMass;
+    if (flags & LIMITED)
+        lambda = glm::clamp(lambda, min, max);
+
+    if (!(flags & ANGULAR)) {
+        transform0.position += lambda * invMass0 * n;
+        transform1.position -= lambda * invMass1 * n;
+    }
+
+    transform0.orientation += 0.5f * glm::quat(0, lambda * r0xnt) * transform0.orientation;
+    transform0.orientation = glm::normalize(transform0.orientation);
+
+    transform1.orientation -= 0.5f * glm::quat(0, lambda * r1xnt) * transform1.orientation;
+    transform1.orientation = glm::normalize(transform1.orientation);
 }
 
 void physecs::Constraint1D::solve(bool useBias, float timeStep) {
@@ -93,33 +111,4 @@ void physecs::Constraint1D::warmStart() {
             dynamic1->velocity -= totalLambda * dynamic1->invMass * n;
         dynamic1->angularVelocity -= totalLambda * r1xnt;
     }
-}
-
-void physecs::Constraint1D::correctPositionError() {
-    if (flags & SOFT || !c || !invEffMass) return;
-
-    float invMass0 = 0;
-    if (dynamic0 && !dynamic0->isKinematic) {
-        invMass0 = dynamic0->invMass;
-    }
-
-    float invMass1 = 0;
-    if (dynamic1 && !dynamic1->isKinematic) {
-        invMass1 = dynamic1->invMass;
-    }
-
-    float lambda = 0.2f * c / invEffMass;
-    if (min > std::numeric_limits<float>::lowest() || max < std::numeric_limits<float>::max())
-        lambda = glm::clamp(lambda, min, max);
-
-    if (!(flags & ANGULAR)) {
-        transform0.position += lambda * invMass0 * n;
-        transform1.position -= lambda * invMass1 * n;
-    }
-
-    transform0.orientation += 0.5f * glm::quat(0, lambda * r0xnt) * transform0.orientation;
-    transform0.orientation = glm::normalize(transform0.orientation);
-
-    transform1.orientation -= 0.5f * glm::quat(0, lambda * r1xnt) * transform1.orientation;
-    transform1.orientation = glm::normalize(transform1.orientation);
 }

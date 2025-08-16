@@ -10,10 +10,10 @@ void physecs::GearJoint::setGearRatio(float gearRatio) {
     this->gearRatio = gearRatio;
 }
 
-void physecs::GearJoint::init(entt::registry &registry) {
+void physecs::GearJoint::init() {
     glm::vec3 p0, p1, r0, r1;
     glm::mat3 u0, u1;
-    getJointData(registry, p0, p1, r0, r1, u0, u1);
+    getJointData(p0, p1, r0, r1, u0, u1);
 
     {
         glm::vec3 p1Proj = p1 + glm::dot(p0 - p1, u0[0]) * u0[0];
@@ -36,7 +36,7 @@ void physecs::GearJoint::init(entt::registry &registry) {
 void physecs::GearJoint::makeConstraints(Constraint1D *constraints, entt::registry &registry) {
     glm::vec3 p0, p1, r0, r1;
     glm::mat3 u0, u1;
-    getJointData(registry, p0, p1, r0, r1, u0, u1);
+    getJointData(p0, p1, r0, r1, u0, u1);
 
     float angle0, angle1;
     {

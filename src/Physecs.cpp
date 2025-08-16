@@ -282,6 +282,7 @@ void physecs::Scene::simulate(float timeStep) {
     //create joint constraints
     jointConstraints.clear();
     for (auto& joint : joints) {
+        joint->update(registry);
         joint->calculateNumConstraints(registry);
         for (int i = 0; i < joint->getNumConstraints(); ++i) {
             auto entity0 = joint->getEntity0();
@@ -368,9 +369,7 @@ void physecs::Scene::simulate(float timeStep) {
         TracyCZoneN(ctx2, "update joint constraints", true);
         int index = 0;
         for (auto& joint : joints) {
-            TracyCZoneN(ctx6, "make constraints", true);
             joint->makeConstraints(jointConstraints.data() + index, registry);
-            TracyCZoneEnd(ctx6);
             int numConstraints = joint->getNumConstraints();
             int endIndex = index + numConstraints;
             for (int i = index; i < endIndex; ++i) {

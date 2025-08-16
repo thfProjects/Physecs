@@ -2,15 +2,16 @@
 #include "Components.h"
 #include "Transform.h"
 
-void physecs::Joint::getJointData(entt::registry& registry, glm::vec3& p0, glm::vec3& p1, glm::vec3 &r0, glm::vec3 &r1, glm::mat3 &u0, glm::mat3 &u1) {
-    auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
-    auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
+void physecs::Joint::update(entt::registry& registry) {
+    transform0 = &registry.get<TransformComponent>(entity0);
+    transform1 = &registry.get<TransformComponent>(entity1);
+    dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
+    dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
+}
 
-    auto& transform0 = registry.get<TransformComponent>(entity0);
-    auto& transform1 = registry.get<TransformComponent>(entity1);
-
-    glm::mat3 rot0 = glm::toMat3(transform0.orientation);
-    glm::mat3 rot1 = glm::toMat3(transform1.orientation);
+void physecs::Joint::getJointData(glm::vec3& p0, glm::vec3& p1, glm::vec3 &r0, glm::vec3 &r1, glm::mat3 &u0, glm::mat3 &u1) const {
+    const glm::mat3 rot0 = glm::toMat3(transform0->orientation);
+    const glm::mat3 rot1 = glm::toMat3(transform1->orientation);
 
     glm::vec3 com0(0);
     if (dynamic0 && !dynamic0->isKinematic) {
@@ -28,6 +29,6 @@ void physecs::Joint::getJointData(entt::registry& registry, glm::vec3& p0, glm::
     r0 = rot0 * (anchor0Pos - com0);
     r1 = rot1 * (anchor1Pos - com1);
 
-    p0 = transform0.position + rot0 * anchor0Pos;
-    p1 = transform1.position + rot1 * anchor1Pos;
+    p0 = transform0->position + rot0 * anchor0Pos;
+    p1 = transform1->position + rot1 * anchor1Pos;
 }

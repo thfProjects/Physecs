@@ -432,6 +432,7 @@ void physecs::Scene::simulate(float timeStep) {
         TracyCZoneEnd(ctx4);
 
         //relaxation
+        TracyCZoneN(ctx5, "relaxation", true);
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;
             constraints.solve(false);
@@ -440,6 +441,7 @@ void physecs::Scene::simulate(float timeStep) {
             if (constraint.flags & Constraint1D::SOFT) continue;
             constraint.solve(false);
         }
+        TracyCZoneEnd(ctx5);
     }
     FrameMarkEnd(frameName);
 

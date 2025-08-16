@@ -19,17 +19,22 @@ set_property(TARGET "${PHYSECS_LIB}" PROPERTY CXX_STANDARD 17)
 
 set_property(TARGET "${PHYSECS_LIB}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
-target_sources("${PHYSECS_LIB}" PRIVATE ${LIB_SOURCES})
+set(TRACY_CLIENT_SRC "C:/Users/slam/Desktop/Programiranje/C++Libs/tracy-0.12.2/public/TracyClient.cpp")
+
+target_sources("${PHYSECS_LIB}" PRIVATE ${LIB_SOURCES} ${TRACY_CLIENT_SRC})
 
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories("${PHYSECS_LIB}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs")
 target_include_directories("${PHYSECS_LIB}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs/Joints")
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glm 0.9.9.8")
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/entt-3.12.2/single_include/entt")
+target_include_directories("${PHYSECS_LIB}" PUBLIC "C:/Users/slam/Desktop/Programiranje/C++Libs/tracy-0.12.2/public/tracy")
 
 add_definitions(
 		-DGLM_FORCE_INLINE
 		-DPHYSECS_EXPORTS
+		-DTRACY_ENABLE
+		-DTRACY_NO_SAMPLING
 )
 
 if (BUILD_DEMO)

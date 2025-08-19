@@ -84,6 +84,8 @@ void physecs::Scene::setGravity(float gravity) {
 }
 
 void physecs::Scene::simulate(float timeStep) {
+    FrameMarkStart(frameName);
+    ZoneScoped;
     //SAP broad-phase
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
         auto broadPhaseEntry = broadPhaseEntries[i];
@@ -280,6 +282,7 @@ void physecs::Scene::simulate(float timeStep) {
     }
 
     //create joint constraints
+    TracyCZoneN(ctx7, "create joint constraints", true);
     jointConstraints.clear();
     for (auto& joint : joints) {
         joint->update(registry);
@@ -297,10 +300,10 @@ void physecs::Scene::simulate(float timeStep) {
             jointConstraints.emplace_back(transform0, transform1, dynamic0, dynamic1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0, 0, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
         }
     }
+    TracyCZoneEnd(ctx7);
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    FrameMarkStart(frameName);
     float h = timeStep / numSubSteps;
     for (int m = 0; m < numSubSteps; ++m) {
 
@@ -440,7 +443,6 @@ void physecs::Scene::simulate(float timeStep) {
         }
         TracyCZoneEnd(ctx5);
     }
-    FrameMarkEnd(frameName);
 
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms_double = t2 - t1;
@@ -462,6 +464,7 @@ void physecs::Scene::simulate(float timeStep) {
         if (rigidDynamic.isKinematic) continue;
         updateBounds(entity);
     }
+    FrameMarkEnd(frameName);
 }
 
 void physecs::Scene::updateBVH() {

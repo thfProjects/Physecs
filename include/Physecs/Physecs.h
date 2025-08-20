@@ -145,6 +145,7 @@ namespace physecs {
         BVH bvh;
         std::unordered_map<BroadPhaseEntryKey, int, BroadPhaseEntryHash> colToBroadPhaseEntry;
         std::vector<Joint*> joints;
+        std::vector<JointSolverData> jointSolverDataBuffer;
         std::unordered_set<EntityPair, EntityPairHash> nonCollidingPairs;
         std::unordered_set<ContactPair, ContactHash> triggerCache;
         std::unordered_set<ContactPair, ContactHash> triggerCacheTemp;
@@ -178,7 +179,6 @@ namespace physecs {
         template<typename T>
         T* createJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) {
             T* joint = new T(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or);
-            joint->update(registry);
             joints.push_back(joint);
             nonCollidingPairs.insert(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
             return joint;

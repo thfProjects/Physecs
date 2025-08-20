@@ -1,18 +1,9 @@
 #include "RevoluteJoint.h"
 #include "Constraint1D.h"
 
-void physecs::RevoluteJoint::setDriveEnabled(bool enabled) {
-    driveEnabled = enabled;
-}
-
-void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
-    driveVelocity = velocity;
-}
-
-void physecs::RevoluteJoint::makeConstraints(Constraint1D* constraints) {
-    glm::vec3 p0, p1, r0, r1;
-    glm::mat3 u0, u1;
-    getJointData(p0, p1, r0, r1, u0, u1);
+void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
+    auto& [driveEnabled, driveVelocity] = *static_cast<RevoluteJointData*>(additionalData);
 
     glm::vec3 d = p1 - p0;
 
@@ -49,6 +40,28 @@ void physecs::RevoluteJoint::makeConstraints(Constraint1D* constraints) {
     }
 }
 
-void physecs::RevoluteJoint::calculateNumConstraints(entt::registry &registry) {
-    numConstraints = driveEnabled ? 4 : 3;
+void physecs::RevoluteJoint::setDriveEnabled(bool enabled) {
+    data.driveEnabled = enabled;
+}
+
+void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
+    data.driveVelocity = velocity;
+}
+
+physecs::JointSolverData physecs::RevoluteJoint::getSolverData(entt::registry &registry) {
+    const int numConstraints = data.driveEnabled ? 4 : 3;
+
+    return {
+        registry.get<TransformComponent>(entity0),
+        registry.get<TransformComponent>(entity1),
+        registry.try_get<RigidBodyDynamicComponent>(entity0),
+        registry.try_get<RigidBodyDynamicComponent>(entity1),
+        anchor0Pos,
+        anchor0Or,
+        anchor1Pos,
+        anchor1Or,
+        numConstraints,
+        &data,
+        makeConstraints
+    };
 }

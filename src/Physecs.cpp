@@ -283,11 +283,11 @@ void physecs::Scene::simulate(float timeStep) {
 
     //create joint constraints
     TracyCZoneN(ctx7, "create joint constraints", true);
+    jointSolverDataBuffer.clear();
     jointConstraints.clear();
     for (auto& joint : joints) {
-        joint->update(registry);
-        joint->calculateNumConstraints(registry);
-        for (int i = 0; i < joint->getNumConstraints(); ++i) {
+        jointSolverDataBuffer.push_back(joint->getSolverData(registry));
+        for (int i = 0; i < jointSolverDataBuffer.back().numConstraints; ++i) {
             auto entity0 = joint->getEntity0();
             auto entity1 = joint->getEntity1();
 
@@ -371,16 +371,17 @@ void physecs::Scene::simulate(float timeStep) {
         //update joint constraints
         TracyCZoneN(ctx2, "update joint constraints", true);
         int index = 0;
-        for (auto& joint : joints) {
-            joint->makeConstraints(jointConstraints.data() + index);
-            int numConstraints = joint->getNumConstraints();
-            int endIndex = index + numConstraints;
+        for (auto& jointSolverData : jointSolverDataBuffer) {
+            JointWorldSpaceData worldSpaceData;
+            jointSolverData.calculateWorldSpaceData(worldSpaceData);
+            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, jointConstraints.data() + index);
+            int endIndex = index + jointSolverData.numConstraints;
             for (int i = index; i < endIndex; ++i) {
                 auto& jointConstraint = jointConstraints[i];
                 jointConstraint.prepare();
                 if (!(jointConstraint.flags & Constraint1D::SOFT) && glm::abs(jointConstraint.c) < 1e-4 && glm::abs(jointConstraint.totalLambda) < 10000) jointConstraint.warmStart();
             }
-            index += numConstraints;
+            index = endIndex;
         }
         TracyCZoneEnd(ctx2);
 

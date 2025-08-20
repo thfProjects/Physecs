@@ -2,22 +2,9 @@
 #include "Constraint1D.h"
 #include <glm/gtx/vector_angle.hpp>
 
-void physecs::ServoJoint::setTargetAngle(float angle) {
-    targetAngle = angle;
-}
-
-void physecs::ServoJoint::setDriveStiffness(float stiffness) {
-    driveStiffness = stiffness;
-}
-
-void physecs::ServoJoint::setDriveDamping(float damping) {
-    driveDamping = damping;
-}
-
-void physecs::ServoJoint::makeConstraints(Constraint1D* constraints) {
-    glm::vec3 p0, p1, r0, r1;
-    glm::mat3 u0, u1;
-    getJointData(p0, p1, r0, r1, u0, u1);
+void physecs::ServoJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
+    auto& [targetAngle, driveStiffness, driveDamping] = *static_cast<ServoJointData*>(additionalData);
 
     glm::vec3 d = p1 - p0;
 
@@ -52,4 +39,32 @@ void physecs::ServoJoint::makeConstraints(Constraint1D* constraints) {
     constraints[3].frequency = driveStiffness;
     constraints[3].dampingRatio = driveDamping;
     constraints[3].flags |= Constraint1D::ANGULAR | Constraint1D::SOFT;
+}
+
+void physecs::ServoJoint::setTargetAngle(float angle) {
+    data.targetAngle = angle;
+}
+
+void physecs::ServoJoint::setDriveStiffness(float stiffness) {
+    data.driveStiffness = stiffness;
+}
+
+void physecs::ServoJoint::setDriveDamping(float damping) {
+    data.driveDamping = damping;
+}
+
+physecs::JointSolverData physecs::ServoJoint::getSolverData(entt::registry &registry) {
+    return {
+        registry.get<TransformComponent>(entity0),
+        registry.get<TransformComponent>(entity1),
+        registry.try_get<RigidBodyDynamicComponent>(entity0),
+        registry.try_get<RigidBodyDynamicComponent>(entity1),
+        anchor0Pos,
+        anchor0Or,
+        anchor1Pos,
+        anchor1Or,
+        numConstraints,
+        &data,
+        makeConstraints
+    };
 }

@@ -1,34 +1,9 @@
 #include "PrismaticJoint.h"
 #include "Constraint1D.h"
 
-void physecs::PrismaticJoint::setUpperLimit(float upperLimit) {
-    this->upperLimit = upperLimit;
-}
-
-void physecs::PrismaticJoint::setLowerLimit(float lowerLimit) {
-    this->lowerLimit = lowerLimit;
-}
-
-void physecs::PrismaticJoint::setDriveEnabled(bool driveEnabled) {
-    this->driveEnabled = driveEnabled;
-}
-
-void physecs::PrismaticJoint::setTargetPosition(float targetPosition) {
-    this->targetPosition = targetPosition;
-}
-
-void physecs::PrismaticJoint::setDriveStiffness(float driveStiffness) {
-    this->driveStiffness = driveStiffness;
-}
-
-void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
-    this->driveDamping = driveDamping;
-}
-
-void physecs::PrismaticJoint::makeConstraints(Constraint1D *constraints) {
-    glm::vec3 p0, p1, r0, r1;
-    glm::mat3 u0, u1;
-    getJointData(p0, p1, r0, r1, u0, u1);
+void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
+    auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointData*>(additionalData);
 
     glm::vec3 d = p1 - p0;
 
@@ -115,27 +90,69 @@ void physecs::PrismaticJoint::makeConstraints(Constraint1D *constraints) {
     }
 }
 
-void physecs::PrismaticJoint::calculateNumConstraints(entt::registry& registry) {
-    glm::vec3 p0, p1, r0, r1;
-    glm::mat3 u0, u1;
-    getJointData(p0, p1, r0, r1, u0, u1);
+void physecs::PrismaticJoint::setUpperLimit(float upperLimit) {
+    data.upperLimit = upperLimit;
+}
+
+void physecs::PrismaticJoint::setLowerLimit(float lowerLimit) {
+    data.lowerLimit = lowerLimit;
+}
+
+void physecs::PrismaticJoint::setDriveEnabled(bool driveEnabled) {
+    data.driveEnabled = driveEnabled;
+}
+
+void physecs::PrismaticJoint::setTargetPosition(float targetPosition) {
+    data.targetPosition = targetPosition;
+}
+
+void physecs::PrismaticJoint::setDriveStiffness(float driveStiffness) {
+    data.driveStiffness = driveStiffness;
+}
+
+void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
+    data.driveDamping = driveDamping;
+}
+
+physecs::JointSolverData physecs::PrismaticJoint::getSolverData(entt::registry &registry) {
+    auto& transform0 = registry.get<TransformComponent>(entity0);
+    auto& transform1 = registry.get<TransformComponent>(entity1);
+
+    glm::vec3 p0 = transform0.position + transform0.orientation * anchor0Pos;
+    glm::vec3 p1 = transform1.position + transform1.orientation * anchor1Pos;
 
     glm::vec3 d = p1 - p0;
 
-    float dx = glm::dot(d, u0[0]);
+    glm::vec3 u00 = transform0.orientation * anchor0Or * glm::vec3(1, 0, 0);
 
-    if (dx > upperLimit) {
-        makeUpperLimit = true;
-        makeLowerLimit = false;
+    float dx = glm::dot(d, u00);
+
+    if (dx > data.upperLimit) {
+        data.makeUpperLimit = true;
+        data.makeLowerLimit = false;
     }
-    else if (dx < lowerLimit) {
-        makeUpperLimit = false;
-        makeLowerLimit = true;
+    else if (dx < data.lowerLimit) {
+        data.makeUpperLimit = false;
+        data.makeLowerLimit = true;
     }
     else {
-        makeUpperLimit = false;
-        makeLowerLimit = false;
+        data.makeUpperLimit = false;
+        data.makeLowerLimit = false;
     }
 
-    numConstraints = 5 + (makeUpperLimit || makeLowerLimit) + driveEnabled;
+    const int numConstraints = 5 + (data.makeUpperLimit || data.makeLowerLimit) + data.driveEnabled;
+
+    return {
+        transform0,
+        transform1,
+        registry.try_get<RigidBodyDynamicComponent>(entity0),
+        registry.try_get<RigidBodyDynamicComponent>(entity1),
+        anchor0Pos,
+        anchor0Or,
+        anchor1Pos,
+        anchor1Or,
+        numConstraints,
+        &data,
+        makeConstraints
+    };
 }

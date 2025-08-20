@@ -1,10 +1,8 @@
 #include "UniversalJoint.h"
 #include "Constraint1D.h"
 
-void physecs::UniversalJoint::makeConstraints(Constraint1D* constraints) {
-    glm::vec3 p0, p1, r0, r1;
-    glm::mat3 u0, u1;
-    getJointData(p0, p1, r0, r1, u0, u1);
+void physecs::UniversalJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1D *constraints) {
+    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
     glm::vec3 d = p1 - p0;
 
@@ -24,4 +22,20 @@ void physecs::UniversalJoint::makeConstraints(Constraint1D* constraints) {
     constraints[1].r1xn = u12xu02;
     constraints[1].c = d22;
     constraints[1].flags |= Constraint1D::ANGULAR;
+}
+
+physecs::JointSolverData physecs::UniversalJoint::getSolverData(entt::registry &registry) {
+    return {
+        registry.get<TransformComponent>(entity0),
+        registry.get<TransformComponent>(entity1),
+        registry.try_get<RigidBodyDynamicComponent>(entity0),
+        registry.try_get<RigidBodyDynamicComponent>(entity1),
+        anchor0Pos,
+        anchor0Or,
+        anchor1Pos,
+        anchor1Or,
+        numConstraints,
+        nullptr,
+        makeConstraints
+    };
 }

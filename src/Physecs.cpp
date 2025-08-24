@@ -13,8 +13,7 @@
 #include "Overlap.h"
 #include "Raycast.h"
 #include "ContactManifold.h"
-#include <Tracy.hpp>
-#include <TracyC.h>
+#include "Profiling.h"
 
 const char* frameName = "Solver";
 
@@ -84,8 +83,8 @@ void physecs::Scene::setGravity(float gravity) {
 }
 
 void physecs::Scene::simulate(float timeStep) {
-    FrameMarkStart(frameName);
-    ZoneScoped;
+    PhysecsFrameMarkStart(frameName);
+    PhysecsZoneScoped;
     //SAP broad-phase
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
         auto broadPhaseEntry = broadPhaseEntries[i];
@@ -282,7 +281,7 @@ void physecs::Scene::simulate(float timeStep) {
     }
 
     //create joint constraints
-    TracyCZoneN(ctx7, "create joint constraints", true);
+    PhysecsZoneN(ctx7, "create joint constraints", true);
     jointSolverDataBuffer.clear();
     jointConstraints.clear();
     for (auto& joint : joints) {
@@ -300,7 +299,7 @@ void physecs::Scene::simulate(float timeStep) {
             jointConstraints.emplace_back(transform0, transform1, dynamic0, dynamic1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0, 0, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
         }
     }
-    TracyCZoneEnd(ctx7);
+    PhysecsZoneEnd(ctx7);
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -308,7 +307,7 @@ void physecs::Scene::simulate(float timeStep) {
     for (int m = 0; m < numSubSteps; ++m) {
 
         //update contact constraints
-        TracyCZoneN(ctx1, "update contact constraints", true);
+        PhysecsZoneN(ctx1, "update contact constraints", true);
         for (auto& contact : contactConstraints) {
 
             auto& n = contact.n;
@@ -366,10 +365,10 @@ void physecs::Scene::simulate(float timeStep) {
                 contactPoint.c = cn;
             }
         }
-        TracyCZoneEnd(ctx1);
+        PhysecsZoneEnd(ctx1);
 
         //update joint constraints
-        TracyCZoneN(ctx2, "update joint constraints", true);
+        PhysecsZoneN(ctx2, "update joint constraints", true);
         int index = 0;
         for (auto& jointSolverData : jointSolverDataBuffer) {
             JointWorldSpaceData worldSpaceData;
@@ -383,10 +382,10 @@ void physecs::Scene::simulate(float timeStep) {
             }
             index = endIndex;
         }
-        TracyCZoneEnd(ctx2);
+        PhysecsZoneEnd(ctx2);
 
         //integrate velocities and update world space inertia tensors
-        TracyCZoneN(ctx3, "Integrate velocities", true);
+        PhysecsZoneN(ctx3, "Integrate velocities", true);
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
@@ -407,11 +406,11 @@ void physecs::Scene::simulate(float timeStep) {
             //update world space inertia tensor
             rigidDynamic.invInertiaTensorWorld = rot * rigidDynamic.invInertiaTensor * invRot;
         }
-        TracyCZoneEnd(ctx3);
+        PhysecsZoneEnd(ctx3);
 
         //constraint solve
         for (int i = 0; i < numIterations; ++i) {
-            ZoneScopedN("constraint solve");
+            PhysecsZoneScopedN("constraint solve");
             for (auto& constraints : contactConstraints) {
                 constraints.solve(true, h);
             }
@@ -421,7 +420,7 @@ void physecs::Scene::simulate(float timeStep) {
         }
 
         //integrate positions
-        TracyCZoneN(ctx4, "integrate positions", true);
+        PhysecsZoneN(ctx4, "integrate positions", true);
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
@@ -434,15 +433,15 @@ void physecs::Scene::simulate(float timeStep) {
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
         }
-        TracyCZoneEnd(ctx4);
+        PhysecsZoneEnd(ctx4);
 
         //relaxation
-        TracyCZoneN(ctx5, "relaxation", true);
+        PhysecsZoneN(ctx5, "relaxation", true);
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;
             constraints.solve(false);
         }
-        TracyCZoneEnd(ctx5);
+        PhysecsZoneEnd(ctx5);
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -465,7 +464,7 @@ void physecs::Scene::simulate(float timeStep) {
         if (rigidDynamic.isKinematic) continue;
         updateBounds(entity);
     }
-    FrameMarkEnd(frameName);
+    PhysecsFrameMarkEnd(frameName);
 }
 
 void physecs::Scene::updateBVH() {

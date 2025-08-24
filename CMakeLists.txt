@@ -7,7 +7,8 @@ project(Physecs)
 
 include(FetchContent)
 
-option(BUILD_DEMO "Build demo" ON)
+option(BUILD_DEMO "Build demo")
+option(PROFILE "Profile")
 
 set(PHYSECS_LIB Physecs)
 
@@ -19,23 +20,40 @@ set_property(TARGET "${PHYSECS_LIB}" PROPERTY CXX_STANDARD 17)
 
 set_property(TARGET "${PHYSECS_LIB}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
-set(TRACY_CLIENT_SRC "C:/Users/slam/Desktop/Programiranje/C++Libs/tracy-0.12.2/public/TracyClient.cpp")
-
-target_sources("${PHYSECS_LIB}" PRIVATE ${LIB_SOURCES} ${TRACY_CLIENT_SRC})
+target_sources("${PHYSECS_LIB}" PRIVATE ${LIB_SOURCES})
 
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories("${PHYSECS_LIB}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs")
 target_include_directories("${PHYSECS_LIB}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs/Joints")
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/glm 0.9.9.8")
 target_include_directories("${PHYSECS_LIB}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/entt-3.12.2/single_include/entt")
-target_include_directories("${PHYSECS_LIB}" PUBLIC "C:/Users/slam/Desktop/Programiranje/C++Libs/tracy-0.12.2/public/tracy")
 
 add_definitions(
 		-DGLM_FORCE_INLINE
 		-DPHYSECS_EXPORTS
+)
+
+if (PROFILE)
+	FetchContent_Declare (
+		tracy
+		GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+		GIT_TAG v0.12.2
+		GIT_SHALLOW TRUE
+		GIT_PROGRESS TRUE
+	)
+
+	FetchContent_MakeAvailable(tracy)
+
+	set_property(TARGET TracyClient PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+	target_link_libraries("${PHYSECS_LIB}" PUBLIC TracyClient)
+
+	add_definitions(
 		-DTRACY_ENABLE
 		-DTRACY_NO_SAMPLING
-)
+		-DPHYSECS_PROFILE
+	)
+endif ()
 
 if (BUILD_DEMO)
 	FetchContent_Declare(

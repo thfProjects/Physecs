@@ -1,6 +1,9 @@
 #pragma once
 
+#include <Profiling.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "ConvexMesh.h"
 #include "MathUtil.h"
 #include "glm/gtx/norm.hpp"
@@ -44,21 +47,64 @@ namespace physecs {
     struct ConvexMeshSupportFunction {
         glm::vec3 pos;
         glm::mat3 localToWorld;
-        std::vector<glm::vec3>& vertices;
+        ConvexMeshVertices<4>& vertices;
         glm::vec3 scale;
 
         glm::vec3 operator() (glm::vec3 dir) const {
             dir = scale * multiplyTranspose(localToWorld, dir);
-            float max = std::numeric_limits<float>::lowest();
-            glm::vec3 support(0);
-            for (auto& vertex : vertices) {
-                auto dot = glm::dot(dir, vertex);
-                if (dot > max) {
-                    max = dot;
-                    support = vertex;
+
+            const auto increment = _mm_set1_epi32(4);
+            auto indices = _mm_setr_epi32(0, 1, 2, 3);
+            auto maxIndices = indices;
+            auto maxValues = _mm_set1_ps(std::numeric_limits<float>::lowest());
+
+            auto dirX = _mm_set1_ps(dir.x);
+            auto dirY = _mm_set1_ps(dir.y);
+            auto dirZ = _mm_set1_ps(dir.z);
+            for (int i = 0; i < vertices.size(); i += 4) {
+                const float* f = glm::value_ptr(vertices[i]);
+
+                const auto r0 = _mm_loadu_ps(f);
+                const auto r1 = _mm_loadu_ps(f + 4);
+                const auto r2 = _mm_loadu_ps(f + 8);
+
+                const auto xy = _mm_shuffle_ps(r1, r2, _MM_SHUFFLE(2, 1, 3, 2));
+                const auto yz = _mm_shuffle_ps(r0, r1, _MM_SHUFFLE(1, 0, 2, 1));
+
+                auto x = _mm_shuffle_ps(r0, xy, _MM_SHUFFLE(2, 0, 3, 0));
+                auto y = _mm_shuffle_ps(yz, xy, _MM_SHUFFLE(3, 1, 2, 0));
+                auto z = _mm_shuffle_ps(yz, r2, _MM_SHUFFLE(3, 0, 3, 1));
+
+                x = _mm_mul_ps(x, dirX);
+                y = _mm_mul_ps(y, dirY);
+                z = _mm_mul_ps(z, dirZ);
+
+                auto dot = _mm_add_ps(x, y);
+                dot = _mm_add_ps(dot, z);
+
+                auto gt = _mm_cmpgt_ps(dot, maxValues);
+                maxIndices = _mm_blendv_epi8(maxIndices, indices, _mm_castps_si128(gt));
+                maxValues = _mm_max_ps(dot, maxValues);
+
+                indices = _mm_add_epi32(indices, increment);
+            }
+
+            float valuesArr[4];
+            int indicesArr[4];
+
+            _mm_storeu_ps(valuesArr, maxValues);
+            _mm_storeu_epi32(indicesArr, maxIndices);
+
+            int maxIndex = indicesArr[0];
+            float maxValue = valuesArr[0];
+            for (int i = 1; i < 4; ++i) {
+                if (valuesArr[i] > maxValue) {
+                    maxValue = valuesArr[i];
+                    maxIndex = indicesArr[i];
                 }
             }
-            return pos + localToWorld * (scale * support);
+
+            return pos + localToWorld * (scale * vertices[maxIndex]);
         }
     };
 

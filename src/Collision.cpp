@@ -892,6 +892,7 @@ static void flipContacts(ContactManifold &result) {
 }
 
 bool physecs::collision(glm::vec3 pos0, glm::quat or0, Geometry &geom0, glm::vec3 pos1, glm::quat or1, Geometry &geom1, std::vector<ContactManifold> &results) {
+    PhysecsZoneScoped;
     if (geom0.type == TRIANGLE_MESH) {
         auto triangle0 = geom0.triangleMesh;
         bool isCollision = collisionTriangleMesh(pos1, or1, geom1, pos0, or0, triangle0.mesh, results);

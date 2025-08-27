@@ -30,7 +30,7 @@ void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity en
         auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
         int nodeId = bvh.insert(entity, i, bounds);
         colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation });
+        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, false });
     }
 }
 
@@ -85,8 +85,14 @@ void physecs::Scene::setGravity(float gravity) {
 void physecs::Scene::simulate(float timeStep) {
     PhysecsFrameMarkStart(frameName);
     PhysecsZoneScoped;
+
     //SAP broad-phase
+    PhysecsZoneN(broadPhase, "BroadPhase", true);
+    auto dynamic = registry.try_get<RigidBodyDynamicComponent>(broadPhaseEntries[0].entity);
+    broadPhaseEntries[0].isDynamic = dynamic ? !dynamic->isKinematic : false;
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
+        dynamic = registry.try_get<RigidBodyDynamicComponent>(broadPhaseEntries[i].entity);
+        broadPhaseEntries[i].isDynamic = dynamic ? !dynamic->isKinematic : false;
         auto broadPhaseEntry = broadPhaseEntries[i];
         int j = i;
         while (j > 0 && broadPhaseEntries[j-1].bounds.min.x > broadPhaseEntry.bounds.min.x) {
@@ -112,10 +118,7 @@ void physecs::Scene::simulate(float timeStep) {
 
             if (entry0.entity == entry1.entity) continue;
 
-            auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entry0.entity);
-            auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entry1.entity);
-
-            if (!(dynamic0 && !dynamic0->isKinematic || dynamic1 && !dynamic1->isKinematic)) continue;
+            if (!(entry0.isDynamic || entry1.isDynamic)) continue;
 
             auto& bounds0 = entry0.bounds;
             auto& bounds1 = entry1.bounds;
@@ -141,8 +144,10 @@ void physecs::Scene::simulate(float timeStep) {
             potentialContacts.push_back({ entity0, colliderIndex0, entity1, colliderIndex1 });
         }
     }
+    PhysecsZoneEnd(broadPhase);
 
     //narrow-phase
+    PhysecsZoneN(narrowPhase, "NarrowPhase", true);
     contactConstraints.clear();
     triggerCacheTemp.clear();
     contactCacheTemp.clear();
@@ -279,6 +284,7 @@ void physecs::Scene::simulate(float timeStep) {
             }
         }
     }
+    PhysecsZoneEnd(narrowPhase);
 
     //create joint constraints
     PhysecsZoneN(ctx7, "create joint constraints", true);
@@ -625,7 +631,7 @@ void physecs::Scene::addCollider(entt::entity entity, const Collider &collider) 
     auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
     int nodeId = bvh.insert(entity, i, bounds);
     colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation });
+    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, false });
 
     col.colliders.push_back(collider);
 }

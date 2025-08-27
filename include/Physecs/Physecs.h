@@ -79,6 +79,7 @@ namespace physecs {
             int nodeId;
             bool nodeDirty;
             bool enableSimulation;
+            bool isDynamic;
         };
 
         struct ContactPair {

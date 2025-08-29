@@ -208,27 +208,28 @@ void physecs::Scene::simulate(float timeStep) {
 
         contactBuffer.clear();
         if (collision(pos0, or0, col0.geometry, pos1, or1, col1.geometry, contactBuffer)) {
+
+            auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(contactPair.entity0);
+            auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(contactPair.entity1);
+
+            glm::vec3 com0(0), velocity0(0), angularVelocity0(0);
+            if (dynamic0 && !dynamic0->isKinematic) {
+                com0 = transform0.position + transform0.orientation * dynamic0->com;
+                velocity0 = dynamic0->velocity;
+                angularVelocity0 = dynamic0->angularVelocity;
+            }
+
+            glm::vec3 com1(0), velocity1(0), angularVelocity1(0);
+            if (dynamic1 && !dynamic1->isKinematic) {
+                com1 = transform1.position + transform1.orientation * dynamic1->com;
+                velocity1 = dynamic1->velocity;
+                angularVelocity1 = dynamic1->angularVelocity;
+            }
+
             for (auto& collisionResult : contactBuffer) {
                 if (!collisionResult.numPoints) continue;
 
                 glm::vec3 n = collisionResult.normal;
-
-                auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(contactPair.entity0);
-                auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(contactPair.entity1);
-
-                glm::vec3 com0(0), velocity0(0), angularVelocity0(0);
-                if (dynamic0 && !dynamic0->isKinematic) {
-                    com0 = transform0.position + transform0.orientation * dynamic0->com;
-                    velocity0 = dynamic0->velocity;
-                    angularVelocity0 = dynamic0->angularVelocity;
-                }
-
-                glm::vec3 com1(0), velocity1(0), angularVelocity1(0);
-                if (dynamic1 && !dynamic1->isKinematic) {
-                    com1 = transform1.position + transform1.orientation * dynamic1->com;
-                    velocity1 = dynamic1->velocity;
-                    angularVelocity1 = dynamic1->angularVelocity;
-                }
 
                 ContactManifoldData* prevContactData = contactCache.find({ contactPair, collisionResult.triangleIndex }) != contactCache.end() ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
                 ContactManifoldData currContactData{ collisionResult.numPoints, {} };

@@ -315,18 +315,10 @@ void physecs::Scene::simulate(float timeStep) {
     jointSolverDataBuffer.clear();
     jointConstraints.clear();
     for (auto& joint : joints) {
-        jointSolverDataBuffer.push_back(joint->getSolverData(registry));
-        for (int i = 0; i < jointSolverDataBuffer.back().numConstraints; ++i) {
-            auto entity0 = joint->getEntity0();
-            auto entity1 = joint->getEntity1();
-
-            auto& transform0 = registry.get<TransformComponent>(entity0);
-            auto& transform1 = registry.get<TransformComponent>(entity1);
-
-            auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
-            auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
-
-            jointConstraints.emplace_back(transform0, transform1, dynamic0, dynamic1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0, 0, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
+        auto solverData = joint->getSolverData(registry);
+        jointSolverDataBuffer.push_back(solverData);
+        for (int i = 0; i < solverData.numConstraints; ++i) {
+            jointConstraints.emplace_back(solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0, 0, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
         }
     }
     PhysecsZoneEnd(ctx7);

@@ -25,12 +25,14 @@ physecs::ContactType physecs::defaultContactFilter(bool isTrigger0, int data0, b
 void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity entity) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
+    auto dynamic = registry.try_get<RigidBodyDynamicComponent>(entity);
+    bool isDynamic = dynamic ? !dynamic->isKinematic : false;
     for (int i = 0; i < col.colliders.size(); ++i) {
         auto& collider = col.colliders[i];
         auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
         int nodeId = bvh.insert(entity, i, bounds);
         colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, false });
+        broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, isDynamic });
     }
 }
 
@@ -51,6 +53,29 @@ void physecs::Scene::onRigidBodyMove(entt::registry& registry, entt::entity enti
     updateBounds(entity);
 }
 
+void physecs::Scene::onDynamicCreate(entt::registry &registry, entt::entity entity) {
+    if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
+
+    auto& col = registry.get<RigidBodyCollisionComponent>(entity);
+    auto& dynamic = registry.get<RigidBodyDynamicComponent>(entity);
+    for (int i = 0; i < col.colliders.size(); ++i) {
+        int broadPhaseId = colToBroadPhaseEntry[{ entity, i }];
+        auto& broadPhaseEntry = broadPhaseEntries[broadPhaseId];
+        broadPhaseEntry.isDynamic = !dynamic.isKinematic;
+    }
+}
+
+void physecs::Scene::onDynamicDelete(entt::registry &registry, entt::entity entity) {
+    if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
+
+    auto& col = registry.get<RigidBodyCollisionComponent>(entity);
+    for (int i = 0; i < col.colliders.size(); ++i) {
+        int broadPhaseId = colToBroadPhaseEntry[{ entity, i }];
+        auto& broadPhaseEntry = broadPhaseEntries[broadPhaseId];
+        broadPhaseEntry.isDynamic = false;
+    }
+}
+
 void physecs::Scene::updateBounds(entt::entity entity) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
@@ -68,6 +93,8 @@ physecs::Scene::Scene(entt::registry& registry) : registry(registry) {
     registry.on_construct<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyCreate>(this);
     registry.on_destroy<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyDelete>(this);
     registry.on_update<TransformComponent>().connect<&Scene::onRigidBodyMove>(this);
+    registry.on_construct<RigidBodyDynamicComponent>().connect<&Scene::onDynamicCreate>(this);
+    registry.on_destroy<RigidBodyDynamicComponent>().connect<&Scene::onDynamicDelete>(this);
 }
 
 void physecs::Scene::setNumSubSteps(int numSubSteps) {
@@ -88,11 +115,7 @@ void physecs::Scene::simulate(float timeStep) {
 
     //SAP broad-phase
     PhysecsZoneN(broadPhase, "BroadPhase", true);
-    auto dynamic = registry.try_get<RigidBodyDynamicComponent>(broadPhaseEntries[0].entity);
-    broadPhaseEntries[0].isDynamic = dynamic ? !dynamic->isKinematic : false;
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
-        dynamic = registry.try_get<RigidBodyDynamicComponent>(broadPhaseEntries[i].entity);
-        broadPhaseEntries[i].isDynamic = dynamic ? !dynamic->isKinematic : false;
         auto broadPhaseEntry = broadPhaseEntries[i];
         int j = i;
         while (j > 0 && broadPhaseEntries[j-1].bounds.min.x > broadPhaseEntry.bounds.min.x) {
@@ -626,14 +649,35 @@ void physecs::Scene::clearColliders(entt::entity entity) {
 void physecs::Scene::addCollider(entt::entity entity, const Collider &collider) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
+    auto dynamic = registry.try_get<RigidBodyDynamicComponent>(entity);
+    bool isDynamic = dynamic ? !dynamic->isKinematic : false;
 
     int i = col.colliders.size();
     auto bounds = getBounds(transform.position + transform.orientation * collider.position, transform.orientation * collider.orientation, collider.geometry);
     int nodeId = bvh.insert(entity, i, bounds);
     colToBroadPhaseEntry[{ entity, i }] = broadPhaseEntries.size();
-    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, false });
+    broadPhaseEntries.push_back({ entity, i, bounds, nodeId, true, collider.enableSimulation, isDynamic });
 
     col.colliders.push_back(collider);
+}
+
+void physecs::Scene::setIsKinematic(entt::entity entity, bool isKinematic) {
+    auto& dynamic = registry.get<RigidBodyDynamicComponent>(entity);
+    dynamic.isKinematic = isKinematic;
+
+    if (isKinematic) {
+        dynamic.velocity = glm::vec3(0);
+        dynamic.angularVelocity = glm::vec3(0);
+    }
+
+    if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
+
+    auto& col = registry.get<RigidBodyCollisionComponent>(entity);
+    for (int i = 0; i < col.colliders.size(); ++i) {
+        int broadPhaseId = colToBroadPhaseEntry[{ entity, i }];
+        auto& broadPhaseEntry = broadPhaseEntries[broadPhaseId];
+        broadPhaseEntry.isDynamic = !isKinematic;
+    }
 }
 
 void physecs::Scene::addOnTriggerEnterCallback(OnTriggerEnterListener* callback) {
@@ -676,4 +720,6 @@ physecs::Scene::~Scene() {
     registry.on_construct<RigidBodyCollisionComponent>().disconnect<&Scene::onRigidBodyCreate>(this);
     registry.on_destroy<RigidBodyCollisionComponent>().disconnect<&Scene::onRigidBodyDelete>(this);
     registry.on_update<TransformComponent>().disconnect<&Scene::onRigidBodyMove>(this);
+    registry.on_construct<RigidBodyDynamicComponent>().disconnect<&Scene::onDynamicCreate>(this);
+    registry.on_destroy<RigidBodyDynamicComponent>().disconnect<&Scene::onDynamicDelete>(this);
 }

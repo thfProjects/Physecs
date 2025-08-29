@@ -158,6 +158,8 @@ namespace physecs {
         void onRigidBodyCreate(entt::registry& registry, entt::entity entity);
         void onRigidBodyDelete(entt::registry& registry, entt::entity entity);
         void onRigidBodyMove(entt::registry& registry, entt::entity entity);
+        void onDynamicCreate(entt::registry& registry, entt::entity entity);
+        void onDynamicDelete(entt::registry& registry, entt::entity entity);
 
         void updateBounds(entt::entity entity);
         void updateBVH();
@@ -187,6 +189,7 @@ namespace physecs {
         PHYSECS_API void destroyJoint(Joint* joint);
         PHYSECS_API void clearColliders(entt::entity entity);
         PHYSECS_API void addCollider(entt::entity entity, const Collider& collider);
+        PHYSECS_API void setIsKinematic(entt::entity entity, bool isKinematic);
         PHYSECS_API void addOnTriggerEnterCallback(OnTriggerEnterListener* callback);
         PHYSECS_API void addOnTriggerExitCallback(OnTriggerExitListener* callback);
         PHYSECS_API void removeOnTriggerEnterCallback(OnTriggerEnterListener* callback);

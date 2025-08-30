@@ -1,6 +1,10 @@
 #include "ContactsUtil.h"
 #include <glm/gtx/norm.hpp>
 
+namespace {
+    std::vector<glm::vec3> penetratedPoints;
+}
+
 void physecs::generateContactsPolygonBoxFace(
     glm::vec3 boxCenter,
     glm::mat3 boxBasis,
@@ -15,7 +19,7 @@ void physecs::generateContactsPolygonBoxFace(
     ContactPoint* contactPoints,
     int& numPoints)
 {
-    std::vector<glm::vec3> penetratedPoints;
+    penetratedPoints.clear();
     penetratedPoints.reserve(polygon.size());
 
     for (auto point: polygon) {
@@ -114,7 +118,7 @@ void physecs::generateContactsPolygonPolygonFace(
     ContactPoint* contactPoints,
     int& numPoints)
 {
-    std::vector<glm::vec3> penetratedPoints;
+    penetratedPoints.clear();
     penetratedPoints.reserve(polygon.size());
 
     float distanceToRefPlane = glm::dot(refPlaneOrigin, refPlaneNormal);

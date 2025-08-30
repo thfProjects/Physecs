@@ -33,6 +33,10 @@ namespace {
             return distance < other.distance;
         }
     };
+
+    std::vector<glm::vec2> polygon;
+    std::vector<glm::vec2> clip;
+    std::vector<TriangleContactInfo> contacts;
 }
 
 //Sphere
@@ -466,7 +470,7 @@ static void generateContactsBoxTriangleFace(glm::vec3 boxPos, glm::quat boxOr, g
     const int clipX = 2;
     const int clipY = 0;
 
-    std::vector<glm::vec2> clip(3);
+    clip.resize(3);
     for (int i = 0; i < 3; i++) {
         auto vertex = meshToRef * mesh->vertices[tri.indices[i]];
         clip[3 - i - 1] = { vertex[clipX], vertex[clipY] };
@@ -500,7 +504,6 @@ static void generateContactsBoxTriangleFace(glm::vec3 boxPos, glm::quat boxOr, g
     auto poly2 = incPlaneOrig + meshToRef * (-boxBasis[incAxis1] * boxHalfExtents[incAxis1] - boxBasis[incAxis2] * boxHalfExtents[incAxis2]);
     auto poly3 = incPlaneOrig + meshToRef * (boxBasis[incAxis1] * boxHalfExtents[incAxis1] - boxBasis[incAxis2] * boxHalfExtents[incAxis2]);
 
-    std::vector<glm::vec2> polygon;
     polygon.reserve(6);
     polygon.resize(4);
 
@@ -536,14 +539,14 @@ void generateContactsBoxFaceTriangle(glm::vec3 boxPos, glm::quat boxOr, glm::vec
     float refSign = glm::dot(boxBasis[refAxis], tri.centroid - boxPos) < 0 ? -1 : 1;
     int clipX = (refAxis + 1) % 3, clipY = (refAxis + 2) % 3;
 
-    std::vector<glm::vec2> polygon(3);
+    polygon.resize(3);
     for (int i = 0; i < 3; ++i) {
         int index = tri.indices[i];
         auto vertex = meshToBox * (mesh->vertices[index] - boxPos);
         polygon[i] = { vertex[clipX], vertex[clipY] };
     }
 
-    std::vector<glm::vec2> clip(4);
+    clip.resize(4);
     clip[0] = {boxHalfExtents[clipX], boxHalfExtents[clipY]};
     clip[1] = {boxHalfExtents[clipX], -boxHalfExtents[clipY]};
     clip[2] = {-boxHalfExtents[clipX], -boxHalfExtents[clipY]};
@@ -709,7 +712,7 @@ void generateContactsConvexMeshTriangleFace(glm::vec3 convexPos, glm::quat conve
     const int clipX = 2;
     const int clipY = 0;
 
-    std::vector<glm::vec2> clip(3);
+    clip.resize(3);
     for (int i = 0; i < 3; i++) {
         auto vertex = meshToRef * mesh->vertices[tri.indices[i]];
         clip[3 - i - 1] = { vertex[clipX], vertex[clipY] };
@@ -726,7 +729,7 @@ void generateContactsConvexMeshTriangleFace(glm::vec3 convexPos, glm::quat conve
     }
     auto& convexFace = convex->faces[convexFaceIndex];
 
-    std::vector<glm::vec2> polygon(convexFace.indices.size());
+    polygon.resize(convexFace.indices.size());
     for (int i = 0; i < convexFace.indices.size(); ++i) {
         int index = convexFace.indices[i];
         auto vertex = meshToRef * (convexPos + convexOr * (scale * convex->vertices[index]));
@@ -780,14 +783,14 @@ static void generateContactsConvexFaceTriangle(glm::vec3 convexPos, glm::quat co
     int clipX = 2;
     int clipY = 0;
 
-    std::vector<glm::vec2> clip(convexFace.indices.size());
+    clip.resize(convexFace.indices.size());
     for (int i = 0; i < convexFace.indices.size(); ++i) {
         int index = convexFace.indices[i];
         auto vertex = convexToRef * (scale * convex->vertices[index]);
         clip[i] = { vertex[clipX], vertex[clipY] };
     }
 
-    std::vector<glm::vec2> polygon(3);
+    polygon.resize(3);
     for (int i = 0; i < 3; ++i) {
         int index = tri.indices[i];
         auto vertex = meshToRef * (mesh->vertices[index] - convexPos);
@@ -886,7 +889,7 @@ bool physecs::collisionTriangleMesh(glm::vec3 pos0, glm::quat or0, const Geometr
 
     if (potentialOverlaps.empty()) return false;
 
-    std::vector<TriangleContactInfo> contacts;
+    contacts.clear();
     contacts.reserve(potentialOverlaps.size());
 
     for (int triangleIndex : potentialOverlaps) {

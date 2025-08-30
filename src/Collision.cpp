@@ -35,6 +35,9 @@ namespace {
     };
 
     enum BoxContactType { FACE, EDGE };
+
+    std::vector<glm::vec2> polygon;
+    std::vector<glm::vec2> clip;
 }
 
 static bool collisionSphereSphere(glm::vec3 pos0, float radius0, glm::vec3 pos1, float radius1, ContactManifold &result);
@@ -67,10 +70,9 @@ static void generateBoxBoxFaceContacts(glm::mat3 uRef, glm::vec3 posRef, glm::ve
         }
     }
 
-    std::vector<glm::vec2> polygon;
     polygon.reserve(8);
     polygon.resize(4);
-    std::vector<glm::vec2> clip(4);
+    clip.resize(4);
 
     int incAxis1 = (incAxis + 1) % 3, incAxis2 = (incAxis + 2) % 3;
 
@@ -385,14 +387,14 @@ static void generateConvexMeshConvexMeshContacts(glm::vec3 pos0, glm::quat or0, 
     int clipX = 2;
     int clipY = 0;
 
-    std::vector<glm::vec2> clip(convex0Face.indices.size());
+    clip.resize(convex0Face.indices.size());
     for (int i = 0; i < convex0Face.indices.size(); ++i) {
         int index = convex0Face.indices[i];
         auto vertex = convex0ToRef * (scale0 * mesh0->vertices[index]);
         clip[i] = { vertex[clipX], vertex[clipY] };
     }
 
-    std::vector<glm::vec2> polygon(convex1Face.indices.size());
+    polygon.resize(convex1Face.indices.size());
     for (int i = 0; i < convex1Face.indices.size(); ++i) {
         int index = convex1Face.indices[i];
         auto vertex = worldToRef * (pos1 + or1 * (scale1 * mesh1->vertices[index]) - pos0);
@@ -713,7 +715,7 @@ static void generateCapsuleConvexMeshContacts(glm::vec3 p0Local, glm::vec3 p1Loc
     const int clipX = 2;
     const int clipY = 0;
 
-    std::vector<glm::vec2> clip(convexFace.indices.size());
+    clip.resize(convexFace.indices.size());
     for (int i = 0; i < convexFace.indices.size(); ++i) {
         int index = convexFace.indices[i];
         auto vertex = convexToRef * (meshScale * mesh->vertices[index]);
@@ -845,7 +847,6 @@ static void generateBoxConvexMeshContacts(
 
     glm::mat3 worldToBox = glm::transpose(boxBasis);
 
-    std::vector<glm::vec2> polygon;
     polygon.reserve(convexFace.indices.size() + 4);
     polygon.resize(convexFace.indices.size());
 
@@ -855,7 +856,7 @@ static void generateBoxConvexMeshContacts(
         polygon[i] = { vertex[clipX], vertex[clipY] };
     }
 
-    std::vector<glm::vec2> clip(4);
+    clip.resize(4);
 
     clip[0] = {halfExtents[clipX], halfExtents[clipY]};
     clip[1] = {halfExtents[clipX], -halfExtents[clipY]};

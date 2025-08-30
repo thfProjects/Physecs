@@ -36,8 +36,8 @@ namespace {
 
     enum BoxContactType { FACE, EDGE };
 
-    std::vector<glm::vec2> polygon;
-    std::vector<glm::vec2> clip;
+    thread_local std::vector<glm::vec2> polygon;
+    thread_local std::vector<glm::vec2> clip;
 }
 
 static bool collisionSphereSphere(glm::vec3 pos0, float radius0, glm::vec3 pos1, float radius1, ContactManifold &result);

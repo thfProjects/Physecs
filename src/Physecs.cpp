@@ -89,7 +89,7 @@ void physecs::Scene::updateBounds(entt::entity entity) {
     }
 }
 
-physecs::Scene::Scene(entt::registry& registry) : registry(registry) {
+physecs::Scene::Scene(entt::registry& registry) : registry(registry), threadPool(4) {
     registry.on_construct<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyCreate>(this);
     registry.on_destroy<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyDelete>(this);
     registry.on_update<TransformComponent>().connect<&Scene::onRigidBodyMove>(this);
@@ -175,7 +175,10 @@ void physecs::Scene::simulate(float timeStep) {
     triggerCacheTemp.clear();
     contactCacheTemp.clear();
     contactPoints.clear();
-    for (auto contactPair : potentialContacts) {
+    threadPool.parallelFor(potentialContacts.size(), [this](int index){
+        PhysecsZoneScopedN("handle potential contact");
+        auto& contactPair = potentialContacts[index];
+
         auto entity0 = contactPair.entity0;
         auto entity1 = contactPair.entity1;
 
@@ -194,18 +197,15 @@ void physecs::Scene::simulate(float timeStep) {
         ContactType contactType = contactFilter(col0.isTrigger, col0.data, col1.isTrigger, col1.data);
         if (contactType == TRIGGER) {
             if (physecs::overlap(pos0, or0, col0.geometry, pos1, or1, col1.geometry)) {
+                std::unique_lock lock(triggerMutex);
                 triggerCacheTemp.insert(contactPair);
-                if (triggerCache.find(contactPair) == triggerCache.end()) {
-                    for (auto callback : onTriggerEnterCallbacks) {
-                        callback->onTriggerEnter(entity0, contactPair.colliderIndex0, entity1, contactPair.colliderIndex1);
-                    }
-                }
             }
-            continue;
+            return;
         }
 
-        if (nonCollidingPairs.count({ entity0, entity1 })) continue;
+        if (nonCollidingPairs.count({ entity0, entity1 })) return;
 
+        thread_local std::vector<ContactManifold> contactBuffer;
         contactBuffer.clear();
         if (collision(pos0, or0, col0.geometry, pos1, or1, col1.geometry, contactBuffer)) {
 
@@ -271,8 +271,8 @@ void physecs::Scene::simulate(float timeStep) {
                     glm::vec3 r0 = collisionResult.points[k].position0 - com0;
                     glm::vec3 r1 = collisionResult.points[k].position1 - com1;
 
-                    contactPoints.push_back(collisionResult.points[k].position0);
-                    contactPoints.push_back(collisionResult.points[k].position1);
+                    // contactPoints.push_back(collisionResult.points[k].position0);
+                    // contactPoints.push_back(collisionResult.points[k].position1);
 
                     glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
                     float relNVelocity = glm::dot(relVelocity, n);
@@ -303,11 +303,12 @@ void physecs::Scene::simulate(float timeStep) {
                     cc.contactPointConstraints[k] = { r0, r1, glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0), targetVelocity, 0, 0, 0 };
                 }
 
+                std::unique_lock lock(collisionMutex);
                 contactCacheTemp[{ contactPair, collisionResult.triangleIndex }] = currContactData;
                 contactConstraints.push_back(cc);
             }
         }
-    }
+    });
     PhysecsZoneEnd(narrowPhase);
 
     //create joint constraints
@@ -471,6 +472,13 @@ void physecs::Scene::simulate(float timeStep) {
     //printf("%f\n", ms_double.count());
 
     //cache triggers and contacts
+    for (const auto& pair : triggerCacheTemp) {
+        if (triggerCache.find(pair) == triggerCache.end()) {
+            for (auto callback : onTriggerEnterCallbacks) {
+                callback->onTriggerEnter(pair.entity0, pair.colliderIndex0, pair.entity1, pair.colliderIndex1);
+            }
+        }
+    }
     for (const auto& pair : triggerCache) {
         if (triggerCacheTemp.find(pair) == triggerCacheTemp.end()) {
             for (auto callback : onTriggerExitCallbacks) {

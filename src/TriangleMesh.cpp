@@ -161,13 +161,16 @@ physecs::TriangleMesh::TriangleMesh(const std::vector<glm::vec3> &vertices, cons
     bvh.push_back({ {}, static_cast<int>(triangles.size()), 0 });
     updateNodeBounds(rootId);
     subdivide(rootId);
-    stack.reserve(triangles.size());
 }
 
 const std::vector<int>& physecs::TriangleMesh::overlapBvh(const Bounds &bounds) {
+    thread_local std::vector<int> overlapTriangles;
+    thread_local std::vector<int> stack;
+
     overlapTriangles.clear();
 
     stack.clear();
+    stack.reserve(triangles.size());
     stack.push_back(rootId);
     while (!stack.empty()) {
         const auto& node = bvh[stack.back()];

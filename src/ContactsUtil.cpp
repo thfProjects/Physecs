@@ -2,7 +2,7 @@
 #include <glm/gtx/norm.hpp>
 
 namespace {
-    std::vector<glm::vec3> penetratedPoints;
+    thread_local std::vector<glm::vec3> penetratedPoints;
 }
 
 void physecs::generateContactsPolygonBoxFace(

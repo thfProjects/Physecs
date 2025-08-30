@@ -34,9 +34,9 @@ namespace {
         }
     };
 
-    std::vector<glm::vec2> polygon;
-    std::vector<glm::vec2> clip;
-    std::vector<TriangleContactInfo> contacts;
+    thread_local std::vector<glm::vec2> polygon;
+    thread_local std::vector<glm::vec2> clip;
+    thread_local std::vector<TriangleContactInfo> contacts;
 }
 
 //Sphere

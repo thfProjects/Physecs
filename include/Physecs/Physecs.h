@@ -1,6 +1,7 @@
 #pragma once
 
 #include <entt.hpp>
+#include <ThreadPool.h>
 #include <glm/glm.hpp>
 #include "BVH.h"
 #include "Joint.h"
@@ -138,7 +139,6 @@ namespace physecs {
 
         std::vector<BroadPhaseEntry> broadPhaseEntries;
         std::vector<ContactPair> potentialContacts;
-        std::vector<ContactManifold> contactBuffer;
         std::vector<ContactConstraints> contactConstraints;
         std::vector<Constraint1D> jointConstraints;
         std::unordered_map<CollisionPair, ContactManifoldData, CollisionHash> contactCache;
@@ -154,6 +154,9 @@ namespace physecs {
         std::vector<OnTriggerExitListener*> onTriggerExitCallbacks;
         ContactType (*contactFilter)(bool, int, bool, int) = defaultContactFilter;
         std::vector<glm::vec3> contactPoints;
+        ThreadPool threadPool;
+        std::mutex collisionMutex;
+        std::mutex triggerMutex;
 
         void onRigidBodyCreate(entt::registry& registry, entt::entity entity);
         void onRigidBodyDelete(entt::registry& registry, entt::entity entity);

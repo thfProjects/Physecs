@@ -7,12 +7,14 @@ void physecs::ThreadPool::run() {
             cv.wait(lock, [this] { return currentTask || !isActive;});
             if (!isActive) break;
         }
+        int doneCount = 0;
         int i = currentTask.load();
         while (i) {
             if (!currentTask.compare_exchange_weak(i, i - 1)) continue;
             task(--i);
-            --remainingTasks;
+            ++doneCount;
         }
+        if (doneCount) remainingTasks -= doneCount;
     }
 }
 

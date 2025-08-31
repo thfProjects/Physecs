@@ -29,7 +29,6 @@ void physecs::ThreadPool::parallelFor(int count, std::function<void(int)> func) 
     {
         std::unique_lock lock(mutex);
         task = std::move(func);
-        this->count = count;
         currentTask.store(count);
         remainingTasks.store(count);
     }

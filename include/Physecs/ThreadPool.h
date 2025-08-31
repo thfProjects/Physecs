@@ -17,6 +17,8 @@ namespace physecs {
         std::atomic_int currentTask = 0;
         int count = 0;
         std::atomic_int remainingTasks = 0;
+
+        static constexpr int chunkFactor = 4;
         void run();
     public:
         ThreadPool(int numThreads);

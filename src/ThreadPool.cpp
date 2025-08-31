@@ -10,9 +10,10 @@ void physecs::ThreadPool::run() {
         int doneCount = 0;
         int i = currentTask.load();
         while (i) {
-            if (!currentTask.compare_exchange_weak(i, i - 1)) continue;
-            task(--i);
-            ++doneCount;
+            const int numTasks = std::max(1, i / (numThreads * chunkFactor));
+            if (!currentTask.compare_exchange_weak(i, i - numTasks)) continue;
+            for (int j = 0; j < numTasks; ++j) task(--i);
+            doneCount += numTasks;
         }
         if (doneCount) remainingTasks -= doneCount;
     }

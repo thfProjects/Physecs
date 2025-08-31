@@ -10,7 +10,7 @@ class Demo {
     Camera camera;
     Light light;
     entt::registry registry;
-    physecs::Scene physicsScene = physecs::Scene(registry);
+    physecs::Scene physicsScene = physecs::Scene(registry, 2);
 
     CameraMovementSystem cameraMovementSystem = CameraMovementSystem(camera);
 

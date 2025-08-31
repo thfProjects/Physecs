@@ -172,7 +172,7 @@ namespace physecs {
         void overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out);
 
     public:
-        PHYSECS_API Scene (entt::registry& registry);
+        PHYSECS_API Scene (entt::registry& registry, int numThreads);
 
         PHYSECS_API void setNumSubSteps(int numSubSteps);
         PHYSECS_API void setNumIterations(int numIterations);

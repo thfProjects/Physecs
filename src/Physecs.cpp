@@ -89,7 +89,7 @@ void physecs::Scene::updateBounds(entt::entity entity) {
     }
 }
 
-physecs::Scene::Scene(entt::registry& registry) : registry(registry), threadPool(4) {
+physecs::Scene::Scene(entt::registry& registry, int numThreads) : registry(registry), threadPool(numThreads) {
     registry.on_construct<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyCreate>(this);
     registry.on_destroy<RigidBodyCollisionComponent>().connect<&Scene::onRigidBodyDelete>(this);
     registry.on_update<TransformComponent>().connect<&Scene::onRigidBodyMove>(this);

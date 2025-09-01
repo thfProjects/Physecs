@@ -2,11 +2,9 @@
 
 void physecs::ThreadPool::run() {
     while (true) {
-        {
-            std::unique_lock lock(mutex);
-            cv.wait(lock, [this] { return currentTask || !isActive;});
-            if (!isActive) break;
-        }
+        start.wait(false);
+        if (!isActive) break;
+
         int doneCount = 0;
         int i = currentTask.load();
         while (i) {
@@ -26,24 +24,26 @@ physecs::ThreadPool::ThreadPool(int numThreads): numThreads(numThreads) {
 }
 
 void physecs::ThreadPool::parallelFor(int count, std::function<void(int)> func) {
-    {
-        std::unique_lock lock(mutex);
-        task = std::move(func);
-        currentTask.store(count);
-        remainingTasks.store(count);
-    }
-    cv.notify_all();
+    task = std::move(func);
+    currentTask.store(count);
+    remainingTasks.store(count);
+
+    start.store(true);
+    start.notify_all();
+
     while (remainingTasks.load()) {
         _mm_pause();
     }
+
+    start.store(false);
 }
 
 physecs::ThreadPool::~ThreadPool() {
-    {
-        std::unique_lock lock(mutex);
-        isActive = false;
-    }
-    cv.notify_all();
+    isActive = false;
+
+    start.store(true);
+    start.notify_all();
+
     for (auto& th : threads) {
         th.join();
     }

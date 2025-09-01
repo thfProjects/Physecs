@@ -12,8 +12,7 @@ namespace physecs {
         bool isActive = true;
         std::vector<std::thread> threads;
         std::function<void(int)> task;
-        std::mutex mutex;
-        std::condition_variable cv;
+        std::atomic_bool start = false;
         std::atomic_int currentTask = 0;
         std::atomic_int remainingTasks = 0;
 

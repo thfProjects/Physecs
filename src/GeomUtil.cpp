@@ -1,5 +1,6 @@
 #include "GeomUtil.h"
 #include <glm/gtx/matrix_operation.hpp>
+#include <glm/gtx/norm.inl>
 
 enum Axis { X, Y, Z };
 
@@ -477,7 +478,7 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::VERTEX;
         featureIndex = 0;
         q = a;
-        goto end;
+        return glm::distance2(p, q);
     }
 
     glm::vec3 bp = p - b;
@@ -488,7 +489,7 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::VERTEX;
         featureIndex = 1;
         q = b;
-        goto end;
+        return glm::distance2(p, q);
     }
 
     float vc = d1 * d4 - d3 * d2;
@@ -496,7 +497,7 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::EDGE;
         featureIndex = 2;
         q = a + d1 / (d1 - d3) * ab;
-        goto end;
+        return glm::distance2(p, q);
     }
 
     glm::vec3 cp = p - c;
@@ -507,7 +508,7 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::VERTEX;
         featureIndex = 2;
         q = c;
-        goto end;
+        return glm::distance2(p, q);
     }
 
     float va = d3 * d6 - d5 * d4;
@@ -515,7 +516,7 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::EDGE;
         featureIndex = 0;
         q = b + (d4 - d3) / (d4 - d3 + d5 - d6) * (c - b);
-        goto end;
+        return glm::distance2(p, q);
     }
 
     float vb = d5 * d2 - d1 * d6;
@@ -523,22 +524,17 @@ float sqrDistPointTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c, g
         triangleFeature = TriangleFeature::EDGE;
         featureIndex = 1;
         q = c + d2 / (d2 - d6) * ac;
-        goto end;
+        return glm::distance2(p, q);
     }
 
     //p must project on face
-    {
-        triangleFeature = TriangleFeature::FACE;
-        float denom = va + vb + vc;
-        float u = va / denom;
-        float v = vb / denom;
-        float w = 1 - u - v;
-        q = u * a + v * b + w * c;
-    }
-
-end:
-    glm::vec3 d = q - p;
-    return glm::dot(d, d);
+    triangleFeature = TriangleFeature::FACE;
+    float denom = va + vb + vc;
+    float u = va / denom;
+    float v = vb / denom;
+    float w = 1 - u - v;
+    q = u * a + v * b + w * c;
+    return glm::distance2(p, q);
 }
 
 static float sqrDistLineSegment(glm::vec3 p, glm::vec3 dir, glm::vec3 a, glm::vec3 b, float& t, glm::vec3& q, char& vertexFlag) {

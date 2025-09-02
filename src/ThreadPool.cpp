@@ -3,7 +3,7 @@
 void physecs::ThreadPool::doTasks() {
     int i = currentTask.load();
     while (i) {
-        const int numTasks = std::max(1, i / (numThreads * chunkFactor));
+        const int numTasks = std::max(1, i / ((numThreads + 1) * chunkFactor));
         if (!currentTask.compare_exchange_weak(i, i - numTasks)) continue;
         for (int j = 0; j < numTasks; ++j) task(--i);
     }

@@ -14,7 +14,7 @@ namespace physecs {
         std::vector<std::atomic_bool> start;
         std::atomic_int currentTask = 0;
 
-        static constexpr int chunkFactor = 4;
+        static constexpr int chunkFactor = 2;
         void doTasks();
         void run(int id);
     public:

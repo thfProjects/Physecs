@@ -27,7 +27,7 @@ void physecs::Constraint1D::prepare() {
     //correct position error
     if (flags & SOFT || !c || !invEffMass) return;
 
-    float lambda = 0.2f * c / invEffMass;
+    float lambda = 0.1f * c / invEffMass;
     if (flags & LIMITED)
         lambda = glm::clamp(lambda, min, max);
 

@@ -397,13 +397,7 @@ void physecs::Scene::simulate(float timeStep) {
             JointWorldSpaceData worldSpaceData;
             jointSolverData.calculateWorldSpaceData(worldSpaceData);
             jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, jointConstraints.data() + index);
-            int endIndex = index + jointSolverData.numConstraints;
-            for (int i = index; i < endIndex; ++i) {
-                auto& jointConstraint = jointConstraints[i];
-                jointConstraint.prepare();
-                if (!(jointConstraint.flags & Constraint1D::SOFT) && glm::abs(jointConstraint.c) < 1e-4 && glm::abs(jointConstraint.totalLambda) < 10000) jointConstraint.warmStart();
-            }
-            index = endIndex;
+            index += jointSolverData.numConstraints;
         }
         PhysecsZoneEnd(ctx2);
 
@@ -430,6 +424,14 @@ void physecs::Scene::simulate(float timeStep) {
             rigidDynamic.invInertiaTensorWorld = rot * rigidDynamic.invInertiaTensor * invRot;
         }
         PhysecsZoneEnd(ctx3);
+
+        //pre solve
+        PhysecsZoneN(ctx8, "pre solve", true);
+        for (auto& constraint : jointConstraints) {
+            constraint.prepare();
+            if (!(constraint.flags & Constraint1D::SOFT) && glm::abs(constraint.c) < 1e-4 && glm::abs(constraint.totalLambda) < 10000) constraint.warmStart();
+        }
+        PhysecsZoneEnd(ctx8);
 
         //constraint solve
         for (int i = 0; i < numIterations; ++i) {

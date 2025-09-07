@@ -186,19 +186,3 @@ void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
         }
     }
 }
-
-physecs::Constraint1DView physecs::Constraint1DViewer::operator[](int index) const {
-    const int i = baseIndex + index;
-    return {
-        container.linearBuffer[i],
-        container.angular0Buffer[i],
-        container.angular1Buffer[i],
-        container.targetVelocityBuffer[i],
-        container.cBuffer[i],
-        container.minBuffer[i],
-        container.maxBuffer[i],
-        container.flagsBuffer[i],
-        container.frequencyBuffer[i],
-        container.dampingRatioBuffer[i]
-    };
-}

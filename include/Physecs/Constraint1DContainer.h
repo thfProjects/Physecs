@@ -66,7 +66,21 @@ namespace physecs {
 
     public:
         Constraint1DViewer(int baseIndex, Constraint1DContainer& container) : baseIndex(baseIndex), container(container) {}
-        Constraint1DView operator[] (int index) const;
+        Constraint1DView operator[] (int index) const {
+            const int i = baseIndex + index;
+            return {
+                container.linearBuffer[i],
+                container.angular0Buffer[i],
+                container.angular1Buffer[i],
+                container.targetVelocityBuffer[i],
+                container.cBuffer[i],
+                container.minBuffer[i],
+                container.maxBuffer[i],
+                container.flagsBuffer[i],
+                container.frequencyBuffer[i],
+                container.dampingRatioBuffer[i]
+            };
+        }
     };
 }
 

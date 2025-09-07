@@ -1,7 +1,7 @@
 #include "PrismaticJoint.h"
 #include "Constraint1D.h"
 
-void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DViewer constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointData*>(additionalData);
 

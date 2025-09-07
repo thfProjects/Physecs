@@ -319,7 +319,7 @@ void physecs::Scene::simulate(float timeStep) {
         auto solverData = joint->getSolverData(registry);
         jointSolverDataBuffer.push_back(solverData);
         for (int i = 0; i < solverData.numConstraints; ++i) {
-            jointConstraints.emplace_back(solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0, 0, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
+            jointConstraints.pushBack(solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1);
         }
     }
     PhysecsZoneEnd(ctx7);
@@ -396,7 +396,7 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto& jointSolverData : jointSolverDataBuffer) {
             JointWorldSpaceData worldSpaceData;
             jointSolverData.calculateWorldSpaceData(worldSpaceData);
-            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, jointConstraints.data() + index);
+            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, Constraint1DViewer(index, jointConstraints));
             index += jointSolverData.numConstraints;
         }
         PhysecsZoneEnd(ctx2);
@@ -427,10 +427,7 @@ void physecs::Scene::simulate(float timeStep) {
 
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
-        for (auto& constraint : jointConstraints) {
-            constraint.prepare();
-            if (!(constraint.flags & Constraint1D::SOFT) && glm::abs(constraint.c) < 1e-4 && glm::abs(constraint.totalLambda) < 10000) constraint.warmStart();
-        }
+        jointConstraints.preSolve();
         PhysecsZoneEnd(ctx8);
 
         //constraint solve
@@ -439,9 +436,7 @@ void physecs::Scene::simulate(float timeStep) {
             for (auto& constraints : contactConstraints) {
                 constraints.solve(true, h);
             }
-            for (auto& constraint : jointConstraints) {
-                constraint.solve(true, h);
-            }
+            jointConstraints.solve(true, h);
         }
 
         //integrate positions

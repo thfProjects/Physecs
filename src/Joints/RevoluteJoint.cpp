@@ -1,7 +1,7 @@
 #include "RevoluteJoint.h"
 #include "Constraint1D.h"
 
-void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DViewer constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [driveEnabled, driveVelocity] = *static_cast<RevoluteJointData*>(additionalData);
 

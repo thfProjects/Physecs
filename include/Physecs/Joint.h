@@ -5,11 +5,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include "Components.h"
-
-struct TransformComponent;
+#include "Constraint1DContainer.h"
 
 namespace physecs {
-    struct Constraint1D;
 
     struct JointWorldSpaceData {
         glm::vec3 p0;
@@ -20,7 +18,7 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1D* constraints);
+    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DViewer constraints);
 
     struct JointSolverData {
         TransformComponent& transform0;

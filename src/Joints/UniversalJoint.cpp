@@ -1,7 +1,7 @@
 #include "UniversalJoint.h"
 #include "Constraint1D.h"
 
-void physecs::UniversalJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1D *constraints) {
+void physecs::UniversalJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DViewer constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
     glm::vec3 d = p1 - p0;

@@ -140,7 +140,7 @@ namespace physecs {
         std::vector<BroadPhaseEntry> broadPhaseEntries;
         std::vector<ContactPair> potentialContacts;
         std::vector<ContactConstraints> contactConstraints;
-        std::vector<Constraint1D> jointConstraints;
+        Constraint1DContainer jointConstraints;
         std::unordered_map<CollisionPair, ContactManifoldData, CollisionHash> contactCache;
         std::unordered_map<CollisionPair, ContactManifoldData, CollisionHash> contactCacheTemp;
         BVH bvh;

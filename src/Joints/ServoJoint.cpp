@@ -2,7 +2,7 @@
 #include "Constraint1D.h"
 #include <glm/gtx/vector_angle.hpp>
 
-void physecs::ServoJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1D *constraints) {
+void physecs::ServoJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DViewer constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [targetAngle, driveStiffness, driveDamping] = *static_cast<ServoJointData*>(additionalData);
 

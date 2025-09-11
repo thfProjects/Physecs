@@ -2,46 +2,56 @@
 #include "Transform.h"
 #include <Constraint1D.h>
 
-void physecs::Constraint1DContainer::pushBack(TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
-    transformComponentsBuffer.emplace_back(transform0, transform1);
-    dynamicComponentsBuffer.emplace_back(dynamic0, dynamic1);
-    linearBuffer.emplace_back(0);
-    angular0Buffer.emplace_back(0);
-    angular1Buffer.emplace_back(0);
-    targetVelocityBuffer.emplace_back(0);
-    cBuffer.emplace_back(0);
-    minBuffer.emplace_back(std::numeric_limits<float>::lowest());
-    maxBuffer.emplace_back(std::numeric_limits<float>::max());
-    flagsBuffer.emplace_back(0);
-    frequencyBuffer.emplace_back(0);
-    dampingRatioBuffer.emplace_back(0);
-    angular0tBuffer.emplace_back(0);
-    angular1tBuffer.emplace_back(0);
-    invEffMassBuffer.emplace_back(0);
-    totalLambdaBuffer.emplace_back(0);
+void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
+    if (size == capacity) {
+        const int newCapacity = capacity ? 2 * capacity : 1;
+
+        transformComponentsBuffer.reallocate(capacity, newCapacity);
+        dynamicComponentsBuffer.reallocate(capacity, newCapacity);
+        linearBuffer.reallocate(capacity, newCapacity);
+        angular0Buffer.reallocate(capacity, newCapacity);
+        angular1Buffer.reallocate(capacity, newCapacity);
+        targetVelocityBuffer.reallocate(capacity, newCapacity);
+        cBuffer.reallocate(capacity, newCapacity);
+        minBuffer.reallocate(capacity, newCapacity);
+        maxBuffer.reallocate(capacity, newCapacity);
+        flagsBuffer.reallocate(capacity, newCapacity);
+        frequencyBuffer.reallocate(capacity, newCapacity);
+        dampingRatioBuffer.reallocate(capacity, newCapacity);
+        angular0tBuffer.reallocate(capacity, newCapacity);
+        angular1tBuffer.reallocate(capacity, newCapacity);
+        invEffMassBuffer.reallocate(capacity, newCapacity);
+        totalLambdaBuffer.reallocate(capacity, newCapacity);
+
+        capacity = newCapacity;
+    }
+
+    transformComponentsBuffer[size] = { &transform0, &transform1 };
+    dynamicComponentsBuffer[size] = { dynamic0, dynamic1 };
+    linearBuffer[size] = glm::vec3(0);
+    angular0Buffer[size] = glm::vec3(0);
+    angular1Buffer[size] = glm::vec3(0);
+    targetVelocityBuffer[size] = 0;
+    cBuffer[size] = 0;
+    minBuffer[size] = std::numeric_limits<float>::lowest();
+    maxBuffer[size] = std::numeric_limits<float>::max();
+    flagsBuffer[size] = 0;
+    frequencyBuffer[size] = 0;
+    dampingRatioBuffer[size] = 0;
+    angular0tBuffer[size] = glm::vec3(0);
+    angular1tBuffer[size] = glm::vec3(0);
+    invEffMassBuffer[size] = 0;
+    totalLambdaBuffer[size] = 0;
+
+    ++size;
 }
 
-void physecs::Constraint1DContainer::clear() {
-    transformComponentsBuffer.clear();
-    dynamicComponentsBuffer.clear();
-    linearBuffer.clear();
-    angular0Buffer.clear();
-    angular1Buffer.clear();
-    targetVelocityBuffer.clear();
-    cBuffer.clear();
-    minBuffer.clear();
-    maxBuffer.clear();
-    flagsBuffer.clear();
-    frequencyBuffer.clear();
-    dampingRatioBuffer.clear();
-    angular0tBuffer.clear();
-    angular1tBuffer.clear();
-    invEffMassBuffer.clear();
-    totalLambdaBuffer.clear();
+void physecs::Constraint1DSoa::clear() {
+    size = 0;
 }
 
-void physecs::Constraint1DContainer::preSolve() {
-    for (int i = 0; i < transformComponentsBuffer.size(); i++) {
+void physecs::Constraint1DSoa::preSolve() {
+    for (int i = 0; i < size; i++) {
         auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
         auto [transform0, transform1] = transformComponentsBuffer[i];
         auto& linear = linearBuffer[i];
@@ -86,15 +96,15 @@ void physecs::Constraint1DContainer::preSolve() {
             lambda = glm::clamp(lambda, min, max);
 
         if (!(flags & Constraint1D::ANGULAR)) {
-            transform0.position += lambda * invMass0 * linear;
-            transform1.position -= lambda * invMass1 * linear;
+            transform0->position += lambda * invMass0 * linear;
+            transform1->position -= lambda * invMass1 * linear;
         }
 
-        transform0.orientation += 0.5f * glm::quat(0, lambda * angular0t) * transform0.orientation;
-        transform0.orientation = glm::normalize(transform0.orientation);
+        transform0->orientation += 0.5f * glm::quat(0, lambda * angular0t) * transform0->orientation;
+        transform0->orientation = glm::normalize(transform0->orientation);
 
-        transform1.orientation -= 0.5f * glm::quat(0, lambda * angular1t) * transform1.orientation;
-        transform1.orientation = glm::normalize(transform1.orientation);
+        transform1->orientation -= 0.5f * glm::quat(0, lambda * angular1t) * transform1->orientation;
+        transform1->orientation = glm::normalize(transform1->orientation);
 
         // warm start
         if (flags & Constraint1D::SOFT || glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) continue;
@@ -114,8 +124,8 @@ void physecs::Constraint1DContainer::preSolve() {
     }
 }
 
-void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
-    for (int i = 0; i < transformComponentsBuffer.size(); i++) {
+void physecs::Constraint1DSoa::solve(bool useBias, float timeStep) {
+    for (int i = 0; i < size; i++) {
         auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
         auto& linear = linearBuffer[i];
         auto& angular0 = angular0Buffer[i];
@@ -185,4 +195,52 @@ void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
             dynamic1->angularVelocity -= lambda * angular1t;
         }
     }
+}
+
+void physecs::Constraint1DContainer::preSolve() {
+    for (auto& constraintColor : constraintColors) {
+        constraintColor.preSolve();
+    }
+    sequential.preSolve();
+}
+
+void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
+    for (auto& constraintColor : constraintColors) {
+        constraintColor.solve(useBias, timeStep);
+    }
+    sequential.solve(useBias, timeStep);
+}
+
+void physecs::Constraint1DContainer::pushBack(entt::entity entity0, entt::entity entity1, TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
+    if (!colorBitsets.contains(entity0)) colorBitsets.emplace(entity0, 0);
+    if (!colorBitsets.contains(entity1)) colorBitsets.emplace(entity1, 0);
+    auto& colors0 = colorBitsets[entity0];
+    auto& colors1 = colorBitsets[entity1];
+    const auto colorsUnion = colors0 | colors1;
+    unsigned long i;
+    if (_BitScanForward(&i, ~colorsUnion)) {
+        colors0 |= 1 << i;
+        colors1 |= 1 << i;
+
+        if (i == constraintColors.size()) {
+            constraintColors.push_back({});
+        }
+
+        auto& constraintColor = constraintColors[i];
+        mappers.push_back({ static_cast<int>(i), constraintColor.getSize() });
+        constraintColor.pushBack(transform0, transform1, dynamic0, dynamic1);
+    }
+    else {
+        mappers.push_back({ -1, sequential.getSize() });
+        sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
+    }
+}
+
+void physecs::Constraint1DContainer::clear() {
+    for (auto& constraintColor : constraintColors) {
+        constraintColor.clear();
+    }
+    sequential.clear();
+    mappers.clear();
+    colorBitsets.clear();
 }

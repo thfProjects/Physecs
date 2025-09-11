@@ -1,50 +1,100 @@
 #pragma once
 
+#include <entt.hpp>
+
 #include "Components.h"
 
 struct TransformComponent;
 
 namespace physecs {
-    class Constraint1DContainer {
+
+    class Constraint1DSoa {
 
         friend class Constraint1DViewer;
 
         struct TransformComponents {
-            TransformComponent& transform0;
-            TransformComponent& transform1;
+            TransformComponent* transform0;
+            TransformComponent* transform1;
 
-            TransformComponents (TransformComponent& t0, TransformComponent& t1) : transform0(t0), transform1(t1) {}
+            TransformComponents () : transform0 (nullptr), transform1 (nullptr) {}
+            TransformComponents (TransformComponent* t0, TransformComponent* t1) : transform0(t0), transform1(t1) {}
         };
 
         struct DynamicComponents {
             RigidBodyDynamicComponent* dynamic0;
             RigidBodyDynamicComponent* dynamic1;
 
+            DynamicComponents () : dynamic0(nullptr), dynamic1(nullptr) {}
             DynamicComponents (RigidBodyDynamicComponent* d0, RigidBodyDynamicComponent* d1) : dynamic0(d0), dynamic1(d1) {}
         };
 
-        std::vector<TransformComponents> transformComponentsBuffer;
-        std::vector<DynamicComponents> dynamicComponentsBuffer;
-        std::vector<glm::vec3> linearBuffer;
-        std::vector<glm::vec3> angular0Buffer;
-        std::vector<glm::vec3> angular1Buffer;
-        std::vector<float> targetVelocityBuffer;
-        std::vector<float> cBuffer;
-        std::vector<float> minBuffer;
-        std::vector<float> maxBuffer;
-        std::vector<char> flagsBuffer;
-        std::vector<float> frequencyBuffer;
-        std::vector<float> dampingRatioBuffer;
-        std::vector<glm::vec3> angular0tBuffer;
-        std::vector<glm::vec3> angular1tBuffer;
-        std::vector<float> invEffMassBuffer;
-        std::vector<float> totalLambdaBuffer;
+        template<typename T>
+        class Field {
+            T* data;
+        public:
+            T& operator[](int i) { return data[i]; }
+            Field () : data(nullptr) {}
+            Field (Field&& other) noexcept : data(other.data) {
+                other.data = nullptr;
+            }
+            void reallocate(int oldSize, int newSize) {
+                T* newBuffer = new T[newSize];
+                std::copy(data, data + oldSize, newBuffer);
+                delete[] data;
+                data = newBuffer;
+            }
+            ~Field() { delete[] data; }
+        };
+
+        Field<TransformComponents> transformComponentsBuffer;
+        Field<DynamicComponents> dynamicComponentsBuffer;
+        Field<glm::vec3> linearBuffer;
+        Field<glm::vec3> angular0Buffer;
+        Field<glm::vec3> angular1Buffer;
+        Field<float> targetVelocityBuffer;
+        Field<float> cBuffer;
+        Field<float> minBuffer;
+        Field<float> maxBuffer;
+        Field<char> flagsBuffer;
+        Field<float> frequencyBuffer;
+        Field<float> dampingRatioBuffer;
+        Field<glm::vec3> angular0tBuffer;
+        Field<glm::vec3> angular1tBuffer;
+        Field<float> invEffMassBuffer;
+        Field<float> totalLambdaBuffer;
+
+        int size = 0;
+        int capacity = 0;
 
     public:
-        void pushBack(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
-        void clear();
         void preSolve();
         void solve(bool useBias, float timeStep);
+        void pushBack(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
+        void clear();
+        int getSize() const { return size; };
+    };
+
+    class Constraint1DContainer {
+
+        friend class Constraint1DViewer;
+
+        struct Constraint1DMapper {
+            int color;
+            int index;
+        };
+
+        constexpr static int maxColors = 8;
+
+        std::vector<Constraint1DSoa> constraintColors;
+        std::unordered_map<entt::entity, std::uint32_t> colorBitsets;
+        std::vector<Constraint1DMapper> mappers;
+        Constraint1DSoa sequential;
+
+    public:
+        void preSolve();
+        void solve(bool useBias, float timeStep);
+        void pushBack(entt::entity entity0, entt::entity entity1, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
+        void clear();
     };
 
     struct Constraint1DView {
@@ -67,18 +117,20 @@ namespace physecs {
     public:
         Constraint1DViewer(int baseIndex, Constraint1DContainer& container) : baseIndex(baseIndex), container(container) {}
         Constraint1DView operator[] (int index) const {
-            const int i = baseIndex + index;
+            const int mapperIndex = baseIndex + index;
+            auto& [color, i] = container.mappers[mapperIndex];
+            auto& soa = color == -1 ? container.sequential : container.constraintColors[color];
             return {
-                container.linearBuffer[i],
-                container.angular0Buffer[i],
-                container.angular1Buffer[i],
-                container.targetVelocityBuffer[i],
-                container.cBuffer[i],
-                container.minBuffer[i],
-                container.maxBuffer[i],
-                container.flagsBuffer[i],
-                container.frequencyBuffer[i],
-                container.dampingRatioBuffer[i]
+                soa.linearBuffer[i],
+                soa.angular0Buffer[i],
+                soa.angular1Buffer[i],
+                soa.targetVelocityBuffer[i],
+                soa.cBuffer[i],
+                soa.minBuffer[i],
+                soa.maxBuffer[i],
+                soa.flagsBuffer[i],
+                soa.frequencyBuffer[i],
+                soa.dampingRatioBuffer[i]
             };
         }
     };

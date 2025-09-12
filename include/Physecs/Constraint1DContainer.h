@@ -38,7 +38,7 @@ namespace physecs {
                 other.data = nullptr;
             }
             void reallocate(int oldSize, int newSize) {
-                T* newBuffer = new T[newSize];
+                T* newBuffer = new T[newSize]();
                 std::copy(data, data + oldSize, newBuffer);
                 delete[] data;
                 data = newBuffer;
@@ -69,6 +69,7 @@ namespace physecs {
     public:
         void preSolve();
         void solve(bool useBias, float timeStep);
+        void solveSimd(float timeStep);
         void pushBack(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
         void clear();
         int getSize() const { return size; };

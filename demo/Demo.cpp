@@ -38,7 +38,7 @@ entt::entity Demo::spawnBox(glm::vec3 position) {
     glm::vec3 com;
     glm::mat3 invInertiaTensor;
     physecs::computeCOMAndInvInertiaTensor(col, 1.f, com, invInertiaTensor);
-    registry.emplace<physecs::RigidBodyDynamicComponent>(box, 1.f, com, glm::vec3(0), invInertiaTensor, glm::vec3(0), false);
+    registry.emplace<physecs::RigidBodyDynamicComponent>(box, false, glm::vec3(0), glm::vec3(0), 1.f, com, invInertiaTensor);
     return box;
 }
 
@@ -54,7 +54,7 @@ entt::entity Demo::spawnCapsule(glm::vec3 position) {
     glm::vec3 com;
     glm::mat3 invInertiaTensor;
     physecs::computeCOMAndInvInertiaTensor(col, 1.f, com, invInertiaTensor);
-    registry.emplace<physecs::RigidBodyDynamicComponent>(capsule, 1.f, com, glm::vec3(0), invInertiaTensor, glm::vec3(0), false);
+    registry.emplace<physecs::RigidBodyDynamicComponent>(capsule, false, glm::vec3(0), glm::vec3(0), 1.f, com, invInertiaTensor);
     return capsule;
 }
 

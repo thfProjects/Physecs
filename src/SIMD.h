@@ -16,9 +16,9 @@ namespace physecs {
         explicit vec3W(glm::vec3* v) {
             const float* f = glm::value_ptr(v[0]);
 
-            const auto r0 = _mm_loadu_ps(f);
-            const auto r1 = _mm_loadu_ps(f + 4);
-            const auto r2 = _mm_loadu_ps(f + 8);
+            const auto r0 = _mm_load_ps(f);
+            const auto r1 = _mm_load_ps(f + 4);
+            const auto r2 = _mm_load_ps(f + 8);
 
             const auto xy = _mm_shuffle_ps(r1, r2, _MM_SHUFFLE(2, 1, 3, 2));
             const auto yz = _mm_shuffle_ps(r0, r1, _MM_SHUFFLE(1, 0, 2, 1));

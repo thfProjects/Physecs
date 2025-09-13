@@ -234,7 +234,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         glm::vec3 velocity1[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
         glm::vec3 angularVelocity1[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
 
-        for (int j = 0; j < 4; ++j) {
+        for (int j = 0; j < 4 && i + j < size; ++j) {
             auto [dynamic0, dynamic1] = dynamics[j];
 
             if (dynamic0 && !dynamic0->isKinematic) {
@@ -257,9 +257,9 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto angular1W = vec3W(angular1);
         auto linearW = vec3W(linear);
 
-        auto targetVelocityW = _mm_loadu_ps(targetVelocity);
-        auto cW = _mm_loadu_ps(c);
-        auto invEffMassW = _mm_loadu_ps(invEffMass);
+        auto targetVelocityW = _mm_load_ps(targetVelocity);
+        auto cW = _mm_load_ps(c);
+        auto invEffMassW = _mm_load_ps(invEffMass);
 
         const unsigned int flagsW = static_cast<unsigned char>(flags[0]) | static_cast<unsigned char>(flags[1]) << 8 | static_cast<unsigned char>(flags[2]) << 16 | static_cast<unsigned char>(flags[3]) << 24;
 
@@ -270,8 +270,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
         auto lambdaW = (relativeVelocityW - targetVelocityW + _mm_set1_ps(0.2 / timeStep) * cW) / invEffMassW;
         if (flagsW & SOFT_W) {
-            auto frequencyW = _mm_loadu_ps(frequency);
-            auto dampingRatioW = _mm_loadu_ps(dampingRatio);
+            auto frequencyW = _mm_load_ps(frequency);
+            auto dampingRatioW = _mm_load_ps(dampingRatio);
             auto timeStepW = _mm_set1_ps(timeStep);
 
             auto angularFreq = _mm_set1_ps(2.f * glm::pi<float>()) * frequencyW;
@@ -285,11 +285,11 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             lambdaW = _mm_blendv_ps(lambdaW, lambdaSoft, _mm_castsi128_ps(mask));
         }
 
-        auto totalLambdaW = _mm_loadu_ps(totalLambda);
+        auto totalLambdaW = _mm_load_ps(totalLambda);
 
         if (flagsW & LIMITED_W) {
-            auto minW = _mm_loadu_ps(min);
-            auto maxW = _mm_loadu_ps(max);
+            auto minW = _mm_load_ps(min);
+            auto maxW = _mm_load_ps(max);
 
             auto prevLambda = totalLambdaW;
             totalLambdaW += lambdaW;
@@ -300,12 +300,6 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             totalLambdaW += lambdaW;
         }
 
-        float lambdaArray[4];
-        float totalLambdaArray[4];
-
-        _mm_storeu_ps(lambdaArray, lambdaW);
-        _mm_storeu_ps(totalLambdaArray, totalLambdaW);
-
         for (int j = 0; j < 4 && i + j < size; ++j) {
             if (!invEffMass[j]) continue;
 
@@ -313,17 +307,17 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
             if (dynamic0 && !dynamic0->isKinematic) {
                 if (!(flags[j] & Constraint1D::ANGULAR))
-                    dynamic0->velocity += lambdaArray[j] * dynamic0->invMass * linear[j];
-                dynamic0->angularVelocity += lambdaArray[j] * angular0t[j];
+                    dynamic0->velocity += lambdaW.m128_f32[j] * dynamic0->invMass * linear[j];
+                dynamic0->angularVelocity += lambdaW.m128_f32[j] * angular0t[j];
             }
 
             if (dynamic1 && !dynamic1->isKinematic) {
                 if (!(flags[j] & Constraint1D::ANGULAR))
-                    dynamic1->velocity -= lambdaArray[j] * dynamic1->invMass * linear[j];
-                dynamic1->angularVelocity -= lambdaArray[j] * angular1t[j];
+                    dynamic1->velocity -= lambdaW.m128_f32[j] * dynamic1->invMass * linear[j];
+                dynamic1->angularVelocity -= lambdaW.m128_f32[j] * angular1t[j];
             }
 
-            totalLambda[j] = totalLambdaArray[j];
+            totalLambda[j] = totalLambdaW.m128_f32[j];
         }
     }
 }

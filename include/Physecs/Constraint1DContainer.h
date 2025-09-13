@@ -38,12 +38,12 @@ namespace physecs {
                 other.data = nullptr;
             }
             void reallocate(int oldSize, int newSize) {
-                T* newBuffer = new T[newSize]();
+                T* newBuffer = static_cast<T*>(_aligned_malloc(newSize * sizeof(T), 16));
                 std::copy(data, data + oldSize, newBuffer);
-                delete[] data;
+                _aligned_free(data);
                 data = newBuffer;
             }
-            ~Field() { delete[] data; }
+            ~Field() { _aligned_free(data); }
         };
 
         Field<TransformComponents> transformComponentsBuffer;

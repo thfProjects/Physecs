@@ -318,11 +318,7 @@ void physecs::Scene::simulate(float timeStep) {
     for (auto& joint : joints) {
         auto solverData = joint->getSolverData(registry);
         jointSolverDataBuffer.push_back(solverData);
-        auto entity0 = joint->getEntity0();
-        auto entity1 = joint->getEntity1();
-        for (int i = 0; i < solverData.numConstraints; ++i) {
-            jointConstraints.pushBack(entity0, entity1, solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1);
-        }
+        jointConstraints.pushBack(solverData.numConstraints, joint->getEntity0(), joint->getEntity1(), solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1);
     }
     PhysecsZoneEnd(ctx7);
 

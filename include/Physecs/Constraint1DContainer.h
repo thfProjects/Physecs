@@ -82,6 +82,8 @@ namespace physecs {
         struct Constraint1DMapper {
             int color;
             int index;
+
+            Constraint1DMapper(int color, int index) : color(color), index(index) {}
         };
 
         constexpr static int maxColors = 8;
@@ -94,7 +96,7 @@ namespace physecs {
     public:
         void preSolve();
         void solve(bool useBias, float timeStep);
-        void pushBack(entt::entity entity0, entt::entity entity1, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
+        void pushBack(int count, entt::entity entity0, entt::entity entity1, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
         void clear();
     };
 

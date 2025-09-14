@@ -336,28 +336,30 @@ void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
     sequential.solve(useBias, timeStep);
 }
 
-void physecs::Constraint1DContainer::pushBack(entt::entity entity0, entt::entity entity1, TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
+void physecs::Constraint1DContainer::pushBack(int count, entt::entity entity0, entt::entity entity1, TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
     if (!colorBitsets.contains(entity0)) colorBitsets.emplace(entity0, 0);
     if (!colorBitsets.contains(entity1)) colorBitsets.emplace(entity1, 0);
     auto& colors0 = colorBitsets[entity0];
     auto& colors1 = colorBitsets[entity1];
-    const auto colorsUnion = colors0 | colors1;
-    unsigned long i;
-    if (_BitScanForward(&i, ~colorsUnion)) {
-        colors0 |= 1 << i;
-        colors1 |= 1 << i;
+    for (int j = 0; j < count; ++j) {
+        const auto colorsUnion = colors0 | colors1;
+        unsigned long i;
+        if (_BitScanForward(&i, ~colorsUnion)) {
+            colors0 |= 1 << i;
+            colors1 |= 1 << i;
 
-        if (i == constraintColors.size()) {
-            constraintColors.push_back({});
+            if (i == constraintColors.size()) {
+                constraintColors.push_back({});
+            }
+
+            auto& constraintColor = constraintColors[i];
+            mappers.emplace_back(static_cast<int>(i), constraintColor.getSize());
+            constraintColor.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
-
-        auto& constraintColor = constraintColors[i];
-        mappers.push_back({ static_cast<int>(i), constraintColor.getSize() });
-        constraintColor.pushBack(transform0, transform1, dynamic0, dynamic1);
-    }
-    else {
-        mappers.push_back({ -1, sequential.getSize() });
-        sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
+        else {
+            mappers.push_back({ -1, sequential.getSize() });
+            sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
+        }
     }
 }
 

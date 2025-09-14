@@ -117,7 +117,7 @@ namespace physecs {
 
     public:
         Constraint1DViewer(int baseIndex, Constraint1DContainer& container) : baseIndex(baseIndex), container(container) {}
-        Constraint1DView operator[] (int index) const {
+         __forceinline Constraint1DView operator[] (int index) const {
             const int mapperIndex = baseIndex + index;
             auto& [color, i] = container.mappers[mapperIndex];
             auto& soa = color == -1 ? container.sequential : container.constraintColors[color];

@@ -94,10 +94,6 @@ void physecs::Constraint1DSoa::preSolve() {
         auto& invEffMass = invEffMassBuffer[i];
         auto& totalLambda = totalLambdaBuffer[i];
 
-        auto& velocity0 = velocity0Buffer[i];
-        auto& velocity1 = velocity1Buffer[i];
-        auto& angularVelocity0 = angularVelocity0Buffer[i];
-        auto& angularVelocity1 = angularVelocity1Buffer[i];
         auto& invMass0 = invMass0Buffer[i];
         auto& invMass1 = invMass1Buffer[i];
 
@@ -145,14 +141,14 @@ void physecs::Constraint1DSoa::preSolve() {
         totalLambda = totalLambda * 0.5f;
         if (dynamic0 && !dynamic0->isKinematic) {
             if (!(flags & Constraint1D::ANGULAR))
-                velocity0 += totalLambda * dynamic0->invMass * linear;
-            angularVelocity0 += totalLambda * angular0t;
+                dynamic0->velocity += totalLambda * dynamic0->invMass * linear;
+            dynamic0->angularVelocity += totalLambda * angular0t;
         }
 
         if (dynamic1 && !dynamic1->isKinematic) {
             if (!(flags & Constraint1D::ANGULAR))
-                velocity1 -= totalLambda * dynamic1->invMass * linear;
-            angularVelocity1 -= totalLambda * angular1t;
+                dynamic1->velocity -= totalLambda * dynamic1->invMass * linear;
+            dynamic1->angularVelocity -= totalLambda * angular1t;
         }
     }
 }
@@ -314,12 +310,12 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         }
 
         auto totalLambdaW = _mm_load_ps(totalLambda);
+        auto prevLambda = totalLambdaW;
 
         if (flagsW & LIMITED_W) {
             auto minW = _mm_load_ps(min);
             auto maxW = _mm_load_ps(max);
 
-            auto prevLambda = totalLambdaW;
             totalLambdaW += lambdaW;
             totalLambdaW = _mm_min_ps(_mm_max_ps(totalLambdaW, minW), maxW);
             lambdaW = totalLambdaW - prevLambda;
@@ -327,6 +323,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         else {
             totalLambdaW += lambdaW;
         }
+
+        totalLambdaW = _mm_blendv_ps(prevLambda, totalLambdaW, _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps()));
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
             velocity0W += lambdaW * invMass0W * linearW;

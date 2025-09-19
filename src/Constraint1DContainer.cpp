@@ -37,6 +37,13 @@ void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, Transfor
         invEffMassBuffer.reallocate(capacity, newCapacity);
         totalLambdaBuffer.reallocate(capacity, newCapacity);
 
+        velocity0Buffer.reallocate(capacity, newCapacity);
+        velocity1Buffer.reallocate(capacity, newCapacity);
+        angularVelocity0Buffer.reallocate(capacity, newCapacity);
+        angularVelocity1Buffer.reallocate(capacity, newCapacity);
+        invMass0Buffer.reallocate(capacity, newCapacity);
+        invMass1Buffer.reallocate(capacity, newCapacity);
+
         capacity = newCapacity;
     }
 
@@ -56,6 +63,13 @@ void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, Transfor
     angular1tBuffer[size] = glm::vec3(0);
     invEffMassBuffer[size] = 0;
     totalLambdaBuffer[size] = 0;
+
+    velocity0Buffer[size] = glm::vec3(0);
+    velocity1Buffer[size] = glm::vec3(0);
+    angularVelocity0Buffer[size] = glm::vec3(0);
+    angularVelocity1Buffer[size] = glm::vec3(0);
+    invMass0Buffer[size] = 0;
+    invMass0Buffer[size] = 0;
 
     ++size;
 }
@@ -80,14 +94,19 @@ void physecs::Constraint1DSoa::preSolve() {
         auto& invEffMass = invEffMassBuffer[i];
         auto& totalLambda = totalLambdaBuffer[i];
 
-        float invMass0 = 0;
+        auto& velocity0 = velocity0Buffer[i];
+        auto& velocity1 = velocity1Buffer[i];
+        auto& angularVelocity0 = angularVelocity0Buffer[i];
+        auto& angularVelocity1 = angularVelocity1Buffer[i];
+        auto& invMass0 = invMass0Buffer[i];
+        auto& invMass1 = invMass1Buffer[i];
+
         glm::mat3 invInertiaTensor0(0);
         if (dynamic0 && !dynamic0->isKinematic) {
             invMass0 = dynamic0->invMass;
             invInertiaTensor0 = dynamic0->invInertiaTensorWorld;
         }
 
-        float invMass1 = 0;
         glm::mat3 invInertiaTensor1(0);
         if (dynamic1 && !dynamic1->isKinematic) {
             invMass1 = dynamic1->invMass;
@@ -126,14 +145,14 @@ void physecs::Constraint1DSoa::preSolve() {
         totalLambda = totalLambda * 0.5f;
         if (dynamic0 && !dynamic0->isKinematic) {
             if (!(flags & Constraint1D::ANGULAR))
-                dynamic0->velocity += totalLambda * dynamic0->invMass * linear;
-            dynamic0->angularVelocity += totalLambda * angular0t;
+                velocity0 += totalLambda * dynamic0->invMass * linear;
+            angularVelocity0 += totalLambda * angular0t;
         }
 
         if (dynamic1 && !dynamic1->isKinematic) {
             if (!(flags & Constraint1D::ANGULAR))
-                dynamic1->velocity -= totalLambda * dynamic1->invMass * linear;
-            dynamic1->angularVelocity -= totalLambda * angular1t;
+                velocity1 -= totalLambda * dynamic1->invMass * linear;
+            angularVelocity1 -= totalLambda * angular1t;
         }
     }
 }
@@ -212,8 +231,25 @@ void physecs::Constraint1DSoa::solve(bool useBias, float timeStep) {
 }
 
 void physecs::Constraint1DSoa::solveSimd(float timeStep) {
+    for (int i = 0; i < size; ++i) {
+        auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
+        auto& velocity0 = velocity0Buffer[i];
+        auto& velocity1 = velocity1Buffer[i];
+        auto& angularVelocity0 = angularVelocity0Buffer[i];
+        auto& angularVelocity1 = angularVelocity1Buffer[i];
+
+        if (dynamic0 && !dynamic0->isKinematic) {
+            velocity0 = dynamic0->velocity;
+            angularVelocity0 = dynamic0->angularVelocity;
+        }
+
+        if (dynamic1 && !dynamic1->isKinematic) {
+            velocity1 = dynamic1->velocity;
+            angularVelocity1 = dynamic1->angularVelocity;
+        }
+    }
+
     for (int i = 0; i < size; i += 4) {
-        auto dynamics = &dynamicComponentsBuffer[i];
         const auto linear = &linearBuffer[i];
         const auto angular0 = &angular0Buffer[i];
         const auto angular1 = &angular1Buffer[i];
@@ -229,33 +265,25 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         const auto invEffMass = &invEffMassBuffer[i];
         auto totalLambda = &totalLambdaBuffer[i];
 
-        glm::vec3 velocity0[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
-        glm::vec3 angularVelocity0[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
-        glm::vec3 velocity1[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
-        glm::vec3 angularVelocity1[4] = { glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0) };
-
-        for (int j = 0; j < 4 && i + j < size; ++j) {
-            auto [dynamic0, dynamic1] = dynamics[j];
-
-            if (dynamic0 && !dynamic0->isKinematic) {
-                velocity0[j] = dynamic0->velocity;
-                angularVelocity0[j] = dynamic0->angularVelocity;
-            }
-
-            if (dynamic1 && !dynamic1->isKinematic) {
-                velocity1[j] = dynamic1->velocity;
-                angularVelocity1[j] = dynamic1->angularVelocity;
-            }
-        }
+        auto velocity0 = &velocity0Buffer[i];
+        auto velocity1 = &velocity1Buffer[i];
+        auto angularVelocity0 = &angularVelocity0Buffer[i];
+        auto angularVelocity1 = &angularVelocity1Buffer[i];
 
         auto velocity0W = vec3W(velocity0);
         auto angularVelocity0W = vec3W(angularVelocity0);
         auto velocity1W = vec3W(velocity1);
         auto angularVelocity1W = vec3W(angularVelocity1);
 
+        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
+        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+
         auto angular0W = vec3W(angular0);
         auto angular1W = vec3W(angular1);
         auto linearW = vec3W(linear);
+
+        auto angular0tW = vec3W(angular0t);
+        auto angular1tW = vec3W(angular1t);
 
         auto targetVelocityW = _mm_load_ps(targetVelocity);
         auto cW = _mm_load_ps(c);
@@ -300,24 +328,43 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             totalLambdaW += lambdaW;
         }
 
-        for (int j = 0; j < 4 && i + j < size; ++j) {
-            if (!invEffMass[j]) continue;
+        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            velocity0W += lambdaW * invMass0W * linearW;
+            velocity1W -= lambdaW * invMass1W * linearW;
+        }
 
-            auto [dynamic0, dynamic1] = dynamics[j];
+        angularVelocity0W += lambdaW * angular0tW;
+        angularVelocity1W -= lambdaW * angular1tW;
 
-            if (dynamic0 && !dynamic0->isKinematic) {
-                if (!(flags[j] & Constraint1D::ANGULAR))
-                    dynamic0->velocity += lambdaW.m128_f32[j] * dynamic0->invMass * linear[j];
-                dynamic0->angularVelocity += lambdaW.m128_f32[j] * angular0t[j];
-            }
+        velocity0W.store(velocity0);
+        velocity1W.store(velocity1);
+        angularVelocity0W.store(angularVelocity0);
+        angularVelocity1W.store(angularVelocity1);
 
-            if (dynamic1 && !dynamic1->isKinematic) {
-                if (!(flags[j] & Constraint1D::ANGULAR))
-                    dynamic1->velocity -= lambdaW.m128_f32[j] * dynamic1->invMass * linear[j];
-                dynamic1->angularVelocity -= lambdaW.m128_f32[j] * angular1t[j];
-            }
+        _mm_store_ps(totalLambda, totalLambdaW);
+    }
 
-            totalLambda[j] = totalLambdaW.m128_f32[j];
+    for (int i = 0; i < size; ++i) {
+        auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
+        const auto& flags = flagsBuffer[i];
+        const auto& velocity0 = velocity0Buffer[i];
+        const auto& velocity1 = velocity1Buffer[i];
+        const auto& angularVelocity0 = angularVelocity0Buffer[i];
+        const auto& angularVelocity1 = angularVelocity1Buffer[i];
+        const auto& invEffMass = invEffMassBuffer[i];
+
+        if (!invEffMass) continue;
+
+        if (dynamic0 && !dynamic0->isKinematic) {
+            if (!(flags & Constraint1D::ANGULAR))
+                dynamic0->velocity = velocity0;
+            dynamic0->angularVelocity = angularVelocity0;
+        }
+
+        if (dynamic1 && !dynamic1->isKinematic) {
+            if (!(flags & Constraint1D::ANGULAR))
+                dynamic1->velocity = velocity1;
+            dynamic1->angularVelocity = angularVelocity1;
         }
     }
 }

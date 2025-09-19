@@ -63,6 +63,14 @@ namespace physecs {
         Field<float> invEffMassBuffer;
         Field<float> totalLambdaBuffer;
 
+        //temp values
+        Field<glm::vec3> velocity0Buffer;
+        Field<glm::vec3> velocity1Buffer;
+        Field<glm::vec3> angularVelocity0Buffer;
+        Field<glm::vec3> angularVelocity1Buffer;
+        Field<float> invMass0Buffer;
+        Field<float> invMass1Buffer;
+
         int size = 0;
         int capacity = 0;
 

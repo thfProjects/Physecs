@@ -285,7 +285,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto cW = _mm_load_ps(c);
         auto invEffMassW = _mm_load_ps(invEffMass);
 
-        const unsigned int flagsW = static_cast<unsigned char>(flags[0]) | static_cast<unsigned char>(flags[1]) << 8 | static_cast<unsigned char>(flags[2]) << 16 | static_cast<unsigned char>(flags[3]) << 24;
+        const unsigned int flagsW = flags[0] | flags[1] << 8 | flags[2] << 16 | flags[3] << 24;
 
         auto relativeVelocityW = dotW(angular1W, angularVelocity1W) - dotW(angular0W, angularVelocity0W);
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {

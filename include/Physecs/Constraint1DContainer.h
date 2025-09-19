@@ -55,7 +55,7 @@ namespace physecs {
         Field<float> cBuffer;
         Field<float> minBuffer;
         Field<float> maxBuffer;
-        Field<char> flagsBuffer;
+        Field<unsigned char> flagsBuffer;
         Field<float> frequencyBuffer;
         Field<float> dampingRatioBuffer;
         Field<glm::vec3> angular0tBuffer;
@@ -116,7 +116,7 @@ namespace physecs {
         float& c;
         float& min;
         float& max;
-        char& flags;
+        unsigned char& flags;
         float& frequency;
         float& dampingRatio;
     };

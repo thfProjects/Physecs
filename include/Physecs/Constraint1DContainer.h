@@ -88,15 +88,15 @@ namespace physecs {
         friend class Constraint1DViewer;
 
         struct Constraint1DMapper {
-            int color;
+            Constraint1DSoa* color;
             int index;
 
-            Constraint1DMapper(int color, int index) : color(color), index(index) {}
+            Constraint1DMapper(Constraint1DSoa* color, int index) : color(color), index(index) {}
         };
 
-        constexpr static int maxColors = 8;
+        constexpr static int maxColors = 32;
 
-        std::vector<Constraint1DSoa> constraintColors;
+        Constraint1DSoa constraintColors[maxColors];
         std::unordered_map<entt::entity, std::uint32_t> colorBitsets;
         std::vector<Constraint1DMapper> mappers;
         Constraint1DSoa sequential;
@@ -130,18 +130,17 @@ namespace physecs {
          __forceinline Constraint1DView operator[] (int index) const {
             const int mapperIndex = baseIndex + index;
             auto& [color, i] = container.mappers[mapperIndex];
-            auto& soa = color == -1 ? container.sequential : container.constraintColors[color];
             return {
-                soa.linearBuffer[i],
-                soa.angular0Buffer[i],
-                soa.angular1Buffer[i],
-                soa.targetVelocityBuffer[i],
-                soa.cBuffer[i],
-                soa.minBuffer[i],
-                soa.maxBuffer[i],
-                soa.flagsBuffer[i],
-                soa.frequencyBuffer[i],
-                soa.dampingRatioBuffer[i]
+                color->linearBuffer[i],
+                color->angular0Buffer[i],
+                color->angular1Buffer[i],
+                color->targetVelocityBuffer[i],
+                color->cBuffer[i],
+                color->minBuffer[i],
+                color->maxBuffer[i],
+                color->flagsBuffer[i],
+                color->frequencyBuffer[i],
+                color->dampingRatioBuffer[i]
             };
         }
     };

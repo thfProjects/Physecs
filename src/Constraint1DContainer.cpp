@@ -393,16 +393,12 @@ void physecs::Constraint1DContainer::pushBack(int count, entt::entity entity0, e
             colors0 |= 1 << i;
             colors1 |= 1 << i;
 
-            if (i == constraintColors.size()) {
-                constraintColors.push_back({});
-            }
-
             auto& constraintColor = constraintColors[i];
-            mappers.emplace_back(static_cast<int>(i), constraintColor.getSize());
+            mappers.emplace_back(&constraintColor, constraintColor.getSize());
             constraintColor.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
         else {
-            mappers.push_back({ -1, sequential.getSize() });
+            mappers.emplace_back(&sequential, sequential.getSize());
             sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
     }

@@ -49,29 +49,32 @@ void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, Transfor
 
     transformComponentsBuffer[size] = { &transform0, &transform1 };
     dynamicComponentsBuffer[size] = { dynamic0, dynamic1 };
-    linearBuffer[size] = glm::vec3(0);
-    angular0Buffer[size] = glm::vec3(0);
-    angular1Buffer[size] = glm::vec3(0);
-    targetVelocityBuffer[size] = 0;
-    cBuffer[size] = 0;
-    minBuffer[size] = std::numeric_limits<float>::lowest();
-    maxBuffer[size] = std::numeric_limits<float>::max();
-    flagsBuffer[size] = 0;
-    frequencyBuffer[size] = 0;
-    dampingRatioBuffer[size] = 0;
-    angular0tBuffer[size] = glm::vec3(0);
-    angular1tBuffer[size] = glm::vec3(0);
-    invEffMassBuffer[size] = 0;
-    totalLambdaBuffer[size] = 0;
-
-    velocity0Buffer[size] = glm::vec3(0);
-    velocity1Buffer[size] = glm::vec3(0);
-    angularVelocity0Buffer[size] = glm::vec3(0);
-    angularVelocity1Buffer[size] = glm::vec3(0);
-    invMass0Buffer[size] = 0;
-    invMass0Buffer[size] = 0;
 
     ++size;
+}
+
+void physecs::Constraint1DSoa::fillDefaults() {
+    std::fill_n(linearBuffer.get(), size, glm::vec3(0));
+    std::fill_n(angular0Buffer.get(), size, glm::vec3(0));
+    std::fill_n(angular1Buffer.get(), size, glm::vec3(0));
+    std::fill_n(targetVelocityBuffer.get(), size, 0);
+    std::fill_n(cBuffer.get(), size, 0);
+    std::fill_n(minBuffer.get(), size, std::numeric_limits<float>::lowest());
+    std::fill_n(maxBuffer.get(), size, std::numeric_limits<float>::max());
+    std::fill_n(flagsBuffer.get(), size, 0);
+    std::fill_n(frequencyBuffer.get(), size, 0);
+    std::fill_n(dampingRatioBuffer.get(), size, 0);
+    std::fill_n(angular0tBuffer.get(), size, glm::vec3(0));
+    std::fill_n(angular1tBuffer.get(), size, glm::vec3(0));
+    std::fill_n(invEffMassBuffer.get(), size, 0);
+    std::fill_n(totalLambdaBuffer.get(), size, 0);
+
+    std::fill_n(velocity0Buffer.get(), size, glm::vec3(0));
+    std::fill_n(velocity1Buffer.get(), size, glm::vec3(0));
+    std::fill_n(angularVelocity0Buffer.get(), size, glm::vec3(0));
+    std::fill_n(angularVelocity1Buffer.get(), size, glm::vec3(0));
+    std::fill_n(invMass0Buffer.get(), size, 0);
+    std::fill_n(invMass0Buffer.get(), size, 0);
 }
 
 void physecs::Constraint1DSoa::clear() {
@@ -246,19 +249,23 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
     }
 
     for (int i = 0; i < size; i += 4) {
+        const auto invEffMass = &invEffMassBuffer[i];
+
+        auto invEffMassW = _mm_load_ps(invEffMass);
+
+        auto invEffMassMask = _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps());
+
+        if (_mm_testz_si128(_mm_castps_si128(invEffMassMask), _mm_castps_si128(invEffMassMask))) {
+            continue;
+        }
+
         const auto linear = &linearBuffer[i];
         const auto angular0 = &angular0Buffer[i];
         const auto angular1 = &angular1Buffer[i];
-        const auto angular0t = &angular0tBuffer[i];
-        const auto angular1t = &angular1tBuffer[i];
         const auto c = &cBuffer[i];
         auto flags = &flagsBuffer[i];
-        const auto min = &minBuffer[i];
-        const auto max = &maxBuffer[i];
-        const auto frequency = &frequencyBuffer[i];
-        const auto dampingRatio = &dampingRatioBuffer[i];
         const auto targetVelocity = &targetVelocityBuffer[i];
-        const auto invEffMass = &invEffMassBuffer[i];
+
         auto totalLambda = &totalLambdaBuffer[i];
 
         auto velocity0 = &velocity0Buffer[i];
@@ -271,19 +278,12 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto velocity1W = vec3W(velocity1);
         auto angularVelocity1W = vec3W(angularVelocity1);
 
-        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
-        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
-
         auto angular0W = vec3W(angular0);
         auto angular1W = vec3W(angular1);
         auto linearW = vec3W(linear);
 
-        auto angular0tW = vec3W(angular0t);
-        auto angular1tW = vec3W(angular1t);
-
         auto targetVelocityW = _mm_load_ps(targetVelocity);
         auto cW = _mm_load_ps(c);
-        auto invEffMassW = _mm_load_ps(invEffMass);
 
         const unsigned int flagsW = flags[0] | flags[1] << 8 | flags[2] << 16 | flags[3] << 24;
 
@@ -294,6 +294,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
         auto lambdaW = (relativeVelocityW - targetVelocityW + _mm_set1_ps(0.2 / timeStep) * cW) / invEffMassW;
         if (flagsW & SOFT_W) {
+            const auto frequency = &frequencyBuffer[i];
+            const auto dampingRatio = &dampingRatioBuffer[i];
             auto frequencyW = _mm_load_ps(frequency);
             auto dampingRatioW = _mm_load_ps(dampingRatio);
             auto timeStepW = _mm_set1_ps(timeStep);
@@ -313,8 +315,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto prevLambda = totalLambdaW;
 
         if (flagsW & LIMITED_W) {
-            auto minW = _mm_load_ps(min);
-            auto maxW = _mm_load_ps(max);
+            auto minW = _mm_load_ps(&minBuffer[i]);
+            auto maxW = _mm_load_ps(&maxBuffer[i]);
 
             totalLambdaW += lambdaW;
             totalLambdaW = _mm_min_ps(_mm_max_ps(totalLambdaW, minW), maxW);
@@ -324,7 +326,14 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             totalLambdaW += lambdaW;
         }
 
-        totalLambdaW = _mm_blendv_ps(prevLambda, totalLambdaW, _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps()));
+        totalLambdaW = _mm_blendv_ps(prevLambda, totalLambdaW, invEffMassMask);
+
+        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
+        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+        const auto angular0t = &angular0tBuffer[i];
+        const auto angular1t = &angular1tBuffer[i];
+        auto angular0tW = vec3W(angular0t);
+        auto angular1tW = vec3W(angular1t);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
             velocity0W += lambdaW * invMass0W * linearW;
@@ -402,6 +411,13 @@ void physecs::Constraint1DContainer::pushBack(int count, entt::entity entity0, e
             sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
     }
+}
+
+void physecs::Constraint1DContainer::fillDefaults() {
+    for (auto& constraintColor : constraintColors) {
+        constraintColor.fillDefaults();
+    }
+    sequential.fillDefaults();
 }
 
 void physecs::Constraint1DContainer::clear() {

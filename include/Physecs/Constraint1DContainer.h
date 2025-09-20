@@ -40,9 +40,11 @@ namespace physecs {
             void reallocate(int oldSize, int newSize) {
                 T* newBuffer = static_cast<T*>(_aligned_malloc(newSize * sizeof(T), 16));
                 std::copy(data, data + oldSize, newBuffer);
+                std::fill(newBuffer, newBuffer + newSize - oldSize, T());
                 _aligned_free(data);
                 data = newBuffer;
             }
+            T* get() { return data; }
             ~Field() { _aligned_free(data); }
         };
 
@@ -79,6 +81,7 @@ namespace physecs {
         void solve(bool useBias, float timeStep);
         void solveSimd(float timeStep);
         void pushBack(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
+        void fillDefaults();
         void clear();
         int getSize() const { return size; };
     };
@@ -105,6 +108,7 @@ namespace physecs {
         void preSolve();
         void solve(bool useBias, float timeStep);
         void pushBack(int count, entt::entity entity0, entt::entity entity1, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
+        void fillDefaults();
         void clear();
     };
 

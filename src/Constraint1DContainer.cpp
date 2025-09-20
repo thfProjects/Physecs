@@ -16,6 +16,34 @@ enum flagsW : int {
     LIMITED_W = 1 << 2 | 1 << 10 | 1 << 18 | 1 << 26,
 };
 
+inline void fill(float* data, unsigned int size, float value) {
+    const auto block = _mm_set1_ps(value);
+    for (unsigned int i = 0; i < size; i += 4) {
+        _mm_store_ps(data + i, block);
+    }
+}
+
+inline void fill(unsigned char* data, unsigned int size, unsigned char value) {
+    const auto block = _mm_set1_epi8(value);
+    const unsigned int simdSize = size / 16 * 16;
+    for (unsigned int i = 0; i < simdSize; i += 16) {
+        _mm_store_si128(reinterpret_cast<__m128i*>(data + i), block);
+    }
+    for (unsigned int i = simdSize; i < size; ++i) {
+        data[i] = value;
+    }
+}
+
+inline void fill(glm::vec3* data, unsigned int size, float value) {
+    const auto block = _mm_set1_ps(value);
+    for (unsigned int i = 0; i < size; i += 4) {
+        float* f = glm::value_ptr(data[i]);
+        _mm_store_ps(f, block);
+        _mm_store_ps(f + 4, block);
+        _mm_store_ps(f + 8, block);
+    }
+}
+
 void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
     if (size == capacity) {
         const int newCapacity = capacity ? 2 * capacity : 4;
@@ -54,27 +82,27 @@ void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, Transfor
 }
 
 void physecs::Constraint1DSoa::fillDefaults() {
-    std::fill_n(linearBuffer.get(), size, glm::vec3(0));
-    std::fill_n(angular0Buffer.get(), size, glm::vec3(0));
-    std::fill_n(angular1Buffer.get(), size, glm::vec3(0));
-    std::fill_n(targetVelocityBuffer.get(), size, 0);
-    std::fill_n(cBuffer.get(), size, 0);
-    std::fill_n(minBuffer.get(), size, std::numeric_limits<float>::lowest());
-    std::fill_n(maxBuffer.get(), size, std::numeric_limits<float>::max());
-    std::fill_n(flagsBuffer.get(), size, 0);
-    std::fill_n(frequencyBuffer.get(), size, 0);
-    std::fill_n(dampingRatioBuffer.get(), size, 0);
-    std::fill_n(angular0tBuffer.get(), size, glm::vec3(0));
-    std::fill_n(angular1tBuffer.get(), size, glm::vec3(0));
-    std::fill_n(invEffMassBuffer.get(), size, 0);
-    std::fill_n(totalLambdaBuffer.get(), size, 0);
+    fill(linearBuffer.get(), size, 0);
+    fill(angular0Buffer.get(), size, 0);
+    fill(angular1Buffer.get(), size, 0);
+    fill(targetVelocityBuffer.get(), size, 0);
+    fill(cBuffer.get(), size, 0);
+    fill(minBuffer.get(), size, std::numeric_limits<float>::lowest());
+    fill(maxBuffer.get(), size, std::numeric_limits<float>::max());
+    fill(flagsBuffer.get(), size, 0);
+    fill(frequencyBuffer.get(), size, 0);
+    fill(dampingRatioBuffer.get(), size, 0);
+    fill(angular0tBuffer.get(), size, 0);
+    fill(angular1tBuffer.get(), size, 0);
+    fill(invEffMassBuffer.get(), size, 0);
+    fill(totalLambdaBuffer.get(), size, 0);
 
-    std::fill_n(velocity0Buffer.get(), size, glm::vec3(0));
-    std::fill_n(velocity1Buffer.get(), size, glm::vec3(0));
-    std::fill_n(angularVelocity0Buffer.get(), size, glm::vec3(0));
-    std::fill_n(angularVelocity1Buffer.get(), size, glm::vec3(0));
-    std::fill_n(invMass0Buffer.get(), size, 0);
-    std::fill_n(invMass0Buffer.get(), size, 0);
+    fill(velocity0Buffer.get(), size, 0);
+    fill(velocity1Buffer.get(), size, 0);
+    fill(angularVelocity0Buffer.get(), size, 0);
+    fill(angularVelocity1Buffer.get(), size, 0);
+    fill(invMass0Buffer.get(), size, 0);
+    fill(invMass0Buffer.get(), size, 0);
 }
 
 void physecs::Constraint1DSoa::clear() {
@@ -394,8 +422,6 @@ void physecs::Constraint1DContainer::solve(bool useBias, float timeStep) {
 }
 
 void physecs::Constraint1DContainer::pushBack(int count, entt::entity entity0, entt::entity entity1, TransformComponent &transform0, TransformComponent &transform1, RigidBodyDynamicComponent *dynamic0, RigidBodyDynamicComponent *dynamic1) {
-    if (!colorBitsets.contains(entity0)) colorBitsets.emplace(entity0, 0);
-    if (!colorBitsets.contains(entity1)) colorBitsets.emplace(entity1, 0);
     auto& colors0 = colorBitsets[entity0];
     auto& colors1 = colorBitsets[entity1];
     for (int j = 0; j < count; ++j) {

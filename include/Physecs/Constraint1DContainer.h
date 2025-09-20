@@ -100,7 +100,7 @@ namespace physecs {
         constexpr static int maxColors = 32;
 
         Constraint1DSoa constraintColors[maxColors];
-        std::unordered_map<entt::entity, std::uint32_t> colorBitsets;
+        entt::dense_map<entt::entity, std::uint32_t> colorBitsets;
         std::vector<Constraint1DMapper> mappers;
         Constraint1DSoa sequential;
 

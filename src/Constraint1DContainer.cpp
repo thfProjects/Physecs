@@ -248,6 +248,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         }
     }
 
+    const auto biasFactor = _mm_set1_ps(0.2 / timeStep);
+
     for (int i = 0; i < size; i += 4) {
         const auto invEffMass = &invEffMassBuffer[i];
 
@@ -292,7 +294,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             relativeVelocityW += dotW(linearW, velocity1W) - dotW(linearW, velocity0W);
         }
 
-        auto lambdaW = (relativeVelocityW - targetVelocityW + _mm_set1_ps(0.2 / timeStep) * cW) / invEffMassW;
+        auto lambdaW = (relativeVelocityW - targetVelocityW + biasFactor * cW) / invEffMassW;
         if (flagsW & SOFT_W) {
             const auto frequency = &frequencyBuffer[i];
             const auto dampingRatio = &dampingRatioBuffer[i];
@@ -352,15 +354,16 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
     }
 
     for (int i = 0; i < size; ++i) {
+        const auto& invEffMass = invEffMassBuffer[i];
+
+        if (!invEffMass) continue;
+
         auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
         const auto& flags = flagsBuffer[i];
         const auto& velocity0 = velocity0Buffer[i];
         const auto& velocity1 = velocity1Buffer[i];
         const auto& angularVelocity0 = angularVelocity0Buffer[i];
         const auto& angularVelocity1 = angularVelocity1Buffer[i];
-        const auto& invEffMass = invEffMassBuffer[i];
-
-        if (!invEffMass) continue;
 
         if (dynamic0 && !dynamic0->isKinematic) {
             if (!(flags & Constraint1D::ANGULAR))

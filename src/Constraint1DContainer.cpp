@@ -71,6 +71,10 @@ void physecs::Constraint1DSoa::pushBack(TransformComponent &transform0, Transfor
         angularVelocity1Buffer.reallocate(capacity, newCapacity);
         invMass0Buffer.reallocate(capacity, newCapacity);
         invMass1Buffer.reallocate(capacity, newCapacity);
+        position0Buffer.reallocate(capacity, newCapacity);
+        position1Buffer.reallocate(capacity, newCapacity);
+        orientation0Buffer.reallocate(capacity, newCapacity);
+        orientation1Buffer.reallocate(capacity, newCapacity);
 
         capacity = newCapacity;
     }
@@ -167,6 +171,160 @@ void physecs::Constraint1DSoa::preSolve() {
         transform1->orientation = glm::normalize(transform1->orientation);
 
         // warm start
+        if (flags & Constraint1D::SOFT || glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) continue;
+
+        totalLambda = totalLambda * 0.5f;
+        if (dynamic0 && !dynamic0->isKinematic) {
+            if (!(flags & Constraint1D::ANGULAR))
+                dynamic0->velocity += totalLambda * dynamic0->invMass * linear;
+            dynamic0->angularVelocity += totalLambda * angular0t;
+        }
+
+        if (dynamic1 && !dynamic1->isKinematic) {
+            if (!(flags & Constraint1D::ANGULAR))
+                dynamic1->velocity -= totalLambda * dynamic1->invMass * linear;
+            dynamic1->angularVelocity -= totalLambda * angular1t;
+        }
+    }
+}
+
+void physecs::Constraint1DSoa::preSolveSimd() {
+    for (int i = 0; i < size; i++) {
+        auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
+        auto [transform0, transform1] = transformComponentsBuffer[i];
+        auto& linear = linearBuffer[i];
+        auto& angular0 = angular0Buffer[i];
+        auto& angular1 = angular1Buffer[i];
+        auto& angular0t = angular0tBuffer[i];
+        auto& angular1t = angular1tBuffer[i];
+        const auto& flags = flagsBuffer[i];
+        auto& invEffMass = invEffMassBuffer[i];
+        auto& invMass0 = invMass0Buffer[i];
+        auto& invMass1 = invMass1Buffer[i];
+        auto& position0 = position0Buffer[i];
+        auto& position1 = position1Buffer[i];
+        auto& orientation0 = orientation0Buffer[i];
+        auto& orientation1 = orientation1Buffer[i];
+
+        glm::mat3 invInertiaTensor0(0);
+        if (dynamic0 && !dynamic0->isKinematic) {
+            invMass0 = dynamic0->invMass;
+            invInertiaTensor0 = dynamic0->invInertiaTensorWorld;
+        }
+
+        glm::mat3 invInertiaTensor1(0);
+        if (dynamic1 && !dynamic1->isKinematic) {
+            invMass1 = dynamic1->invMass;
+            invInertiaTensor1 = dynamic1->invInertiaTensorWorld;
+        }
+
+        angular0t = invInertiaTensor0 * angular0;
+        angular1t = invInertiaTensor1 * angular1;
+
+        invEffMass = glm::dot(angular0, angular0t) + glm::dot(angular1, angular1t);
+        if (!(flags & Constraint1D::ANGULAR)) {
+            invEffMass += glm::dot(linear, linear) * (invMass0 + invMass1);
+        }
+
+        position0 = transform0->position;
+        position1 = transform1->position;
+        orientation0 = transform0->orientation;
+        orientation1 = transform1->orientation;
+    }
+
+    const auto factor = _mm_set1_ps(0.1f);
+    const auto half = _mm_set1_ps(0.5f);
+
+    for (int i = 0; i < size; i += 4) {
+        const auto invEffMass = &invEffMassBuffer[i];
+        const auto invEffMassW = _mm_load_ps(invEffMass);
+        const auto invEffMassMask = _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps());
+        if (_mm_testz_si128(_mm_castps_si128(invEffMassMask), _mm_castps_si128(invEffMassMask))) {
+            continue;
+        }
+
+        const auto c = &cBuffer[i];
+        const auto cW = _mm_load_ps(c);
+        const auto cMask =  _mm_cmpneq_ps(cW, _mm_setzero_ps());
+        if (_mm_testz_si128(_mm_castps_si128(cMask), _mm_castps_si128(cMask))) {
+            continue;
+        }
+
+        auto flags = &flagsBuffer[i];
+        const unsigned int flagsW = flags[0] | flags[1] << 8 | flags[2] << 16 | flags[3] << 24;
+        if ((flagsW & SOFT_W) == SOFT_W) continue;
+
+        auto position0 = &position0Buffer[i];
+        auto position1 = &position1Buffer[i];
+        auto orientation0 = &orientation0Buffer[i];
+        auto orientation1 = &orientation1Buffer[i];
+
+        auto position0W = Vec3W(position0);
+        auto position1W = Vec3W(position1);
+        auto orientation0W = QuatW(orientation0);
+        auto orientation1W = QuatW(orientation1);
+
+        const auto linear = &linearBuffer[i];
+        const auto angular0t = &angular0tBuffer[i];
+        const auto angular1t = &angular1tBuffer[i];
+
+        auto linearW = Vec3W(linear);
+        auto angular0tW = Vec3W(angular0t);
+        auto angular1tW = Vec3W(angular1t);
+
+        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
+        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+
+        auto lambdaW = factor * cW / invEffMassW;
+        if (flagsW & LIMITED_W) {
+            auto minW = _mm_load_ps(&minBuffer[i]);
+            auto maxW = _mm_load_ps(&maxBuffer[i]);
+
+            lambdaW = _mm_min_ps(_mm_max_ps(lambdaW, minW), maxW);
+        }
+
+        const auto mask = _mm_or_ps(cMask, invEffMassMask);
+        lambdaW = _mm_blendv_ps(_mm_setzero_ps(), lambdaW, mask);
+
+        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            position0W += lambdaW * invMass0W * linearW;
+            position1W -= lambdaW * invMass1W * linearW;
+        }
+
+        orientation0W += half * QuatW(_mm_setzero_ps(), lambdaW * angular0tW) * orientation0W;
+        orientation0W = normalize(orientation0W);
+
+        orientation1W -= half * QuatW(_mm_setzero_ps(), lambdaW * angular1tW) * orientation1W;
+        orientation1W = normalize(orientation1W);
+
+        position0W.store(position0);
+        position1W.store(position1);
+        orientation0W.store(orientation0);
+        orientation1W.store(orientation1);
+    }
+
+    for (int i = 0; i < size; ++i) {
+        auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
+        auto [transform0, transform1] = transformComponentsBuffer[i];
+        const auto& flags = flagsBuffer[i];
+        const auto& c = cBuffer[i];
+        auto& totalLambda = totalLambdaBuffer[i];
+        const auto& linear = linearBuffer[i];
+        const auto& angular0t = angular0tBuffer[i];
+        const auto& angular1t = angular1tBuffer[i];
+        const auto& position0 = position0Buffer[i];
+        const auto& position1 = position1Buffer[i];
+        const auto& orientation0 = orientation0Buffer[i];
+        const auto& orientation1 = orientation1Buffer[i];
+
+        transform0->position = position0;
+        transform0->orientation = orientation0;
+
+        transform1->position = position1;
+        transform1->orientation = orientation1;
+
+        // warm start
+
         if (flags & Constraint1D::SOFT || glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) continue;
 
         totalLambda = totalLambda * 0.5f;
@@ -303,14 +461,14 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto angularVelocity0 = &angularVelocity0Buffer[i];
         auto angularVelocity1 = &angularVelocity1Buffer[i];
 
-        auto velocity0W = vec3W(velocity0);
-        auto angularVelocity0W = vec3W(angularVelocity0);
-        auto velocity1W = vec3W(velocity1);
-        auto angularVelocity1W = vec3W(angularVelocity1);
+        auto velocity0W = Vec3W(velocity0);
+        auto angularVelocity0W = Vec3W(angularVelocity0);
+        auto velocity1W = Vec3W(velocity1);
+        auto angularVelocity1W = Vec3W(angularVelocity1);
 
-        auto angular0W = vec3W(angular0);
-        auto angular1W = vec3W(angular1);
-        auto linearW = vec3W(linear);
+        auto angular0W = Vec3W(angular0);
+        auto angular1W = Vec3W(angular1);
+        auto linearW = Vec3W(linear);
 
         auto targetVelocityW = _mm_load_ps(targetVelocity);
         auto cW = _mm_load_ps(c);
@@ -362,8 +520,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
         const auto angular0t = &angular0tBuffer[i];
         const auto angular1t = &angular1tBuffer[i];
-        auto angular0tW = vec3W(angular0t);
-        auto angular1tW = vec3W(angular1t);
+        auto angular0tW = Vec3W(angular0t);
+        auto angular1tW = Vec3W(angular1t);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
             velocity0W += lambdaW * invMass0W * linearW;
@@ -409,7 +567,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
 void physecs::Constraint1DContainer::preSolve() {
     for (auto& constraintColor : constraintColors) {
-        constraintColor.preSolve();
+        constraintColor.preSolveSimd();
     }
     sequential.preSolve();
 }

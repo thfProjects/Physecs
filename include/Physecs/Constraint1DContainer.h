@@ -40,7 +40,7 @@ namespace physecs {
             void reallocate(int oldSize, int newSize) {
                 T* newBuffer = static_cast<T*>(_aligned_malloc(newSize * sizeof(T), 16));
                 std::copy(data, data + oldSize, newBuffer);
-                std::fill(newBuffer, newBuffer + newSize - oldSize, T());
+                std::fill(newBuffer + oldSize, newBuffer + newSize, T());
                 _aligned_free(data);
                 data = newBuffer;
             }
@@ -72,18 +72,23 @@ namespace physecs {
         Field<glm::vec3> angularVelocity1Buffer;
         Field<float> invMass0Buffer;
         Field<float> invMass1Buffer;
+        Field<glm::vec3> position0Buffer;
+        Field<glm::vec3> position1Buffer;
+        Field<glm::quat> orientation0Buffer;
+        Field<glm::quat> orientation1Buffer;
 
         int size = 0;
         int capacity = 0;
 
     public:
         void preSolve();
+        void preSolveSimd();
         void solve(bool useBias, float timeStep);
         void solveSimd(float timeStep);
         void pushBack(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
         void fillDefaults();
         void clear();
-        int getSize() const { return size; };
+        int getSize() const { return size; }
     };
 
     class Constraint1DContainer {

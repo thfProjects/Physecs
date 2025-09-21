@@ -96,8 +96,6 @@ void physecs::Constraint1DSoa::fillDefaults() {
     fill(flagsBuffer.get(), size, 0);
     fill(frequencyBuffer.get(), size, 0);
     fill(dampingRatioBuffer.get(), size, 0);
-    fill(angular0tBuffer.get(), size, 0);
-    fill(angular1tBuffer.get(), size, 0);
     fill(invEffMassBuffer.get(), size, 0);
     fill(totalLambdaBuffer.get(), size, 0);
 

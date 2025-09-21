@@ -281,7 +281,9 @@ void physecs::Constraint1DSoa::preSolveSimd() {
             lambdaW = _mm_min_ps(_mm_max_ps(lambdaW, minW), maxW);
         }
 
-        const auto mask = _mm_or_ps(cMask, invEffMassMask);
+        auto softMask = _mm_set_epi32(flags[3] & Constraint1D::SOFT ? 0 : 0xffffffff, flags[2] & Constraint1D::SOFT ? 0 : 0xffffffff, flags[1] & Constraint1D::SOFT ? 0 : 0xffffffff, flags[0] & Constraint1D::SOFT ? 0 : 0xffffffff);
+        auto mask = _mm_and_ps(cMask, invEffMassMask);
+        mask = _mm_and_ps(mask, _mm_castsi128_ps(softMask));
         lambdaW = _mm_blendv_ps(_mm_setzero_ps(), lambdaW, mask);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {

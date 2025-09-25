@@ -249,7 +249,7 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         }
 
         auto flags = &flagsBuffer[i];
-        const unsigned int flagsW = flags[0] | flags[1] << 8 | flags[2] << 16 | flags[3] << 24;
+        const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
         if ((flagsW & SOFT_W) == SOFT_W) continue;
 
         auto position0 = &position0Buffer[i];
@@ -473,7 +473,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto targetVelocityW = _mm_load_ps(targetVelocity);
         auto cW = _mm_load_ps(c);
 
-        const unsigned int flagsW = flags[0] | flags[1] << 8 | flags[2] << 16 | flags[3] << 24;
+        const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
 
         auto relativeVelocityW = dotW(angular1W, angularVelocity1W) - dotW(angular0W, angularVelocity0W);
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {

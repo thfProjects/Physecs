@@ -497,8 +497,10 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             auto beta = timeStepW * stiffness / (damping + timeStepW * stiffness);
             auto lambdaSoft = (relativeVelocityW + beta * cW / timeStepW) / (invEffMassW + gamma / timeStepW);
 
-            auto mask = _mm_set_epi32(flags[3] & Constraint1D::SOFT ? 0xffffffff : 0, flags[2] & Constraint1D::SOFT ? 0xffffffff : 0, flags[1] & Constraint1D::SOFT ? 0xffffffff : 0, flags[0] & Constraint1D::SOFT ? 0xffffffff : 0);
-            lambdaW = _mm_blendv_ps(lambdaW, lambdaSoft, _mm_castsi128_ps(mask));
+            auto softW = flagsW & SOFT_W;
+            unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
+            auto softMask = _mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0]));
+            lambdaW = _mm_blendv_ps(lambdaSoft, lambdaW, _mm_castsi128_ps(softMask));
         }
 
         auto totalLambdaW = _mm_load_ps(totalLambda);

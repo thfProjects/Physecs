@@ -437,6 +437,10 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
     }
 
     const auto biasFactor = _mm_set1_ps(0.2 / timeStep);
+    const auto timeStepW = _mm_set1_ps(timeStep);
+    const auto one = _mm_set1_ps(1.f);
+    const auto two = _mm_set1_ps(2.f);
+    const auto twoPi = _mm_set1_ps(2.f * glm::pi<float>());
 
     for (int i = 0; i < size; i += 4) {
         const auto invEffMass = &invEffMassBuffer[i];
@@ -482,19 +486,19 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             relativeVelocityW += dotW(linearW, velocity1W) - dotW(linearW, velocity0W);
         }
 
-        auto lambdaW = (relativeVelocityW - targetVelocityW + biasFactor * cW) / invEffMassW;
+        const auto effMass = one / invEffMassW;
+        auto lambdaW = (relativeVelocityW - targetVelocityW + biasFactor * cW) * effMass;
         if (flagsW & SOFT_W) {
             const auto frequency = &frequencyBuffer[i];
             const auto dampingRatio = &dampingRatioBuffer[i];
             auto frequencyW = _mm_load_ps(frequency);
             auto dampingRatioW = _mm_load_ps(dampingRatio);
-            auto timeStepW = _mm_set1_ps(timeStep);
 
-            auto angularFreq = _mm_set1_ps(2.f * glm::pi<float>()) * frequencyW;
-            auto stiffness = angularFreq * angularFreq / invEffMassW;
-            auto damping = _mm_set1_ps(2.f) * angularFreq * dampingRatioW / invEffMassW;
-            auto gamma = _mm_set1_ps(1.f) / (damping + timeStepW * stiffness);
-            auto beta = timeStepW * stiffness / (damping + timeStepW * stiffness);
+            auto angularFreq = twoPi * frequencyW;
+            auto stiffness = angularFreq * angularFreq * effMass;
+            auto damping = two * angularFreq * dampingRatioW * effMass;
+            auto gamma = one / (damping + timeStepW * stiffness);
+            auto beta = timeStepW * stiffness * gamma;
             auto lambdaSoft = (relativeVelocityW + beta * cW / timeStepW) / (invEffMassW + gamma / timeStepW);
 
             auto softW = flagsW & SOFT_W;

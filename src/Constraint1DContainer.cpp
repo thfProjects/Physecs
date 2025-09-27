@@ -237,16 +237,12 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         const auto invEffMass = &invEffMassBuffer[i];
         const auto invEffMassW = _mm_load_ps(invEffMass);
         const auto invEffMassMask = _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps());
-        if (_mm_testz_si128(_mm_castps_si128(invEffMassMask), _mm_castps_si128(invEffMassMask))) {
-            continue;
-        }
+        if (isZero(invEffMassMask)) continue;
 
         const auto c = &cBuffer[i];
         const auto cW = _mm_load_ps(c);
         const auto cMask =  _mm_cmpneq_ps(cW, _mm_setzero_ps());
-        if (_mm_testz_si128(_mm_castps_si128(cMask), _mm_castps_si128(cMask))) {
-            continue;
-        }
+        if (isZero(cMask)) continue;
 
         auto flags = &flagsBuffer[i];
         const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
@@ -444,14 +440,9 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
     for (int i = 0; i < size; i += 4) {
         const auto invEffMass = &invEffMassBuffer[i];
-
         auto invEffMassW = _mm_load_ps(invEffMass);
-
         auto invEffMassMask = _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps());
-
-        if (_mm_testz_si128(_mm_castps_si128(invEffMassMask), _mm_castps_si128(invEffMassMask))) {
-            continue;
-        }
+        if (isZero(invEffMassMask)) continue;
 
         const auto linear = &linearBuffer[i];
         const auto angular0 = &angular0Buffer[i];

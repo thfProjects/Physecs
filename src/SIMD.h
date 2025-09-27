@@ -209,4 +209,8 @@ namespace physecs {
             oneOverLen * q.z
         };
     }
+
+    inline int isZero (const __m128& mask) {
+        return _mm_testz_si128(_mm_castps_si128(mask), _mm_castps_si128(mask));
+    }
 }

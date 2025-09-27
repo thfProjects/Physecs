@@ -151,22 +151,22 @@ void physecs::Constraint1DSoa::preSolve() {
         }
 
         // correct position error
-        if (flags & Constraint1D::SOFT || !c || !invEffMass) continue;
+        if (!(flags & Constraint1D::SOFT) && c && invEffMass) {
+            float lambda = 0.1f * c / invEffMass;
+            if (flags & Constraint1D::LIMITED)
+                lambda = glm::clamp(lambda, min, max);
 
-        float lambda = 0.1f * c / invEffMass;
-        if (flags & Constraint1D::LIMITED)
-            lambda = glm::clamp(lambda, min, max);
+            if (!(flags & Constraint1D::ANGULAR)) {
+                transform0->position += lambda * invMass0 * linear;
+                transform1->position -= lambda * invMass1 * linear;
+            }
 
-        if (!(flags & Constraint1D::ANGULAR)) {
-            transform0->position += lambda * invMass0 * linear;
-            transform1->position -= lambda * invMass1 * linear;
+            transform0->orientation += 0.5f * glm::quat(0, lambda * angular0t) * transform0->orientation;
+            transform0->orientation = glm::normalize(transform0->orientation);
+
+            transform1->orientation -= 0.5f * glm::quat(0, lambda * angular1t) * transform1->orientation;
+            transform1->orientation = glm::normalize(transform1->orientation);
         }
-
-        transform0->orientation += 0.5f * glm::quat(0, lambda * angular0t) * transform0->orientation;
-        transform0->orientation = glm::normalize(transform0->orientation);
-
-        transform1->orientation -= 0.5f * glm::quat(0, lambda * angular1t) * transform1->orientation;
-        transform1->orientation = glm::normalize(transform1->orientation);
 
         // warm start
         if (flags & Constraint1D::SOFT || glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) continue;
@@ -230,6 +230,7 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         orientation1 = transform1->orientation;
     }
 
+    // correct position error
     const auto factor = _mm_set1_ps(0.1f);
     const auto half = _mm_set1_ps(0.5f);
 

@@ -448,36 +448,40 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto invEffMassMask = _mm_cmpneq_ps(invEffMassW, _mm_setzero_ps());
         if (isZero(invEffMassMask)) continue;
 
-        const auto linear = &linearBuffer[i];
-        const auto angular0 = &angular0Buffer[i];
-        const auto angular1 = &angular1Buffer[i];
-        const auto c = &cBuffer[i];
-        auto flags = &flagsBuffer[i];
-        const auto targetVelocity = &targetVelocityBuffer[i];
-
-        auto totalLambda = &totalLambdaBuffer[i];
-
-        auto velocity0 = &velocity0Buffer[i];
-        auto velocity1 = &velocity1Buffer[i];
         auto angularVelocity0 = &angularVelocity0Buffer[i];
         auto angularVelocity1 = &angularVelocity1Buffer[i];
 
-        auto velocity0W = Vec3W(velocity0);
         auto angularVelocity0W = Vec3W(angularVelocity0);
-        auto velocity1W = Vec3W(velocity1);
         auto angularVelocity1W = Vec3W(angularVelocity1);
+
+        const auto angular0 = &angular0Buffer[i];
+        const auto angular1 = &angular1Buffer[i];
 
         auto angular0W = Vec3W(angular0);
         auto angular1W = Vec3W(angular1);
-        auto linearW = Vec3W(linear);
 
+        const auto targetVelocity = &targetVelocityBuffer[i];
         auto targetVelocityW = _mm_load_ps(targetVelocity);
+
+        const auto c = &cBuffer[i];
         auto cW = _mm_load_ps(c);
 
+        auto flags = &flagsBuffer[i];
         const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
+
+        glm::vec3 *velocity0, *velocity1;
+        Vec3W velocity0W, velocity1W, linearW;
 
         auto relativeVelocityW = dotW(angular1W, angularVelocity1W) - dotW(angular0W, angularVelocity0W);
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            velocity0 = &velocity0Buffer[i];
+            velocity1 = &velocity1Buffer[i];
+
+            velocity1W = Vec3W(velocity1);
+            velocity0W = Vec3W(velocity0);
+
+            linearW = Vec3W(&linearBuffer[i]);
+
             relativeVelocityW += dotW(linearW, velocity1W) - dotW(linearW, velocity0W);
         }
 
@@ -502,6 +506,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             lambdaW = _mm_blendv_ps(lambdaSoft, lambdaW, _mm_castsi128_ps(softMask));
         }
 
+        auto totalLambda = &totalLambdaBuffer[i];
         auto totalLambdaW = _mm_load_ps(totalLambda);
         auto prevLambda = totalLambdaW;
 
@@ -519,27 +524,29 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
 
         totalLambdaW = _mm_blendv_ps(prevLambda, totalLambdaW, invEffMassMask);
 
-        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
-        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+        _mm_store_ps(totalLambda, totalLambdaW);
+
+        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
+            auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+
+            velocity0W += lambdaW * invMass0W * linearW;
+            velocity1W -= lambdaW * invMass1W * linearW;
+
+            velocity0W.store(velocity0);
+            velocity1W.store(velocity1);
+        }
+
         const auto angular0t = &angular0tBuffer[i];
         const auto angular1t = &angular1tBuffer[i];
         auto angular0tW = Vec3W(angular0t);
         auto angular1tW = Vec3W(angular1t);
 
-        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
-            velocity0W += lambdaW * invMass0W * linearW;
-            velocity1W -= lambdaW * invMass1W * linearW;
-        }
-
         angularVelocity0W += lambdaW * angular0tW;
         angularVelocity1W -= lambdaW * angular1tW;
 
-        velocity0W.store(velocity0);
-        velocity1W.store(velocity1);
         angularVelocity0W.store(angularVelocity0);
         angularVelocity1W.store(angularVelocity1);
-
-        _mm_store_ps(totalLambda, totalLambdaW);
     }
 
     for (int i = 0; i < size; ++i) {

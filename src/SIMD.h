@@ -10,6 +10,8 @@ namespace physecs {
         __m128 y;
         __m128 z;
 
+        Vec3W() = default;
+
         Vec3W(__m128 x, __m128 y, __m128 z) : x(x), y(y), z(z) {}
 
         explicit Vec3W(glm::vec3* v) {

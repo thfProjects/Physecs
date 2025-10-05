@@ -249,26 +249,17 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
         if ((flagsW & SOFT_W) == SOFT_W) continue;
 
-        auto position0 = &position0Buffer[i];
-        auto position1 = &position1Buffer[i];
         auto orientation0 = &orientation0Buffer[i];
         auto orientation1 = &orientation1Buffer[i];
 
-        auto position0W = Vec3W(position0);
-        auto position1W = Vec3W(position1);
         auto orientation0W = QuatW(orientation0);
         auto orientation1W = QuatW(orientation1);
 
-        const auto linear = &linearBuffer[i];
         const auto angular0t = &angular0tBuffer[i];
         const auto angular1t = &angular1tBuffer[i];
 
-        auto linearW = Vec3W(linear);
         auto angular0tW = Vec3W(angular0t);
         auto angular1tW = Vec3W(angular1t);
-
-        auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
-        auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
 
         auto lambdaW = factor * cW / invEffMassW;
         if (flagsW & LIMITED_W) {
@@ -286,8 +277,22 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         lambdaW = _mm_blendv_ps(_mm_setzero_ps(), lambdaW, mask);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            const auto linearW = Vec3W(&linearBuffer[i]);
+
+            const auto invMass0W = _mm_load_ps(&invMass0Buffer[i]);
+            const auto invMass1W = _mm_load_ps(&invMass1Buffer[i]);
+
+            auto position0 = &position0Buffer[i];
+            auto position1 = &position1Buffer[i];
+
+            auto position0W = Vec3W(position0);
+            auto position1W = Vec3W(position1);
+
             position0W += lambdaW * invMass0W * linearW;
             position1W -= lambdaW * invMass1W * linearW;
+
+            position0W.store(position0);
+            position1W.store(position1);
         }
 
         orientation0W += half * QuatW(_mm_setzero_ps(), lambdaW * angular0tW) * orientation0W;
@@ -296,8 +301,6 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         orientation1W -= half * QuatW(_mm_setzero_ps(), lambdaW * angular1tW) * orientation1W;
         orientation1W = normalize(orientation1W);
 
-        position0W.store(position0);
-        position1W.store(position1);
         orientation0W.store(orientation0);
         orientation1W.store(orientation1);
     }

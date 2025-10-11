@@ -10,7 +10,7 @@ namespace physecs {
 
     class Constraint1DSoa {
 
-        friend class Constraint1DViewer;
+        friend class Constraint1DView;
 
         struct TransformComponents {
             TransformComponent* transform0;
@@ -91,22 +91,70 @@ namespace physecs {
         int getSize() const { return size; }
     };
 
+    class Constraint1DView {
+        Constraint1DSoa* soa;
+        int i;
+
+    public:
+        Constraint1DView(Constraint1DSoa* soa, int index) : soa(soa), i(index) {}
+
+        __forceinline Constraint1DView& setLinear(const glm::vec3& n) {
+            soa->linearBuffer[i] = n;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
+            soa->angular0Buffer[i] = angular0;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
+            soa->angular1Buffer[i] = angular1;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setTargetVelocity(float targetVelocity) {
+            soa->targetVelocityBuffer[i] = targetVelocity;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setC(float c) {
+            soa->cBuffer[i] = c;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setMin(float min) {
+            soa->minBuffer[i] = min;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setMax(float max) {
+            soa->maxBuffer[i] = max;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setFlags(unsigned char flags) {
+            soa->flagsBuffer[i] = flags;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setFrequency(float frequency) {
+            soa->frequencyBuffer[i] = frequency;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setDampingRatio(float dampingRatio) {
+            soa->dampingRatioBuffer[i] = dampingRatio;
+            return *this;
+        }
+    };
+
     class Constraint1DContainer {
-
-        friend class Constraint1DViewer;
-
-        struct Constraint1DMapper {
-            Constraint1DSoa* color;
-            int index;
-
-            Constraint1DMapper(Constraint1DSoa* color, int index) : color(color), index(index) {}
-        };
-
         constexpr static int maxColors = 32;
 
         Constraint1DSoa constraintColors[maxColors];
         entt::dense_map<entt::entity, std::uint32_t> colorBitsets;
-        std::vector<Constraint1DMapper> mappers;
+        std::vector<Constraint1DView> views;
         Constraint1DSoa sequential;
 
     public:
@@ -115,43 +163,7 @@ namespace physecs {
         void pushBack(int count, entt::entity entity0, entt::entity entity1, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1);
         void fillDefaults();
         void clear();
-    };
-
-    struct Constraint1DView {
-        glm::vec3& n;
-        glm::vec3& r0xn;
-        glm::vec3& r1xn;
-        float& targetVelocity;
-        float& c;
-        float& min;
-        float& max;
-        unsigned char& flags;
-        float& frequency;
-        float& dampingRatio;
-    };
-
-    class Constraint1DViewer {
-        int baseIndex;
-        Constraint1DContainer& container;
-
-    public:
-        Constraint1DViewer(int baseIndex, Constraint1DContainer& container) : baseIndex(baseIndex), container(container) {}
-         __forceinline Constraint1DView operator[] (int index) const {
-            const int mapperIndex = baseIndex + index;
-            auto& [color, i] = container.mappers[mapperIndex];
-            return {
-                color->linearBuffer[i],
-                color->angular0Buffer[i],
-                color->angular1Buffer[i],
-                color->targetVelocityBuffer[i],
-                color->cBuffer[i],
-                color->minBuffer[i],
-                color->maxBuffer[i],
-                color->flagsBuffer[i],
-                color->frequencyBuffer[i],
-                color->dampingRatioBuffer[i]
-            };
-        }
+        Constraint1DView* getView(int index) { return &views[index]; }
     };
 }
 

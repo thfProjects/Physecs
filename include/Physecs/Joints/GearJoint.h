@@ -16,7 +16,7 @@ namespace physecs {
         GearJointData data;
 
         constexpr  static int numConstraints = 1;
-        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DViewer constraints);
+        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
     public:
         void setGearRatio(float gearRatio);
         GearJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}

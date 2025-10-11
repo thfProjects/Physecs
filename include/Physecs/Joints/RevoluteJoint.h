@@ -12,7 +12,7 @@ namespace physecs {
 
         RevoluteJointData data;
 
-        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DViewer constraints);
+        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
     public:
         void setDriveEnabled(bool enabled);
         void setDriveVelocity(float velocity);

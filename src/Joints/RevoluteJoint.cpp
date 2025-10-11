@@ -1,7 +1,7 @@
 #include "RevoluteJoint.h"
 #include "Constraint1D.h"
 
-void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DViewer constraints) {
+void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [driveEnabled, driveVelocity] = *static_cast<RevoluteJointData*>(additionalData);
 
@@ -11,32 +11,36 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
     glm::vec3 r0xd = glm::cross(r0, d);
     glm::vec3 r1xd = glm::cross(r1, d);
 
-    constraints[0].n = d;
-    constraints[0].r0xn = r0xd;
-    constraints[0].r1xn = r1xd;
-    constraints[0].c = cn;
+    constraints[0]
+    .setLinear(d)
+    .setAngular0(r0xd)
+    .setAngular1(r1xd)
+    .setC(cn);
 
     float d01 = glm::dot(u0[0], u1[1]);
     glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
-    constraints[1].r0xn = u11xu00;
-    constraints[1].r1xn = u11xu00;
-    constraints[1].c = d01;
-    constraints[1].flags |= Constraint1D::ANGULAR;
+    constraints[1]
+    .setAngular0(u11xu00)
+    .setAngular1(u11xu00)
+    .setC(d01)
+    .setFlags(Constraint1D::ANGULAR);
 
     float d02 = glm::dot(u0[0], u1[2]);
     glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
-    constraints[2].r0xn = u12xu00;
-    constraints[2].r1xn = u12xu00;
-    constraints[2].c = d02;
-    constraints[2].flags |= Constraint1D::ANGULAR;
+    constraints[2]
+    .setAngular0(u12xu00)
+    .setAngular1(u12xu00)
+    .setC(d02)
+    .setFlags(Constraint1D::ANGULAR);
 
     if (driveEnabled) {
-        constraints[3].r0xn = u0[0];
-        constraints[3].r1xn = u0[0];
-        constraints[3].targetVelocity = driveVelocity;
-        constraints[3].flags |= Constraint1D::ANGULAR;
+        constraints[3]
+        .setAngular0(u0[0])
+        .setAngular1(u0[0])
+        .setTargetVelocity(driveVelocity)
+        .setFlags(Constraint1D::ANGULAR);
     }
 }
 

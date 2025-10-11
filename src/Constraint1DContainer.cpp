@@ -600,11 +600,11 @@ void physecs::Constraint1DContainer::pushBack(int count, entt::entity entity0, e
             colors1 |= 1 << i;
 
             auto& constraintColor = constraintColors[i];
-            mappers.emplace_back(&constraintColor, constraintColor.getSize());
+            views.emplace_back(&constraintColor, constraintColor.getSize());
             constraintColor.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
         else {
-            mappers.emplace_back(&sequential, sequential.getSize());
+            views.emplace_back(&sequential, sequential.getSize());
             sequential.pushBack(transform0, transform1, dynamic0, dynamic1);
         }
     }
@@ -622,6 +622,6 @@ void physecs::Constraint1DContainer::clear() {
         constraintColor.clear();
     }
     sequential.clear();
-    mappers.clear();
+    views.clear();
     colorBitsets.clear();
 }

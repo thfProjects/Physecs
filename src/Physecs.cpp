@@ -395,7 +395,7 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto& jointSolverData : jointSolverDataBuffer) {
             JointWorldSpaceData worldSpaceData;
             jointSolverData.calculateWorldSpaceData(worldSpaceData);
-            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, Constraint1DViewer(index, jointConstraints));
+            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, jointConstraints.getView(index));
             index += jointSolverData.numConstraints;
         }
         PhysecsZoneEnd(ctx2);

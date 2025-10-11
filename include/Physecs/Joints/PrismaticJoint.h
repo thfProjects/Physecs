@@ -18,7 +18,7 @@ namespace physecs {
 
         PrismaticJointData data;
 
-        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DViewer constraints);
+        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
     public:
         void setUpperLimit(float upperLimit);
         void setLowerLimit(float lowerLimit);

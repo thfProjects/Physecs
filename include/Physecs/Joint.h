@@ -18,7 +18,7 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DViewer constraints);
+    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
 
     struct JointSolverData {
         TransformComponent& transform0;

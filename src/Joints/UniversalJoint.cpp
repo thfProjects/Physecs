@@ -1,14 +1,15 @@
 #include "UniversalJoint.h"
 #include "Constraint1D.h"
+#include "Constraint1DContainer.h"
 
 void physecs::UniversalJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
-    glm::vec3 d = p1 - p0;
+    const glm::vec3 d = p1 - p0;
 
-    float cn = glm::dot(d, d);
-    glm::vec3 r0xd = glm::cross(r0, d);
-    glm::vec3 r1xd = glm::cross(r1, d);
+    const float cn = glm::dot(d, d);
+    const glm::vec3 r0xd = glm::cross(r0, d);
+    const glm::vec3 r1xd = glm::cross(r1, d);
 
     constraints[0]
     .setLinear(d)
@@ -16,8 +17,8 @@ void physecs::UniversalJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setAngular1(r1xd)
     .setC(cn);
 
-    float d22 = glm::dot(u0[2], u1[2]);
-    glm::vec3 u12xu02 = glm::cross(u1[2], u0[2]);
+    const float d22 = glm::dot(u0[2], u1[2]);
+    const glm::vec3 u12xu02 = glm::cross(u1[2], u0[2]);
 
     constraints[1]
     .setAngular0(u12xu02)

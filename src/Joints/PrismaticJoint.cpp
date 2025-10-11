@@ -1,5 +1,6 @@
 #include "PrismaticJoint.h"
 #include "Constraint1D.h"
+#include "Constraint1DContainer.h"
 
 void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
@@ -8,9 +9,9 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     glm::vec3 d = p1 - p0;
 
     //translation
-    float dy = glm::dot(d, u0[1]);
-    glm::vec3 r0xy = glm::cross(r0, u0[1]);
-    glm::vec3 r1xy = glm::cross(r1, u0[1]);
+    const float dy = glm::dot(d, u0[1]);
+    const glm::vec3 r0xy = glm::cross(r0, u0[1]);
+    const glm::vec3 r1xy = glm::cross(r1, u0[1]);
 
     constraints[0]
     .setLinear(u0[1])
@@ -18,9 +19,9 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setAngular1(r1xy)
     .setC(dy);
 
-    float dz = glm::dot(d, u0[2]);
-    glm::vec3 r0xz = glm::cross(r0, u0[2]);
-    glm::vec3 r1xz = glm::cross(r1, u0[2]);
+    const float dz = glm::dot(d, u0[2]);
+    const glm::vec3 r0xz = glm::cross(r0, u0[2]);
+    const glm::vec3 r1xz = glm::cross(r1, u0[2]);
 
     constraints[1]
    .setLinear(u0[2])
@@ -29,8 +30,8 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
    .setC(dz);
 
     //rotation
-    float d01 = glm::dot(u0[0], u1[1]);
-    glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
+    const float d01 = glm::dot(u0[0], u1[1]);
+    const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
     constraints[2]
    .setAngular0(u11xu00)
@@ -38,8 +39,8 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
    .setC(d01)
    .setFlags(Constraint1D::ANGULAR);
 
-    float d02 = glm::dot(u0[0], u1[2]);
-    glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
+    const float d02 = glm::dot(u0[0], u1[2]);
+    const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
     constraints[3]
    .setAngular0(u12xu00)
@@ -47,8 +48,8 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
    .setC(d02)
    .setFlags(Constraint1D::ANGULAR);
 
-    float d12 = glm::dot(u0[1], u1[2]);
-    glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
+    const float d12 = glm::dot(u0[1], u1[2]);
+    const glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
 
     constraints[4]
     .setAngular0(u12xu01)
@@ -56,9 +57,9 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setC(d12)
     .setFlags(Constraint1D::ANGULAR);
 
-    float dx = glm::dot(d, u0[0]);
-    glm::vec3 r0xx = glm::cross(r0, u0[0]);
-    glm::vec3 r1xx = glm::cross(r1, u0[0]);
+    const float dx = glm::dot(d, u0[0]);
+    const glm::vec3 r0xx = glm::cross(r0, u0[0]);
+    const glm::vec3 r1xx = glm::cross(r1, u0[0]);
 
     //limits
     int index = 5;

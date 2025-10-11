@@ -1,14 +1,15 @@
 #include "SphericalJoint.h"
 #include "Constraint1D.h"
+#include "Constraint1DContainer.h"
 
 void physecs::SphericalJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
-    glm::vec3 d = p1 - p0;
+    const glm::vec3 d = p1 - p0;
 
-    float cn = glm::dot(d, d);
-    glm::vec3 r0xd = glm::cross(r0, d);
-    glm::vec3 r1xd = glm::cross(r1, d);
+    const float cn = glm::dot(d, d);
+    const glm::vec3 r0xd = glm::cross(r0, d);
+    const glm::vec3 r1xd = glm::cross(r1, d);
 
     constraints[0]
     .setLinear(d)

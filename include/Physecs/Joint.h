@@ -5,9 +5,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include "Components.h"
-#include "Constraint1DContainer.h"
+
+struct TransformComponent;
 
 namespace physecs {
+
+    class Constraint1DView;
 
     struct JointWorldSpaceData {
         glm::vec3 p0;

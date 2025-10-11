@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Constraint1DContainer.h>
 #include <entt.hpp>
 #include <ThreadPool.h>
 #include <glm/glm.hpp>

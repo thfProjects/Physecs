@@ -26,8 +26,8 @@ namespace physecs {
     struct JointSolverData {
         TransformComponent& transform0;
         TransformComponent& transform1;
-        RigidBodyDynamicComponent* dynamic0;
-        RigidBodyDynamicComponent* dynamic1;
+        glm::vec3 r0;
+        glm::vec3 r1;
         glm::vec3 anchor0Pos;
         glm::quat anchor0Or;
         glm::vec3 anchor1Pos;
@@ -37,6 +37,12 @@ namespace physecs {
         MakeConstraintsFunc makeConstraintsFunc;
 
         void calculateWorldSpaceData(JointWorldSpaceData& data) const;
+    };
+
+    struct JointSolverDesc {
+        int numConstraints;
+        void* additionalData;
+        MakeConstraintsFunc makeConstraintsFunc;
     };
 
     class PHYSECS_API Joint {
@@ -50,9 +56,13 @@ namespace physecs {
 
         Joint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : entity0(entity0), entity1(entity1), anchor0Pos(anchor0Pos), anchor0Or(anchor0Or), anchor1Pos(anchor1Pos), anchor1Or(anchor1Or) {}
     public:
-        virtual JointSolverData getSolverData(entt::registry& registry) = 0;
+        virtual JointSolverDesc getSolverDesc(entt::registry &registry) = 0;
         entt::entity getEntity0() const { return entity0; }
         entt::entity getEntity1() const { return entity1; }
+        glm::vec3 getAnchor0Pos() const { return anchor0Pos; }
+        glm::quat getAnchor0Or() const { return anchor0Or; }
+        glm::vec3 getAnchor1Pos() const { return anchor1Pos; }
+        glm::quat getAnchor1Or() const { return anchor1Or; }
 
         virtual ~Joint() = default;
     };

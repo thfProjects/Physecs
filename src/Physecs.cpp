@@ -316,9 +316,33 @@ void physecs::Scene::simulate(float timeStep) {
     jointSolverDataBuffer.clear();
     jointConstraints.clear();
     for (auto& joint : joints) {
-        auto solverData = joint->getSolverData(registry);
+        auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry);
+
+        auto entity0 = joint->getEntity0();
+        auto entity1 = joint->getEntity1();
+
+        auto& transform0 = registry.get<TransformComponent>(entity0);
+        auto& transform1 = registry.get<TransformComponent>(entity1);
+
+        auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
+        auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
+
+        JointSolverData solverData = {
+            transform0,
+            transform1,
+            dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos(),
+            dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos(),
+            joint->getAnchor0Pos(),
+            joint->getAnchor0Or(),
+            joint->getAnchor1Pos(),
+            joint->getAnchor1Or(),
+            numConstraints,
+            additionalData,
+            makeConstraintsFunc
+        };
+
         jointSolverDataBuffer.push_back(solverData);
-        jointConstraints.pushBack(solverData.numConstraints, joint->getEntity0(), joint->getEntity1(), solverData.transform0, solverData.transform1, solverData.dynamic0, solverData.dynamic1);
+        jointConstraints.pushBack(numConstraints, entity0, entity1, transform0, transform1, dynamic0, dynamic1);
     }
     jointConstraints.fillDefaults();
     PhysecsZoneEnd(ctx7);

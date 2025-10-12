@@ -123,18 +123,18 @@ void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
     data.driveDamping = driveDamping;
 }
 
-physecs::JointSolverData physecs::PrismaticJoint::getSolverData(entt::registry &registry) {
-    auto& transform0 = registry.get<TransformComponent>(entity0);
-    auto& transform1 = registry.get<TransformComponent>(entity1);
+physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &registry) {
+    const auto& transform0 = registry.get<TransformComponent>(entity0);
+    const auto& transform1 = registry.get<TransformComponent>(entity1);
 
-    glm::vec3 p0 = transform0.position + transform0.orientation * anchor0Pos;
-    glm::vec3 p1 = transform1.position + transform1.orientation * anchor1Pos;
+    const glm::vec3 p0 = transform0.position + transform0.orientation * anchor0Pos;
+    const glm::vec3 p1 = transform1.position + transform1.orientation * anchor1Pos;
 
-    glm::vec3 d = p1 - p0;
+    const glm::vec3 d = p1 - p0;
 
-    glm::vec3 u00 = transform0.orientation * anchor0Or * glm::vec3(1, 0, 0);
+    const glm::vec3 u00 = transform0.orientation * anchor0Or * glm::vec3(1, 0, 0);
 
-    float dx = glm::dot(d, u00);
+    const float dx = glm::dot(d, u00);
 
     if (dx > data.upperLimit) {
         data.makeUpperLimit = true;
@@ -152,14 +152,6 @@ physecs::JointSolverData physecs::PrismaticJoint::getSolverData(entt::registry &
     const int numConstraints = 5 + (data.makeUpperLimit || data.makeLowerLimit) + data.driveEnabled;
 
     return {
-        transform0,
-        transform1,
-        registry.try_get<RigidBodyDynamicComponent>(entity0),
-        registry.try_get<RigidBodyDynamicComponent>(entity1),
-        anchor0Pos,
-        anchor0Or,
-        anchor1Pos,
-        anchor1Or,
         numConstraints,
         &data,
         makeConstraints

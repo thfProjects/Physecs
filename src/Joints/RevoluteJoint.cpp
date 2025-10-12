@@ -53,18 +53,10 @@ void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
     data.driveVelocity = velocity;
 }
 
-physecs::JointSolverData physecs::RevoluteJoint::getSolverData(entt::registry &registry) {
+physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &registry) {
     const int numConstraints = data.driveEnabled ? 4 : 3;
 
     return {
-        registry.get<TransformComponent>(entity0),
-        registry.get<TransformComponent>(entity1),
-        registry.try_get<RigidBodyDynamicComponent>(entity0),
-        registry.try_get<RigidBodyDynamicComponent>(entity1),
-        anchor0Pos,
-        anchor0Or,
-        anchor1Pos,
-        anchor1Or,
         numConstraints,
         &data,
         makeConstraints

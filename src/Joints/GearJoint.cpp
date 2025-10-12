@@ -54,16 +54,8 @@ void physecs::GearJoint::setGearRatio(float gearRatio) {
     data.gearRatio = gearRatio;
 }
 
-physecs::JointSolverData physecs::GearJoint::getSolverData(entt::registry &registry) {
+physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry) {
     return {
-        registry.get<TransformComponent>(entity0),
-        registry.get<TransformComponent>(entity1),
-        registry.try_get<RigidBodyDynamicComponent>(entity0),
-        registry.try_get<RigidBodyDynamicComponent>(entity1),
-        anchor0Pos,
-        anchor0Or,
-        anchor1Pos,
-        anchor1Or,
         numConstraints,
         &data,
         makeConstraints

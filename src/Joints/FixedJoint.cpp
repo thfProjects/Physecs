@@ -45,16 +45,8 @@ void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, v
     .setFlags(Constraint1D::ANGULAR);
 }
 
-physecs::JointSolverData physecs::FixedJoint::getSolverData(entt::registry &registry) {
+physecs::JointSolverDesc physecs::FixedJoint::getSolverDesc(entt::registry &registry) {
     return {
-        registry.get<TransformComponent>(entity0),
-        registry.get<TransformComponent>(entity1),
-        registry.try_get<RigidBodyDynamicComponent>(entity0),
-        registry.try_get<RigidBodyDynamicComponent>(entity1),
-        anchor0Pos,
-        anchor0Or,
-        anchor1Pos,
-        anchor1Or,
         numConstraints,
         nullptr,
         makeConstraints

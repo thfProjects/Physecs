@@ -18,16 +18,8 @@ void physecs::SphericalJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setC(cn);
 }
 
-physecs::JointSolverData physecs::SphericalJoint::getSolverData(entt::registry &registry) {
+physecs::JointSolverDesc physecs::SphericalJoint::getSolverDesc(entt::registry &registry) {
     return {
-        registry.get<TransformComponent>(entity0),
-        registry.get<TransformComponent>(entity1),
-        registry.try_get<RigidBodyDynamicComponent>(entity0),
-        registry.try_get<RigidBodyDynamicComponent>(entity1),
-        anchor0Pos,
-        anchor0Or,
-        anchor1Pos,
-        anchor1Or,
         numConstraints,
         nullptr,
         makeConstraints

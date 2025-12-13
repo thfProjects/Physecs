@@ -4,7 +4,7 @@
 
 void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [driveEnabled, driveVelocity] = *static_cast<RevoluteJointData*>(additionalData);
+    auto& [driveEnabled, driveVelocity, driveMaxTorque] = *static_cast<RevoluteJointData*>(additionalData);
 
     const glm::vec3 d = p1 - p0;
 
@@ -41,7 +41,9 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
         .setAngular0(u0[0])
         .setAngular1(u0[0])
         .setTargetVelocity(driveVelocity)
-        .setFlags(Constraint1D::ANGULAR);
+        .setMax(driveMaxTorque)
+        .setMin(-driveMaxTorque)
+        .setFlags(Constraint1D::ANGULAR | Constraint1D::LIMITED);
     }
 }
 
@@ -51,6 +53,10 @@ void physecs::RevoluteJoint::setDriveEnabled(bool enabled) {
 
 void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
     data.driveVelocity = velocity;
+}
+
+void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
+    data.driveMaxTorque = maxTorque;
 }
 
 physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &registry) {

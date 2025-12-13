@@ -511,8 +511,8 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         auto prevLambda = totalLambdaW;
 
         if (flagsW & LIMITED_W) {
-            auto minW = _mm_load_ps(&minBuffer[i]);
-            auto maxW = _mm_load_ps(&maxBuffer[i]);
+            auto minW = _mm_load_ps(&minBuffer[i]) * timeStepW;
+            auto maxW = _mm_load_ps(&maxBuffer[i]) * timeStepW;
 
             totalLambdaW += lambdaW;
             totalLambdaW = _mm_min_ps(_mm_max_ps(totalLambdaW, minW), maxW);

@@ -110,6 +110,8 @@ void physecs::Constraint1DSoa::fillDefaults() {
     fill(dampingRatioBuffer.get(), size, 0);
     fill(invEffMassBuffer.get(), size, 0);
     fill(totalLambdaBuffer.get(), size, 0);
+    fill(angular0tBuffer.get(), size, 0);
+    fill(angular1tBuffer.get(), size, 0);
 
     const int sizeW = (size + 3) / 4;
 
@@ -213,25 +215,38 @@ void physecs::Constraint1DSoa::preSolveSimd() {
         auto& invEffMass = invEffMassBuffer[i];
         auto& invMass0 = invMass0Buffer[i];
         auto& invMass1 = invMass1Buffer[i];
+        const auto& c = cBuffer[i];
+        auto& totalLambda = totalLambdaBuffer[i];
         auto& position0 = position0Buffer[i];
         auto& position1 = position1Buffer[i];
         auto& orientation0 = orientation0Buffer[i];
         auto& orientation1 = orientation1Buffer[i];
 
-        glm::mat3 invInertiaTensor0(0);
+        bool warmStart = !(flags & Constraint1D::SOFT) && glm::abs(c) < 1e-4 && glm::abs(totalLambda) < 10000;
+
+        if (warmStart) totalLambda = totalLambda * 0.5f;
+
         if (dynamic0 && !dynamic0->isKinematic) {
             invMass0 = dynamic0->invMass;
-            invInertiaTensor0 = dynamic0->invInertiaTensorWorld;
+            angular0t = dynamic0->invInertiaTensorWorld * angular0;
+
+            if (warmStart) {
+                if (!(flags & Constraint1D::ANGULAR))
+                    dynamic0->velocity += totalLambda * invMass0 * linear;
+                dynamic0->angularVelocity += totalLambda * angular0t;
+            }
         }
 
-        glm::mat3 invInertiaTensor1(0);
         if (dynamic1 && !dynamic1->isKinematic) {
             invMass1 = dynamic1->invMass;
-            invInertiaTensor1 = dynamic1->invInertiaTensorWorld;
-        }
+            angular1t = dynamic1->invInertiaTensorWorld * angular1;
 
-        angular0t = invInertiaTensor0 * angular0;
-        angular1t = invInertiaTensor1 * angular1;
+            if (warmStart) {
+                if (!(flags & Constraint1D::ANGULAR))
+                    dynamic1->velocity -= totalLambda * invMass1 * linear;
+                dynamic1->angularVelocity -= totalLambda * angular1t;
+            }
+        }
 
         invEffMass = glm::dot(angular0, angular0t) + glm::dot(angular1, angular1t);
         if (!(flags & Constraint1D::ANGULAR)) {
@@ -320,14 +335,7 @@ void physecs::Constraint1DSoa::preSolveSimd() {
     }
 
     for (int i = 0; i < size; ++i) {
-        auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
         auto [transform0, transform1] = transformComponentsBuffer[i];
-        const auto& flags = flagsBuffer[i];
-        const auto& c = cBuffer[i];
-        auto& totalLambda = totalLambdaBuffer[i];
-        const auto& linear = linearBuffer[i];
-        const auto& angular0t = angular0tBuffer[i];
-        const auto& angular1t = angular1tBuffer[i];
         const auto& position0 = position0Buffer[i];
         const auto& position1 = position1Buffer[i];
         const auto& orientation0 = orientation0Buffer[i];
@@ -338,23 +346,6 @@ void physecs::Constraint1DSoa::preSolveSimd() {
 
         transform1->position = position1;
         transform1->orientation = orientation1;
-
-        // warm start
-
-        if (flags & Constraint1D::SOFT || glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) continue;
-
-        totalLambda = totalLambda * 0.5f;
-        if (dynamic0 && !dynamic0->isKinematic) {
-            if (!(flags & Constraint1D::ANGULAR))
-                dynamic0->velocity += totalLambda * dynamic0->invMass * linear;
-            dynamic0->angularVelocity += totalLambda * angular0t;
-        }
-
-        if (dynamic1 && !dynamic1->isKinematic) {
-            if (!(flags & Constraint1D::ANGULAR))
-                dynamic1->velocity -= totalLambda * dynamic1->invMass * linear;
-            dynamic1->angularVelocity -= totalLambda * angular1t;
-        }
     }
 }
 
@@ -443,7 +434,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         const int baseIndex = j * 4;
         for (int offset = 0; offset < 4; ++offset) {
             const int i = baseIndex + offset;
-            if (i >= size) continue;
+            if (i >= size) break;
 
             auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
 
@@ -568,7 +559,7 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
         const int baseIndex = j * 4;
         for (int offset = 0; offset < 4; ++offset) {
             const int i = baseIndex + offset;
-            if (i >= size) continue;
+            if (i >= size) break;
 
             const auto& invEffMass = invEffMassBuffer[i];
 

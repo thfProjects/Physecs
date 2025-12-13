@@ -47,6 +47,18 @@ namespace physecs {
             _mm_store_ps(f + 4, r1);
             _mm_store_ps(f + 8, r2);
         }
+
+        void set(const glm::vec3& v, int offset) {
+            x.m128_f32[offset] = v.x;
+            y.m128_f32[offset] = v.y;
+            z.m128_f32[offset] = v.z;
+        }
+
+        void get(glm::vec3& v, int offset) const {
+            v.x = x.m128_f32[offset];
+            v.y = y.m128_f32[offset];
+            v.z = z.m128_f32[offset];
+        }
     };
 
     struct QuatW {

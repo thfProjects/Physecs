@@ -8,6 +8,8 @@ struct TransformComponent;
 
 namespace physecs {
 
+    struct Vec3W;
+
     class Constraint1DSoa {
 
         friend class Constraint1DView;
@@ -66,10 +68,10 @@ namespace physecs {
         Field<float> totalLambdaBuffer;
 
         //temp values
-        Field<glm::vec3> velocity0Buffer;
-        Field<glm::vec3> velocity1Buffer;
-        Field<glm::vec3> angularVelocity0Buffer;
-        Field<glm::vec3> angularVelocity1Buffer;
+        Field<Vec3W> velocity0Buffer;
+        Field<Vec3W> velocity1Buffer;
+        Field<Vec3W> angularVelocity0Buffer;
+        Field<Vec3W> angularVelocity1Buffer;
         Field<float> invMass0Buffer;
         Field<float> invMass1Buffer;
         Field<glm::vec3> position0Buffer;

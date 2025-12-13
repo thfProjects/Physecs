@@ -437,14 +437,17 @@ void physecs::Constraint1DSoa::solveSimd(float timeStep) {
             if (i >= size) break;
 
             auto [dynamic0, dynamic1] = dynamicComponentsBuffer[i];
+            auto& flags = flagsBuffer[i];
 
             if (dynamic0 && !dynamic0->isKinematic) {
-                velocity0.set(dynamic0->velocity, offset);
+                if (!(flags & Constraint1D::ANGULAR))
+                    velocity0.set(dynamic0->velocity, offset);
                 angularVelocity0.set(dynamic0->angularVelocity, offset);
             }
 
             if (dynamic1 && !dynamic1->isKinematic) {
-                velocity1.set(dynamic1->velocity, offset);
+                if (!(flags & Constraint1D::ANGULAR))
+                    velocity1.set(dynamic1->velocity, offset);
                 angularVelocity1.set(dynamic1->angularVelocity, offset);
             }
         }

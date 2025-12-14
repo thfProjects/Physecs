@@ -14,9 +14,12 @@ void physecs::Constraint1DW::preSolve() {
     for (int i = 0; i < 4; ++i) {
         if (!transform0[i]) break;
 
-        glm::mat3 invInertiaTensor0(0);
+        FloatW invI0[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
         if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-            invInertiaTensor0 = dynamic0[i]->invInertiaTensorWorld;
+            auto& invI = dynamic0[i]->invInertiaTensorWorld;
+            invI0[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
+            invI0[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
+            invI0[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
 
             if (!(flags[i] & Constraint1D::ANGULAR)) {
                 invMass0.m128_f32[i] = dynamic0[i]->invMass;
@@ -26,9 +29,12 @@ void physecs::Constraint1DW::preSolve() {
             angularVelocity0.set(dynamic0[i]->angularVelocity, i);
         }
 
-        glm::mat3 invInertiaTensor1(0);
+        FloatW invI1[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
         if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-            invInertiaTensor1 = dynamic1[i]->invInertiaTensorWorld;
+            auto& invI = dynamic1[i]->invInertiaTensorWorld;
+            invI1[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
+            invI1[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
+            invI1[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
 
             if (!(flags[i] & Constraint1D::ANGULAR)) {
                 invMass1.m128_f32[i] = dynamic1[i]->invMass;
@@ -38,13 +44,23 @@ void physecs::Constraint1DW::preSolve() {
             angularVelocity1.set(dynamic1[i]->angularVelocity, i);
         }
 
-        angular0t.x.m128_f32[i] = invInertiaTensor0[0][0] * angular0.x.m128_f32[i] + invInertiaTensor0[1][0] * angular0.y.m128_f32[i] + invInertiaTensor0[2][0] * angular0.z.m128_f32[i];
-        angular0t.y.m128_f32[i] = invInertiaTensor0[0][1] * angular0.x.m128_f32[i] + invInertiaTensor0[1][1] * angular0.y.m128_f32[i] + invInertiaTensor0[2][1] * angular0.z.m128_f32[i];
-        angular0t.z.m128_f32[i] = invInertiaTensor0[0][2] * angular0.x.m128_f32[i] + invInertiaTensor0[1][2] * angular0.y.m128_f32[i] + invInertiaTensor0[2][2] * angular0.z.m128_f32[i];
+        const FloatW angular0x = _mm_set1_ps(angular0.x.m128_f32[i]);
+        const FloatW angular0y = _mm_set1_ps(angular0.y.m128_f32[i]);
+        const FloatW angular0z = _mm_set1_ps(angular0.z.m128_f32[i]);
+        const FloatW angular0ti = angular0x * invI0[0] + angular0y * invI0[1] + angular0z * invI0[2];
 
-        angular1t.x.m128_f32[i] = invInertiaTensor1[0][0] * angular1.x.m128_f32[i] + invInertiaTensor1[1][0] * angular1.y.m128_f32[i] + invInertiaTensor1[2][0] * angular1.z.m128_f32[i];
-        angular1t.y.m128_f32[i] = invInertiaTensor1[0][1] * angular1.x.m128_f32[i] + invInertiaTensor1[1][1] * angular1.y.m128_f32[i] + invInertiaTensor1[2][1] * angular1.z.m128_f32[i];
-        angular1t.z.m128_f32[i] = invInertiaTensor1[0][2] * angular1.x.m128_f32[i] + invInertiaTensor1[1][2] * angular1.y.m128_f32[i] + invInertiaTensor1[2][2] * angular1.z.m128_f32[i];
+        angular0t.x.m128_f32[i] = angular0ti.m128_f32[0];
+        angular0t.y.m128_f32[i] = angular0ti.m128_f32[1];
+        angular0t.z.m128_f32[i] = angular0ti.m128_f32[2];
+
+        const FloatW angular1x = _mm_set1_ps(angular1.x.m128_f32[i]);
+        const FloatW angular1y = _mm_set1_ps(angular1.y.m128_f32[i]);
+        const FloatW angular1z = _mm_set1_ps(angular1.z.m128_f32[i]);
+        const FloatW angular1ti = angular1x * invI1[0] + angular1y * invI1[1] + angular1z * invI1[2];
+
+        angular1t.x.m128_f32[i] = angular1ti.m128_f32[0];
+        angular1t.y.m128_f32[i] = angular1ti.m128_f32[1];
+        angular1t.z.m128_f32[i] = angular1ti.m128_f32[2];
 
         position0.set(transform0[i]->position, i);
         position1.set(transform1[i]->position, i);

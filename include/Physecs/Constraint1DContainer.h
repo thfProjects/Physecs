@@ -5,14 +5,6 @@
 #include <entt.hpp>
 
 namespace physecs {
-    struct Constraint1D;
-}
-
-namespace physecs {
-    struct Constraint1DW;
-}
-
-namespace physecs {
 
     struct GraphColor {
         std::vector<Constraint1DW> constraints;

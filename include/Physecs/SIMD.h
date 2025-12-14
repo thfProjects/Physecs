@@ -5,12 +5,14 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace physecs {
-    struct Vec3W {
-        __m128 x;
-        __m128 y;
-        __m128 z;
+    typedef __m128 FloatW;
 
-        Vec3W() = default;
+    struct Vec3W {
+        FloatW x;
+        FloatW y;
+        FloatW z;
+
+        Vec3W() : x(_mm_setzero_ps()), y(_mm_setzero_ps()), z(_mm_setzero_ps()) {};
 
         Vec3W(__m128 x, __m128 y, __m128 z) : x(x), y(y), z(z) {}
 
@@ -67,6 +69,8 @@ namespace physecs {
         __m128 z;
         __m128 w;
 
+        QuatW(): x(_mm_setzero_ps()), y(_mm_setzero_ps()), z(_mm_setzero_ps()), w(_mm_setzero_ps()) {};
+
         QuatW(__m128 w, __m128 x, __m128 y, __m128 z) : x(x), y(y), z(z), w(w) {}
 
         explicit QuatW(__m128 s, const Vec3W& v) : x(v.x), y(v.y), z(v.z), w(s) {}
@@ -107,6 +111,20 @@ namespace physecs {
             _mm_store_ps(f + 4, r1);
             _mm_store_ps(f + 8, r2);
             _mm_store_ps(f + 12, r3);
+        }
+
+        void set(const glm::quat& q, int offset) {
+            x.m128_f32[offset] = q.x;
+            y.m128_f32[offset] = q.y;
+            z.m128_f32[offset] = q.z;
+            w.m128_f32[offset] = q.w;
+        }
+
+        void get(glm::quat& q, int offset) const {
+            q.x = x.m128_f32[offset];
+            q.y = y.m128_f32[offset];
+            q.z = z.m128_f32[offset];
+            q.w = w.m128_f32[offset];
         }
     };
 

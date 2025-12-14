@@ -1,5 +1,6 @@
 #include "Constraint1D.h"
-#include <iostream>
+#include "Components.h"
+#include "Transform.h"
 
 void physecs::Constraint1D::prepare() {
     float invMass0 = 0;

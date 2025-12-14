@@ -1,8 +1,18 @@
 #pragma once
 
+#include <Constraint1D.h>
+#include <Constraint1DW.h>
 #include <entt.hpp>
 
 #include "Components.h"
+
+namespace physecs {
+    struct Constraint1D;
+}
+
+namespace physecs {
+    struct Constraint1DW;
+}
 
 struct TransformComponent;
 
@@ -93,60 +103,100 @@ namespace physecs {
         int getSize() const { return size; }
     };
 
+    struct GraphColor {
+        std::vector<Constraint1DW> constraints;
+        int size = 0;
+    };
+
     class Constraint1DView {
-        Constraint1DSoa* soa;
+        union {
+            std::vector<Constraint1DW>* color;
+            std::vector<Constraint1D>* sequential;
+        };
         int i;
+        int offset;
 
     public:
-        Constraint1DView(Constraint1DSoa* soa, int index) : soa(soa), i(index) {}
+        Constraint1DView(std::vector<Constraint1DW>* color, int index, int offset) : color(color), i(index), offset(offset) {}
+        Constraint1DView(std::vector<Constraint1D>* sequential, int index) : sequential(sequential), i(index), offset(-1) {}
 
-        __forceinline Constraint1DView& setLinear(const glm::vec3& n) {
-            soa->linearBuffer[i] = n;
+        __forceinline Constraint1DView& setLinear(const glm::vec3& linear) {
+            if (offset < 0)
+                (*sequential)[i].n = linear;
+            else
+                (*color)[i].linear.set(linear, offset);
             return *this;
         }
 
         __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
-            soa->angular0Buffer[i] = angular0;
+            if (offset < 0)
+                (*sequential)[i].r0xn = angular0;
+            else
+                (*color)[i].angular0.set(angular0, offset);
             return *this;
         }
 
         __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
-            soa->angular1Buffer[i] = angular1;
+            if (offset < 0)
+                (*sequential)[i].r1xn = angular1;
+            else
+                (*color)[i].angular1.set(angular1, offset);
             return *this;
         }
 
         __forceinline Constraint1DView& setTargetVelocity(float targetVelocity) {
-            soa->targetVelocityBuffer[i] = targetVelocity;
+            if (offset < 0)
+                (*sequential)[i].targetVelocity = targetVelocity;
+            else
+                (*color)[i].targetVelocity.m128_f32[offset] = targetVelocity;
             return *this;
         }
 
         __forceinline Constraint1DView& setC(float c) {
-            soa->cBuffer[i] = c;
+            if (offset < 0)
+                (*sequential)[i].c = c;
+            else
+                (*color)[i].c.m128_f32[offset] = c;
             return *this;
         }
 
         __forceinline Constraint1DView& setMin(float min) {
-            soa->minBuffer[i] = min;
+            if (offset < 0)
+                (*sequential)[i].min = min;
+            else
+                (*color)[i].min.m128_f32[offset] = min;
             return *this;
         }
 
         __forceinline Constraint1DView& setMax(float max) {
-            soa->maxBuffer[i] = max;
+            if (offset < 0)
+                (*sequential)[i].max = max;
+            else
+                (*color)[i].max.m128_f32[offset] = max;
             return *this;
         }
 
         __forceinline Constraint1DView& setFlags(unsigned char flags) {
-            soa->flagsBuffer[i] = flags;
+            if (offset < 0)
+                (*sequential)[i].flags = flags;
+            else
+                (*color)[i].flags[offset] = flags;
             return *this;
         }
 
         __forceinline Constraint1DView& setFrequency(float frequency) {
-            soa->frequencyBuffer[i] = frequency;
+            if (offset < 0)
+                (*sequential)[i].frequency = frequency;
+            else
+                (*color)[i].frequency.m128_f32[offset] = frequency;
             return *this;
         }
 
         __forceinline Constraint1DView& setDampingRatio(float dampingRatio) {
-            soa->dampingRatioBuffer[i] = dampingRatio;
+            if (offset < 0)
+                (*sequential)[i].dampingRatio = dampingRatio;
+            else
+                (*color)[i].dampingRatio.m128_f32[offset] = dampingRatio;
             return *this;
         }
     };
@@ -154,10 +204,10 @@ namespace physecs {
     class Constraint1DContainer {
         constexpr static int maxColors = 32;
 
-        Constraint1DSoa constraintColors[maxColors];
+        GraphColor graphColors[maxColors];
         entt::dense_map<entt::entity, std::uint32_t> colorBitsets;
         std::vector<Constraint1DView> views;
-        Constraint1DSoa sequential;
+        std::vector<Constraint1D> sequential;
 
     public:
         void preSolve();

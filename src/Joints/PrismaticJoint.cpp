@@ -1,6 +1,7 @@
 #include "PrismaticJoint.h"
 #include "Constraint1D.h"
 #include "Constraint1DContainer.h"
+#include "Transform.h"
 
 void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DView* constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;

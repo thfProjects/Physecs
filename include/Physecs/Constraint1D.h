@@ -1,9 +1,12 @@
 #pragma once
 
-#include "Components.h"
-#include "Transform.h"
+#include <glm/glm.hpp>
+
+struct TransformComponent;
 
 namespace physecs {
+
+    struct RigidBodyDynamicComponent;
 
     struct Constraint1D {
         enum Flags {

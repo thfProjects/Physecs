@@ -29,11 +29,11 @@ namespace physecs {
         unsigned char flags[4] = {};
         FloatW frequency = _mm_setzero_ps();
         FloatW dampingRatio = _mm_setzero_ps();
+        Vec3W linear0t;
+        Vec3W linear1t;
         Vec3W angular0t;
         Vec3W angular1t;
         FloatW invEffMass = _mm_setzero_ps();
-        FloatW invMass0 = _mm_setzero_ps();
-        FloatW invMass1 = _mm_setzero_ps();
         FloatW totalLambda = _mm_setzero_ps();
 
         void preSolve();

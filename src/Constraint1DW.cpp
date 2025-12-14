@@ -10,27 +10,31 @@ void physecs::Constraint1DW::preSolve() {
 
     Vec3W position0, position1, velocity0, velocity1, angularVelocity0, angularVelocity1;
     QuatW orientation0, orientation1;
-    FloatW warmStartMask;
+    FloatW warmStartMask, invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
         if (!transform0[i]) break;
 
         glm::mat3 invInertiaTensor0(0);
         if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-            invMass0.m128_f32[i] = dynamic0[i]->invMass;
             invInertiaTensor0 = dynamic0[i]->invInertiaTensorWorld;
 
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if (!(flags[i] & Constraint1D::ANGULAR)) {
+                invMass0.m128_f32[i] = dynamic0[i]->invMass;
                 velocity0.set(dynamic0[i]->velocity, i);
+            }
+
             angularVelocity0.set(dynamic0[i]->angularVelocity, i);
         }
 
         glm::mat3 invInertiaTensor1(0);
         if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-            invMass1.m128_f32[i] = dynamic1[i]->invMass;
             invInertiaTensor1 = dynamic1[i]->invInertiaTensorWorld;
 
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if (!(flags[i] & Constraint1D::ANGULAR)) {
+                invMass1.m128_f32[i] = dynamic1[i]->invMass;
                 velocity1.set(dynamic1[i]->velocity, i);
+            }
+
             angularVelocity1.set(dynamic1[i]->angularVelocity, i);
         }
 
@@ -53,6 +57,8 @@ void physecs::Constraint1DW::preSolve() {
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
     if ((flagsW & ANGULAR_W) != ANGULAR_W) {
         invEffMass += dotW(linear, linear) * (invMass0 + invMass1);
+        linear0t = invMass0 * linear;
+        linear1t = invMass1 * linear;
     }
 
     const auto half = _mm_set1_ps(0.5f);
@@ -63,8 +69,8 @@ void physecs::Constraint1DW::preSolve() {
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
-            velocity0 += lambda * invMass0 * linear;
-            velocity1 -= lambda * invMass1 * linear;
+            velocity0 += lambda * linear0t;
+            velocity1 -= lambda * linear1t;
         }
 
         angularVelocity0 += lambda * angular0t;
@@ -75,9 +81,7 @@ void physecs::Constraint1DW::preSolve() {
 
     // position correction (NGS)
     const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
-
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
-
     const auto cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
     auto ngsMask = _mm_and_ps(cMask, _mm_and_ps(invEffMassMask, softMask));
@@ -93,8 +97,8 @@ void physecs::Constraint1DW::preSolve() {
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, ngsMask);
 
         if ((flagsW & ANGULAR_W) != ANGULAR_W) {
-            position0 += lambda * invMass0 * linear;
-            position1 -= lambda * invMass1 * linear;
+            position0 += lambda * linear0t;
+            position1 -= lambda * linear1t;
         }
 
         orientation0 += half * QuatW(_mm_setzero_ps(), lambda * angular0t) * orientation0;
@@ -194,8 +198,8 @@ void physecs::Constraint1DW::solve(float timeStep) {
     totalLambda = _mm_blendv_ps(prevLambda, totalLambda, invEffMassMask);
 
     if ((flagsW & ANGULAR_W) != ANGULAR_W) {
-        velocity0 += lambda * invMass0 * linear;
-        velocity1 -= lambda * invMass1 * linear;
+        velocity0 += lambda * linear0t;
+        velocity1 -= lambda * linear1t;
     }
 
     angularVelocity0 += lambda * angular0t;

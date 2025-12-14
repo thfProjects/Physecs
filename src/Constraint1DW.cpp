@@ -185,8 +185,9 @@ void physecs::Constraint1DW::solve(float timeStep) {
     const auto effMass = one / invEffMass;
     auto lambda = (relativeVelocityW - targetVelocity + biasFactor * c) * effMass;
 
+    const auto timeStepW = _mm_set1_ps(timeStep);
+
     if (flagsW & SOFT_W) {
-        const auto timeStepW = _mm_set1_ps(timeStep);
         const auto two = _mm_set1_ps(2.f);
         const auto twoPi = _mm_set1_ps(2.f * glm::pi<float>());
 
@@ -207,7 +208,7 @@ void physecs::Constraint1DW::solve(float timeStep) {
 
     if (flagsW & LIMITED_W) {
         totalLambda += lambda;
-        totalLambda = _mm_min_ps(_mm_max_ps(totalLambda, min), max);
+        totalLambda = _mm_min_ps(_mm_max_ps(totalLambda, min * timeStepW), max * timeStepW);
         lambda = totalLambda - prevLambda;
     }
     else {

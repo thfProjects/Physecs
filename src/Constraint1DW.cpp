@@ -4,8 +4,13 @@
 #include "Transform.h"
 
 void physecs::Constraint1DW::preSolve() {
+    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
+    auto softW = flagsW & SOFT_W;
+    unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
+
     Vec3W position0, position1, velocity0, velocity1, angularVelocity0, angularVelocity1;
     QuatW orientation0, orientation1;
+    FloatW warmStartMask;
     for (int i = 0; i < 4; ++i) {
         if (!transform0[i]) break;
 
@@ -41,9 +46,9 @@ void physecs::Constraint1DW::preSolve() {
         position1.set(transform1[i]->position, i);
         orientation0.set(transform0[i]->orientation, i);
         orientation1.set(transform1[i]->orientation, i);
-    }
 
-    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
+        warmStartMask.m128_f32[i] = !softWBytes[i] && glm::abs(c.m128_f32[i]) < 1e-4 && glm::abs(totalLambda.m128_f32[i]) < 10000;
+    }
 
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
     if ((flagsW & ANGULAR_W) != ANGULAR_W) {
@@ -53,16 +58,6 @@ void physecs::Constraint1DW::preSolve() {
     const auto half = _mm_set1_ps(0.5f);
 
     // warm start
-    auto softW = flagsW & SOFT_W;
-    unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
-    const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
-
-    auto cMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
-
-    const auto totalImpulseMask = _mm_cmplt_ps(_mm_abs_ps(totalLambda), _mm_set1_ps(10000));
-
-    const auto warmStartMask = _mm_and_ps(softMask,  _mm_and_ps(cMask, totalImpulseMask));
-
     if (!isZero(warmStartMask)) {
         auto lambda = totalLambda * half;
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
@@ -79,35 +74,35 @@ void physecs::Constraint1DW::preSolve() {
     }
 
     // position correction (NGS)
+    const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
+
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
-    if (isZero(invEffMassMask)) return;
 
-    cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
-    if (isZero(cMask)) return;
-
-    if ((flagsW & SOFT_W) == SOFT_W) return;
-
-    const auto factor = _mm_set1_ps(0.1f);
-
-    auto lambda = factor * c / invEffMass;
-    if (flagsW & LIMITED_W) {
-        lambda = _mm_min_ps(_mm_max_ps(lambda, min), max);
-    }
+    const auto cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
     auto ngsMask = _mm_and_ps(cMask, _mm_and_ps(invEffMassMask, softMask));
 
-    lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, ngsMask);
+    if (!isZero(ngsMask)) {
+        const auto factor = _mm_set1_ps(0.1f);
 
-    if ((flagsW & ANGULAR_W) != ANGULAR_W) {
-        position0 += lambda * invMass0 * linear;
-        position1 -= lambda * invMass1 * linear;
+        auto lambda = factor * c / invEffMass;
+        if (flagsW & LIMITED_W) {
+            lambda = _mm_min_ps(_mm_max_ps(lambda, min), max);
+        }
+
+        lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, ngsMask);
+
+        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+            position0 += lambda * invMass0 * linear;
+            position1 -= lambda * invMass1 * linear;
+        }
+
+        orientation0 += half * QuatW(_mm_setzero_ps(), lambda * angular0t) * orientation0;
+        orientation0 = normalize(orientation0);
+
+        orientation1 -= half * QuatW(_mm_setzero_ps(), lambda * angular1t) * orientation1;
+        orientation1 = normalize(orientation1);
     }
-
-    orientation0 += half * QuatW(_mm_setzero_ps(), lambda * angular0t) * orientation0;
-    orientation0 = normalize(orientation0);
-
-    orientation1 -= half * QuatW(_mm_setzero_ps(), lambda * angular1t) * orientation1;
-    orientation1 = normalize(orientation1);
 
     for (int i = 0; i < 4; ++i) {
         if (!transform0[i]) break;

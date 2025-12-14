@@ -168,6 +168,10 @@ namespace physecs {
         a = _mm_sub_ps(a, b);
     }
 
+    inline void operator*=(__m128& a, __m128 b) {
+        a = _mm_mul_ps(a, b);
+    }
+
     inline __m128 operator* (__m128 a, __m128 b) {
         return _mm_mul_ps(a, b);
     }
@@ -244,5 +248,14 @@ namespace physecs {
 
     inline int isZero (const __m128& mask) {
         return _mm_testz_si128(_mm_castps_si128(mask), _mm_castps_si128(mask));
+    }
+
+    inline __m128 _mm_abs_ps(__m128 x)
+    {
+        // 0x7FFFFFFF clears the sign bit
+        const __m128 mask = _mm_castsi128_ps(
+            _mm_set1_epi32(0x7FFFFFFF)
+        );
+        return _mm_and_ps(x, mask);
     }
 }

@@ -344,7 +344,6 @@ void physecs::Scene::simulate(float timeStep) {
         jointSolverDataBuffer.push_back(solverData);
         jointConstraints.pushBack(numConstraints, entity0, entity1, transform0, transform1, dynamic0, dynamic1);
     }
-    jointConstraints.fillDefaults();
     PhysecsZoneEnd(ctx7);
 
     auto t1 = std::chrono::high_resolution_clock::now();

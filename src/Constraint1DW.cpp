@@ -4,13 +4,9 @@
 #include "Transform.h"
 
 void physecs::Constraint1DW::preSolve() {
-    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
-    auto softW = flagsW & SOFT_W;
-    unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
-
     Vec3W position0, position1, velocity0, velocity1, angularVelocity0, angularVelocity1;
     QuatW orientation0, orientation1;
-    FloatW warmStartMask, invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
+    FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
         if (!transform0[i]) break;
 
@@ -66,9 +62,9 @@ void physecs::Constraint1DW::preSolve() {
         position1.set(transform1[i]->position, i);
         orientation0.set(transform0[i]->orientation, i);
         orientation1.set(transform1[i]->orientation, i);
-
-        warmStartMask.m128_f32[i] = !softWBytes[i] && glm::abs(c.m128_f32[i]) < 1e-4 && glm::abs(totalLambda.m128_f32[i]) < 10000;
     }
+
+    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
 
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
     if ((flagsW & ANGULAR_W) != ANGULAR_W) {
@@ -78,6 +74,14 @@ void physecs::Constraint1DW::preSolve() {
     }
 
     const auto half = _mm_set1_ps(0.5f);
+
+    auto softW = flagsW & SOFT_W;
+    unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
+    const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
+    auto cMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
+    const auto totalLambdaMask = _mm_cmplt_ps(_mm_abs_ps(totalLambda), _mm_set1_ps(10000.f));
+
+    const auto warmStartMask = _mm_and_ps(softMask, _mm_and_ps(cMask, totalLambdaMask));
 
     // warm start
     if (!isZero(warmStartMask)) {
@@ -96,9 +100,8 @@ void physecs::Constraint1DW::preSolve() {
     }
 
     // position correction (NGS)
-    const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
-    const auto cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
+    cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
     auto ngsMask = _mm_and_ps(cMask, _mm_and_ps(invEffMassMask, softMask));
 

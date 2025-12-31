@@ -329,7 +329,7 @@ void physecs::Scene::simulate(float timeStep) {
             Constraint1DLayout constraintLayout(jointConstraints, transform0, transform1, dynamic0, dynamic1);
             auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
-            JointSolverData solverData = {
+            jointSolverDataBuffer.emplace_back(
                 transform0,
                 transform1,
                 dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos(),
@@ -341,9 +341,7 @@ void physecs::Scene::simulate(float timeStep) {
                 numConstraints,
                 additionalData,
                 makeConstraintsFunc
-            };
-
-            jointSolverDataBuffer.push_back(solverData);
+            );
         }
     }
     PhysecsZoneEnd(ctx7);

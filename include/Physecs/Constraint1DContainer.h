@@ -150,13 +150,13 @@ namespace physecs {
                 constraintsList[currentIndex].transform1[lane] = &transform1;
                 constraintsList[currentIndex].dynamic0[lane] = dynamic0;
                 constraintsList[currentIndex].dynamic1[lane] = dynamic1;
-                constraintRefs.push_back({ currentIndex, lane });
+                constraintRefs.emplace_back(currentIndex, lane);
                 return currentIndex++;
             }
 
             auto& constraintsCollection = std::get<OverflowConstraints>(constraintCollection);
             auto& constraintsList = constraintsCollection.get<flags>().constraints;
-            constraintRefs.push_back({ static_cast<int>(constraintsList.size()), -1 });
+            constraintRefs.emplace_back(static_cast<int>(constraintsList.size()), -1);
             constraintsList.emplace_back(transform0, transform1, dynamic0, dynamic1);
             return 0;
         }

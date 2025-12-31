@@ -3,7 +3,7 @@
 #include "Constraint1DContainer.h"
 #include "Transform.h"
 
-void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DView* constraints) {
+void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointData*>(additionalData);
 
@@ -14,7 +14,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r0xy = glm::cross(r0, u0[1]);
     const glm::vec3 r1xy = glm::cross(r1, u0[1]);
 
-    constraints[0]
+    constraints.at(0)
     .setLinear(u0[1])
     .setAngular0(r0xy)
     .setAngular1(r1xy)
@@ -24,7 +24,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r0xz = glm::cross(r0, u0[2]);
     const glm::vec3 r1xz = glm::cross(r1, u0[2]);
 
-    constraints[1]
+    constraints.at(1)
    .setLinear(u0[2])
    .setAngular0(r0xz)
    .setAngular1(r1xz)
@@ -34,29 +34,26 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
-    constraints[2]
+    constraints.at<ANGULAR>(2)
    .setAngular0(u11xu00)
    .setAngular1(u11xu00)
-   .setC(d01)
-   .setFlags(Constraint1D::ANGULAR);
+   .setC(d01);
 
     const float d02 = glm::dot(u0[0], u1[2]);
     const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
-    constraints[3]
+    constraints.at<ANGULAR>(3)
    .setAngular0(u12xu00)
    .setAngular1(u12xu00)
-   .setC(d02)
-   .setFlags(Constraint1D::ANGULAR);
+   .setC(d02);
 
     const float d12 = glm::dot(u0[1], u1[2]);
     const glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
 
-    constraints[4]
+    constraints.at<ANGULAR>(4)
     .setAngular0(u12xu01)
     .setAngular1(u12xu01)
-    .setC(d12)
-    .setFlags(Constraint1D::ANGULAR);
+    .setC(d12);
 
     const float dx = glm::dot(d, u0[0]);
     const glm::vec3 r0xx = glm::cross(r0, u0[0]);
@@ -65,36 +62,33 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     //limits
     int index = 5;
     if (makeUpperLimit) {
-        constraints[index]
+        constraints.at<LIMITED>(index)
         .setLinear(u0[0])
         .setAngular0(r0xx)
         .setAngular1(r1xx)
         .setC(dx - upperLimit)
-        .setMin(0)
-        .setFlags(Constraint1D::LIMITED);
+        .setMin(0);
 
         index++;
     }
     else if (makeLowerLimit) {
-        constraints[index]
+        constraints.at<LIMITED>(index)
         .setLinear(u0[0])
         .setAngular0(r0xx)
         .setAngular1(r1xx)
         .setC(dx - lowerLimit)
-        .setMax(0)
-        .setFlags(Constraint1D::LIMITED);
+        .setMax(0);
 
         index++;
     }
 
     //drive
     if (driveEnabled) {
-        constraints[index]
+        constraints.at<SOFT>(index)
        .setLinear(u0[0])
        .setAngular0(r0xx)
        .setAngular1(r1xx)
        .setC(dx - targetPosition)
-       .setFlags(Constraint1D::SOFT)
        .setFrequency(driveStiffness)
        .setDampingRatio(driveDamping);
     }
@@ -124,7 +118,7 @@ void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
     data.driveDamping = driveDamping;
 }
 
-physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &registry) {
+physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
     const auto& transform0 = registry.get<TransformComponent>(entity0);
     const auto& transform1 = registry.get<TransformComponent>(entity1);
 
@@ -137,17 +131,26 @@ physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &
 
     const float dx = glm::dot(d, u00);
 
+    constraintLayout.createConstraints<NONE, 2>();
+    constraintLayout.createConstraints<ANGULAR, 3>();
+
     if (dx > data.upperLimit) {
         data.makeUpperLimit = true;
         data.makeLowerLimit = false;
+        constraintLayout.createConstraints<LIMITED>();
     }
     else if (dx < data.lowerLimit) {
         data.makeUpperLimit = false;
         data.makeLowerLimit = true;
+        constraintLayout.createConstraints<LIMITED>();
     }
     else {
         data.makeUpperLimit = false;
         data.makeLowerLimit = false;
+    }
+
+    if (data.driveEnabled) {
+        constraintLayout.createConstraints<SOFT>();
     }
 
     const int numConstraints = 5 + (data.makeUpperLimit || data.makeLowerLimit) + data.driveEnabled;

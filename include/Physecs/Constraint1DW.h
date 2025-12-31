@@ -8,13 +8,8 @@ namespace physecs {
 
     struct RigidBodyDynamicComponent;
 
+    template<int flags>
     struct Constraint1DW {
-        enum FlagsW : unsigned int {
-            SOFT_W = 1 | 1 << 8 | 1 << 16 | 1 << 24,
-            ANGULAR_W = 1 << 1 | 1 << 9 | 1 << 17 | 1 << 25,
-            LIMITED_W = 1 << 2 | 1 << 10 | 1 << 18 | 1 << 26,
-        };
-
         TransformComponent* transform0[4] = {};
         TransformComponent* transform1[4] = {};
         RigidBodyDynamicComponent* dynamic0[4] = {};
@@ -26,7 +21,6 @@ namespace physecs {
         FloatW c = _mm_setzero_ps();
         FloatW min = _mm_set1_ps(std::numeric_limits<float>::lowest());
         FloatW max = _mm_set1_ps(std::numeric_limits<float>::max());
-        unsigned char flags[4] = {};
         FloatW frequency = _mm_setzero_ps();
         FloatW dampingRatio = _mm_setzero_ps();
         Vec3W linear0t;

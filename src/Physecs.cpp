@@ -313,36 +313,38 @@ void physecs::Scene::simulate(float timeStep) {
 
     //create joint constraints
     PhysecsZoneN(ctx7, "create joint constraints", true);
-    jointSolverDataBuffer.clear();
-    jointConstraints.clear();
-    for (auto& joint : joints) {
-        auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry);
+    for (auto& [joints, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
+        jointSolverDataBuffer.clear();
+        jointConstraints.clear();
+        for (auto& joint : joints) {
+            auto entity0 = joint->getEntity0();
+            auto entity1 = joint->getEntity1();
 
-        auto entity0 = joint->getEntity0();
-        auto entity1 = joint->getEntity1();
+            auto& transform0 = registry.get<TransformComponent>(entity0);
+            auto& transform1 = registry.get<TransformComponent>(entity1);
 
-        auto& transform0 = registry.get<TransformComponent>(entity0);
-        auto& transform1 = registry.get<TransformComponent>(entity1);
+            auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
+            auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
 
-        auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
-        auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
+            Constraint1DLayout constraintLayout(jointConstraints, transform0, transform1, dynamic0, dynamic1);
+            auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
-        JointSolverData solverData = {
-            transform0,
-            transform1,
-            dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos(),
-            dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos(),
-            joint->getAnchor0Pos(),
-            joint->getAnchor0Or(),
-            joint->getAnchor1Pos(),
-            joint->getAnchor1Or(),
-            numConstraints,
-            additionalData,
-            makeConstraintsFunc
-        };
+            JointSolverData solverData = {
+                transform0,
+                transform1,
+                dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos(),
+                dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos(),
+                joint->getAnchor0Pos(),
+                joint->getAnchor0Or(),
+                joint->getAnchor1Pos(),
+                joint->getAnchor1Or(),
+                numConstraints,
+                additionalData,
+                makeConstraintsFunc
+            };
 
-        jointSolverDataBuffer.push_back(solverData);
-        jointConstraints.pushBack(numConstraints, entity0, entity1, transform0, transform1, dynamic0, dynamic1);
+            jointSolverDataBuffer.push_back(solverData);
+        }
     }
     PhysecsZoneEnd(ctx7);
 
@@ -414,12 +416,15 @@ void physecs::Scene::simulate(float timeStep) {
 
         //update joint constraints
         PhysecsZoneN(ctx2, "update joint constraints", true);
-        int index = 0;
-        for (auto& jointSolverData : jointSolverDataBuffer) {
-            JointWorldSpaceData worldSpaceData;
-            jointSolverData.calculateWorldSpaceData(worldSpaceData);
-            jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, jointConstraints.getView(index));
-            index += jointSolverData.numConstraints;
+        for (auto& [_, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
+            int index = 0;
+            for (auto& jointSolverData : jointSolverDataBuffer) {
+                JointWorldSpaceData worldSpaceData;
+                jointSolverData.calculateWorldSpaceData(worldSpaceData);
+                Constraint1DWriter constraintWriter(jointConstraints, index);
+                jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, constraintWriter);
+                index += jointSolverData.numConstraints;
+            }
         }
         PhysecsZoneEnd(ctx2);
 
@@ -449,7 +454,9 @@ void physecs::Scene::simulate(float timeStep) {
 
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
-        jointConstraints.preSolve();
+        for (auto& color : jointGraph.colors) {
+            color.jointConstraints.preSolve();
+        }
         PhysecsZoneEnd(ctx8);
 
         //constraint solve
@@ -458,7 +465,9 @@ void physecs::Scene::simulate(float timeStep) {
             for (auto& constraints : contactConstraints) {
                 constraints.solve(true, h);
             }
-            jointConstraints.solve(true, h);
+            for (auto& color : jointGraph.colors) {
+                color.jointConstraints.solve(h);
+            }
         }
 
         //integrate positions
@@ -643,13 +652,38 @@ std::vector<physecs::OverlapMtdHit> physecs::Scene::overlapWithMinTranslationalD
     return out;
 }
 
+void physecs::Scene::addJoint(Joint *joint) {
+    const auto entity0 = joint->getEntity0();
+    const auto entity1 = joint->getEntity1();
+
+    nonCollidingPairs.insert(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
+
+    auto& colors0 = jointGraph.bitsets[entity0];
+    auto& colors1 = jointGraph.bitsets[entity1];
+
+    const auto colorsUnion = colors0 | colors1;
+
+    unsigned long i;
+    _BitScanForward(&i, ~colorsUnion);
+
+    colors0 |= 1 << i;
+    colors1 |= 1 << i;
+
+    jointGraph.colors[i].joints.push_back(joint);
+
+    joint->setColor(i);
+}
+
 void physecs::Scene::destroyJoint(Joint *joint) {
-    auto iter = std::find(joints.begin(), joints.end(), joint);
+    auto& joints = jointGraph.colors[joint->getColor()].joints;
+    const auto iter = std::find(joints.begin(), joints.end(), joint);
     if (iter == joints.end()) return;
     joints.erase(iter);
-    auto entity0 = joint->getEntity0();
-    auto entity1 = joint->getEntity1();
+    const auto entity0 = joint->getEntity0();
+    const auto entity1 = joint->getEntity1();
     nonCollidingPairs.erase(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
+    jointGraph.bitsets[entity0] &= ~(1 << joint->getColor());
+    jointGraph.bitsets[entity1] &= ~(1 << joint->getColor());
     delete joint;
 }
 

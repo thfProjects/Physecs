@@ -18,7 +18,7 @@ namespace physecs {
 
         PrismaticJointData data;
 
-        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
+        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
     public:
         void setUpperLimit(float upperLimit);
         void setLowerLimit(float lowerLimit);
@@ -27,6 +27,6 @@ namespace physecs {
         void setDriveStiffness(float driveStiffness);
         void setDriveDamping(float driveDamping);
         PrismaticJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
-        JointSolverDesc getSolverDesc(entt::registry &registry) override;
+        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
     };
 }

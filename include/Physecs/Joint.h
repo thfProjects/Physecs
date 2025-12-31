@@ -10,7 +10,8 @@ struct TransformComponent;
 
 namespace physecs {
 
-    class Constraint1DView;
+    class Constraint1DWriter;
+    class Constraint1DLayout;
 
     struct JointWorldSpaceData {
         glm::vec3 p0;
@@ -21,7 +22,7 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints);
+    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
 
     struct JointSolverData {
         TransformComponent& transform0;
@@ -46,6 +47,7 @@ namespace physecs {
     };
 
     class PHYSECS_API Joint {
+        int color = -1;
     protected:
         entt::entity entity0;
         entt::entity entity1;
@@ -56,13 +58,15 @@ namespace physecs {
 
         Joint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : entity0(entity0), entity1(entity1), anchor0Pos(anchor0Pos), anchor0Or(anchor0Or), anchor1Pos(anchor1Pos), anchor1Or(anchor1Or) {}
     public:
-        virtual JointSolverDesc getSolverDesc(entt::registry &registry) = 0;
+        virtual JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) = 0;
         entt::entity getEntity0() const { return entity0; }
         entt::entity getEntity1() const { return entity1; }
         glm::vec3 getAnchor0Pos() const { return anchor0Pos; }
         glm::quat getAnchor0Or() const { return anchor0Or; }
         glm::vec3 getAnchor1Pos() const { return anchor1Pos; }
         glm::quat getAnchor1Or() const { return anchor1Or; }
+        void setColor(int color) { this->color = color; }
+        int getColor() const { return color; }
 
         virtual ~Joint() = default;
     };

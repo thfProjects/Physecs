@@ -7,7 +7,7 @@ static float angleDiff(float angle0, float angle1) {
     return diff < -glm::pi<float>() ? diff + glm::two_pi<float>() : diff;
 }
 
-void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DView* constraints) {
+void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [gearRatio, persistentAngle0, persistentAngle1, virtualAngle0, virtualAngle1, isInitialized] = *static_cast<GearJointData*>(additionalData);
 
@@ -43,18 +43,18 @@ void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, vo
     persistentAngle0 = angle0;
     persistentAngle1 = angle1;
 
-    constraints[0]
+    constraints.at<ANGULAR>(0)
     .setAngular0(u0[0] * gearRatio)
     .setAngular1(-u1[0])
-    .setC(virtualAngle0 * gearRatio - virtualAngle1)
-    .setFlags(Constraint1D::ANGULAR);
+    .setC(virtualAngle0 * gearRatio - virtualAngle1);
 }
 
 void physecs::GearJoint::setGearRatio(float gearRatio) {
     data.gearRatio = gearRatio;
 }
 
-physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry) {
+physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
+    constraintLayout.createConstraints<ANGULAR>();
     return {
         numConstraints,
         &data,

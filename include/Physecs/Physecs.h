@@ -131,6 +131,23 @@ namespace physecs {
             ContactPointData contactPointData[4];
         };
 
+        struct JointGraphColor {
+            std::vector<Joint*> joints;
+            std::vector<JointSolverData> jointSolverDataBuffer;
+            Constraint1DContainer jointConstraints;
+        };
+
+        struct JointGraph {
+            static constexpr int maxColors = 8;
+            static constexpr int overflowIndex = maxColors;
+            JointGraphColor colors[maxColors + 1];
+            std::unordered_map<entt::entity, unsigned char> bitsets;
+
+            JointGraph() {
+                colors[overflowIndex].jointConstraints.setOverFlow();
+            }
+        };
+
         entt::registry& registry;
 
         int numSubSteps = 8;
@@ -141,13 +158,11 @@ namespace physecs {
         std::vector<BroadPhaseEntry> broadPhaseEntries;
         std::vector<ContactPair> potentialContacts;
         std::vector<ContactConstraints> contactConstraints;
-        Constraint1DContainer jointConstraints;
+        JointGraph jointGraph;
         std::unordered_map<CollisionPair, ContactManifoldData, CollisionHash> contactCache;
         std::unordered_map<CollisionPair, ContactManifoldData, CollisionHash> contactCacheTemp;
         BVH bvh;
         std::unordered_map<BroadPhaseEntryKey, int, BroadPhaseEntryHash> colToBroadPhaseEntry;
-        std::vector<Joint*> joints;
-        std::vector<JointSolverData> jointSolverDataBuffer;
         std::unordered_set<EntityPair, EntityPairHash> nonCollidingPairs;
         std::unordered_set<ContactPair, ContactHash> triggerCache;
         std::unordered_set<ContactPair, ContactHash> triggerCacheTemp;
@@ -168,6 +183,8 @@ namespace physecs {
         void updateBounds(entt::entity entity);
         void updateBVH();
 
+        PHYSECS_API void addJoint(Joint* joint);
+
         entt::entity raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance);
         void overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, int filter, std::vector<OverlapHit>& out);
         void overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out);
@@ -186,8 +203,7 @@ namespace physecs {
         template<typename T>
         T* createJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) {
             T* joint = new T(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or);
-            joints.push_back(joint);
-            nonCollidingPairs.insert(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
+            addJoint(joint);
             return joint;
         }
         PHYSECS_API void destroyJoint(Joint* joint);

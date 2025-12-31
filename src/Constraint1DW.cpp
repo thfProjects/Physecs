@@ -3,7 +3,8 @@
 #include "Components.h"
 #include "Transform.h"
 
-void physecs::Constraint1DW::preSolve() {
+template<int flags>
+void physecs::Constraint1DW<flags>::preSolve() {
     Vec3W position0, position1, velocity0, velocity1, angularVelocity0, angularVelocity1;
     QuatW orientation0, orientation1;
     FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
@@ -17,7 +18,7 @@ void physecs::Constraint1DW::preSolve() {
             invI0[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
             invI0[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
 
-            if (!(flags[i] & Constraint1D::ANGULAR)) {
+            if constexpr (!(flags & ANGULAR)) {
                 invMass0.m128_f32[i] = dynamic0[i]->invMass;
                 velocity0.set(dynamic0[i]->velocity, i);
             }
@@ -32,7 +33,7 @@ void physecs::Constraint1DW::preSolve() {
             invI1[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
             invI1[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
 
-            if (!(flags[i] & Constraint1D::ANGULAR)) {
+            if constexpr (!(flags & ANGULAR)) {
                 invMass1.m128_f32[i] = dynamic1[i]->invMass;
                 velocity1.set(dynamic1[i]->velocity, i);
             }
@@ -64,31 +65,28 @@ void physecs::Constraint1DW::preSolve() {
         orientation1.set(transform1[i]->orientation, i);
     }
 
-    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
-
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
-    if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+    if constexpr (!(flags & ANGULAR)) {
         invEffMass += dotW(linear, linear) * (invMass0 + invMass1);
         linear0t = invMass0 * linear;
         linear1t = invMass1 * linear;
     }
 
+    if (flags & SOFT) return;
+
     const auto half = _mm_set1_ps(0.5f);
 
-    auto softW = flagsW & SOFT_W;
-    unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&softW);
-    const auto softMask = _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0])));
     auto cMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
     const auto totalLambdaMask = _mm_cmplt_ps(_mm_abs_ps(totalLambda), _mm_set1_ps(10000.f));
 
-    const auto warmStartMask = _mm_and_ps(softMask, _mm_and_ps(cMask, totalLambdaMask));
+    const auto warmStartMask = _mm_and_ps(cMask, totalLambdaMask);
 
     // warm start
     if (!isZero(warmStartMask)) {
         auto lambda = totalLambda * half;
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
 
-        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+        if constexpr (!(flags & ANGULAR)) {
             velocity0 += lambda * linear0t;
             velocity1 -= lambda * linear1t;
         }
@@ -103,19 +101,19 @@ void physecs::Constraint1DW::preSolve() {
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
     cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
-    auto ngsMask = _mm_and_ps(cMask, _mm_and_ps(invEffMassMask, softMask));
+    auto ngsMask = _mm_and_ps(cMask, invEffMassMask);
 
     if (!isZero(ngsMask)) {
         const auto factor = _mm_set1_ps(0.1f);
 
         auto lambda = factor * c / invEffMass;
-        if (flagsW & LIMITED_W) {
+        if constexpr (flags & LIMITED) {
             lambda = _mm_min_ps(_mm_max_ps(lambda, min), max);
         }
 
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, ngsMask);
 
-        if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+        if constexpr (!(flags & ANGULAR)) {
             position0 += lambda * linear0t;
             position1 -= lambda * linear1t;
         }
@@ -139,13 +137,13 @@ void physecs::Constraint1DW::preSolve() {
 
         if (warmStartMask.m128_i32[i]) {
             if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-                if (!(flags[i] & Constraint1D::ANGULAR))
+                if constexpr (!(flags & ANGULAR))
                     velocity0.get(dynamic0[i]->velocity, i);
                 angularVelocity0.get(dynamic0[i]->angularVelocity, i);
             }
 
             if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-                if (!(flags[i] & Constraint1D::ANGULAR))
+                if constexpr (!(flags & ANGULAR))
                     velocity1.get(dynamic1[i]->velocity, i);
                 angularVelocity1.get(dynamic1[i]->angularVelocity, i);
             }
@@ -153,29 +151,28 @@ void physecs::Constraint1DW::preSolve() {
     }
 }
 
-void physecs::Constraint1DW::solve(float timeStep) {
+template<int flags>
+void physecs::Constraint1DW<flags>::solve(float timeStep) {
     auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
     if (isZero(invEffMassMask)) return;
 
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     for (int i = 0; i < 4; ++i) {
         if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if constexpr (!(flags & ANGULAR))
                 velocity0.set(dynamic0[i]->velocity, i);
             angularVelocity0.set(dynamic0[i]->angularVelocity, i);
         }
 
         if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if constexpr (!(flags & ANGULAR))
                 velocity1.set(dynamic1[i]->velocity, i);
             angularVelocity1.set(dynamic1[i]->angularVelocity, i);
         }
     }
 
-    const unsigned int flagsW = *reinterpret_cast<unsigned int*>(flags);
-
     auto relativeVelocityW = dotW(angular1, angularVelocity1) - dotW(angular0, angularVelocity0);
-    if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+    if constexpr (!(flags & ANGULAR)) {
         relativeVelocityW += dotW(linear, velocity1) - dotW(linear, velocity0);
     }
 
@@ -183,11 +180,12 @@ void physecs::Constraint1DW::solve(float timeStep) {
     const auto biasFactor = _mm_set1_ps(0.2 / timeStep);
 
     const auto effMass = one / invEffMass;
-    auto lambda = (relativeVelocityW - targetVelocity + biasFactor * c) * effMass;
+
 
     const auto timeStepW = _mm_set1_ps(timeStep);
 
-    if (flagsW & SOFT_W) {
+    FloatW lambda;
+    if constexpr (flags & SOFT) {
         const auto two = _mm_set1_ps(2.f);
         const auto twoPi = _mm_set1_ps(2.f * glm::pi<float>());
 
@@ -196,17 +194,15 @@ void physecs::Constraint1DW::solve(float timeStep) {
         auto damping = two * angularFreq * dampingRatio * effMass;
         auto gamma = one / (damping + timeStepW * stiffness);
         auto beta = timeStepW * stiffness * gamma;
-        auto lambdaSoft = (relativeVelocityW + beta * c / timeStepW) / (invEffMass + gamma / timeStepW);
-
-        auto soft = flagsW & SOFT_W;
-        unsigned char* softWBytes = reinterpret_cast<unsigned char*>(&soft);
-        auto softMask = _mm_cmpeq_epi32(_mm_setzero_si128(), _mm_set_epi32(softWBytes[3], softWBytes[2], softWBytes[1], softWBytes[0]));
-        lambda = _mm_blendv_ps(lambdaSoft, lambda, _mm_castsi128_ps(softMask));
+        lambda = (relativeVelocityW + beta * c / timeStepW) / (invEffMass + gamma / timeStepW);
+    }
+    else {
+        lambda = (relativeVelocityW - targetVelocity + biasFactor * c) * effMass;
     }
 
     auto prevLambda = totalLambda;
 
-    if (flagsW & LIMITED_W) {
+    if constexpr (flags & LIMITED) {
         totalLambda += lambda;
         totalLambda = _mm_min_ps(_mm_max_ps(totalLambda, min * timeStepW), max * timeStepW);
         lambda = totalLambda - prevLambda;
@@ -217,7 +213,7 @@ void physecs::Constraint1DW::solve(float timeStep) {
 
     totalLambda = _mm_blendv_ps(prevLambda, totalLambda, invEffMassMask);
 
-    if ((flagsW & ANGULAR_W) != ANGULAR_W) {
+     if constexpr (!(flags & ANGULAR)) {
         velocity0 += lambda * linear0t;
         velocity1 -= lambda * linear1t;
     }
@@ -229,13 +225,13 @@ void physecs::Constraint1DW::solve(float timeStep) {
         if (!invEffMass.m128_f32[i]) continue;
 
         if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if constexpr (!(flags & ANGULAR))
                 velocity0.get(dynamic0[i]->velocity, i);
             angularVelocity0.get(dynamic0[i]->angularVelocity, i);
         }
 
         if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-            if (!(flags[i] & Constraint1D::ANGULAR))
+            if constexpr (!(flags & ANGULAR))
                 velocity1.get(dynamic1[i]->velocity, i);
             angularVelocity1.get(dynamic1[i]->angularVelocity, i);
         }

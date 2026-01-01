@@ -2,8 +2,6 @@
 
 #include "SIMD.h"
 
-struct TransformComponent;
-
 namespace physecs {
 
     struct RigidBodyDynamicComponent;

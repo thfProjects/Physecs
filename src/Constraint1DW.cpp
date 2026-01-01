@@ -1,7 +1,6 @@
 #include "Constraint1DW.h"
 #include <Constraint1D.h>
 #include "Components.h"
-#include "Transform.h"
 
 template<int flags>
 void physecs::Constraint1DW<flags>::preSolve() {

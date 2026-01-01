@@ -1,6 +1,5 @@
 #include "Constraint1D.h"
 #include "Components.h"
-#include "Transform.h"
 
 template<int flags>
 void physecs::Constraint1D<flags>::preSolve() {

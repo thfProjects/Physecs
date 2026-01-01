@@ -2,8 +2,6 @@
 
 #include <glm/glm.hpp>
 
-struct TransformComponent;
-
 namespace physecs {
 
     enum ConstraintFlags {

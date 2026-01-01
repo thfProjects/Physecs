@@ -21,7 +21,7 @@ namespace physecs {
 
         __forceinline Constraint1DView& setLinear(const glm::vec3& linear) {
             if (offset < 0)
-                sequential->n = linear;
+                sequential->linear = linear;
             else
                 color->linear.set(linear, offset);
             return *this;
@@ -29,7 +29,7 @@ namespace physecs {
 
         __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
             if (offset < 0)
-                sequential->r0xn = angular0;
+                sequential->angular0 = angular0;
             else
                 color->angular0.set(angular0, offset);
             return *this;
@@ -37,7 +37,7 @@ namespace physecs {
 
         __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
             if (offset < 0)
-                sequential->r1xn = angular1;
+                sequential->angular1 = angular1;
             else
                 color->angular1.set(angular1, offset);
             return *this;

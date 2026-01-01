@@ -169,7 +169,6 @@ void physecs::Constraint1DW<flags>::solve(float timeStep) {
 
     const auto effMass = one / invEffMass;
 
-
     const auto timeStepW = _mm_set1_ps(timeStep);
 
     FloatW lambda;

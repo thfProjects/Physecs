@@ -67,7 +67,7 @@ void physecs::Constraint1DW<flags>::preSolve() {
         linear1t = invMass1 * linear;
     }
 
-    if (flags & SOFT) return;
+    if constexpr (flags & SOFT) return;
 
     const auto half = _mm_set1_ps(0.5f);
 

@@ -131,7 +131,7 @@ namespace physecs {
         void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }
 
         template<int flags>
-        int createConstraint(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1, int prevIndex) {
+        int createConstraint(RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1, int prevIndex) {
             if (std::holds_alternative<SimdConstraints>(constraintCollection)) {
                 auto& constraintsCollection = std::get<SimdConstraints>(constraintCollection);
                 auto& [constraintsList, lanes] = constraintsCollection.get<flags>();
@@ -146,8 +146,6 @@ namespace physecs {
                 if (currentIndex == constraintsList.size()) {
                     constraintsList.emplace_back();
                 }
-                constraintsList[currentIndex].transform0[lane] = &transform0;
-                constraintsList[currentIndex].transform1[lane] = &transform1;
                 constraintsList[currentIndex].dynamic0[lane] = dynamic0;
                 constraintsList[currentIndex].dynamic1[lane] = dynamic1;
                 constraintRefs.emplace_back(currentIndex, lane);
@@ -157,7 +155,7 @@ namespace physecs {
             auto& constraintsCollection = std::get<OverflowConstraints>(constraintCollection);
             auto& constraintsList = constraintsCollection.get<flags>().constraints;
             constraintRefs.emplace_back(static_cast<int>(constraintsList.size()), -1);
-            constraintsList.emplace_back(transform0, transform1, dynamic0, dynamic1);
+            constraintsList.emplace_back(dynamic0, dynamic1);
             return 0;
         }
     };
@@ -180,24 +178,20 @@ namespace physecs {
 
     class Constraint1DLayout {
         Constraint1DContainer& container;
-        TransformComponent& transform0;
-        TransformComponent& transform1;
         RigidBodyDynamicComponent* dynamic0;
         RigidBodyDynamicComponent* dynamic1;
         FlagsMap<NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED> currentIndices;
 
     public:
-        Constraint1DLayout(Constraint1DContainer& container, TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) :
+        Constraint1DLayout(Constraint1DContainer& container, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) :
         container(container),
-        transform0(transform0),
-        transform1(transform1),
         dynamic0(dynamic0),
         dynamic1(dynamic1) {}
 
         template<int flags = NONE, int count = 1>
         void createConstraints() {
             if constexpr (count) {
-                currentIndices.get<flags>() = container.createConstraint<flags>(transform0, transform1, dynamic0, dynamic1, currentIndices.get<flags>());
+                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
                 createConstraints<flags, count - 1>();
             }
         }

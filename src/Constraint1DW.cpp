@@ -5,12 +5,9 @@
 
 template<int flags>
 void physecs::Constraint1DW<flags>::preSolve() {
-    Vec3W position0, position1, velocity0, velocity1, angularVelocity0, angularVelocity1;
-    QuatW orientation0, orientation1;
+    Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1, pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
-        if (!transform0[i]) break;
-
         FloatW invI0[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
         if (dynamic0[i] && !dynamic0[i]->isKinematic) {
             auto& invI = dynamic0[i]->invInertiaTensorWorld;
@@ -21,9 +18,11 @@ void physecs::Constraint1DW<flags>::preSolve() {
             if constexpr (!(flags & ANGULAR)) {
                 invMass0.m128_f32[i] = dynamic0[i]->invMass;
                 velocity0.set(dynamic0[i]->velocity, i);
+                pseudoVelocity0.set(dynamic0[i]->pseudoVelocity, i);
             }
 
             angularVelocity0.set(dynamic0[i]->angularVelocity, i);
+            pseudoAngularVelocity0.set(dynamic0[i]->pseudoAngularVelocity, i);
         }
 
         FloatW invI1[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
@@ -36,9 +35,11 @@ void physecs::Constraint1DW<flags>::preSolve() {
             if constexpr (!(flags & ANGULAR)) {
                 invMass1.m128_f32[i] = dynamic1[i]->invMass;
                 velocity1.set(dynamic1[i]->velocity, i);
+                pseudoVelocity1.set(dynamic1[i]->pseudoVelocity, i);
             }
 
             angularVelocity1.set(dynamic1[i]->angularVelocity, i);
+            pseudoAngularVelocity1.set(dynamic1[i]->pseudoAngularVelocity, i);
         }
 
         const FloatW angular0x = _mm_set1_ps(angular0.x.m128_f32[i]);
@@ -58,11 +59,6 @@ void physecs::Constraint1DW<flags>::preSolve() {
         angular1t.x.m128_f32[i] = angular1ti.m128_f32[0];
         angular1t.y.m128_f32[i] = angular1ti.m128_f32[1];
         angular1t.z.m128_f32[i] = angular1ti.m128_f32[2];
-
-        position0.set(transform0[i]->position, i);
-        position1.set(transform1[i]->position, i);
-        orientation0.set(transform0[i]->orientation, i);
-        orientation1.set(transform1[i]->orientation, i);
     }
 
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
@@ -114,39 +110,31 @@ void physecs::Constraint1DW<flags>::preSolve() {
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, ngsMask);
 
         if constexpr (!(flags & ANGULAR)) {
-            position0 += lambda * linear0t;
-            position1 -= lambda * linear1t;
+            pseudoVelocity0 += lambda * linear0t;
+            pseudoVelocity1 -= lambda * linear1t;
         }
 
-        orientation0 += half * QuatW(_mm_setzero_ps(), lambda * angular0t) * orientation0;
-        orientation0 = normalize(orientation0);
-
-        orientation1 -= half * QuatW(_mm_setzero_ps(), lambda * angular1t) * orientation1;
-        orientation1 = normalize(orientation1);
+        pseudoAngularVelocity0 += lambda * angular0t;
+        pseudoAngularVelocity1 -= lambda * angular1t;
     }
 
     for (int i = 0; i < 4; ++i) {
-        if (!transform0[i]) break;
-
-        if (ngsMask.m128_i32[i]) {
-            position0.get(transform0[i]->position, i);
-            position1.get(transform1[i]->position, i);
-            orientation0.get(transform0[i]->orientation, i);
-            orientation1.get(transform1[i]->orientation, i);
+        if (dynamic0[i] && !dynamic0[i]->isKinematic) {
+            if constexpr (!(flags & ANGULAR)) {
+                velocity0.get(dynamic0[i]->velocity, i);
+                pseudoVelocity0.get(dynamic0[i]->pseudoVelocity, i);
+            }
+            angularVelocity0.get(dynamic0[i]->angularVelocity, i);
+            pseudoAngularVelocity0.get(dynamic0[i]->pseudoAngularVelocity, i);
         }
 
-        if (warmStartMask.m128_i32[i]) {
-            if (dynamic0[i] && !dynamic0[i]->isKinematic) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity0.get(dynamic0[i]->velocity, i);
-                angularVelocity0.get(dynamic0[i]->angularVelocity, i);
+        if (dynamic1[i] && !dynamic1[i]->isKinematic) {
+            if constexpr (!(flags & ANGULAR)) {
+                velocity1.get(dynamic1[i]->velocity, i);
+                pseudoVelocity1.get(dynamic1[i]->pseudoVelocity, i);
             }
-
-            if (dynamic1[i] && !dynamic1[i]->isKinematic) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity1.get(dynamic1[i]->velocity, i);
-                angularVelocity1.get(dynamic1[i]->angularVelocity, i);
-            }
+            angularVelocity1.get(dynamic1[i]->angularVelocity, i);
+            pseudoAngularVelocity1.get(dynamic1[i]->pseudoAngularVelocity, i);
         }
     }
 }

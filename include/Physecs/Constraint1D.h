@@ -17,8 +17,6 @@ namespace physecs {
 
     template<int flags>
     struct Constraint1D {
-        TransformComponent& transform0;
-        TransformComponent& transform1;
         RigidBodyDynamicComponent* dynamic0;
         RigidBodyDynamicComponent* dynamic1;
         glm::vec3 n = glm::vec3(0);
@@ -35,7 +33,7 @@ namespace physecs {
         float invEffMass = 0;
         float totalLambda = 0;
 
-        Constraint1D(TransformComponent& transform0, TransformComponent& transform1, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) : transform0(transform0), transform1(transform1), dynamic0(dynamic0), dynamic1(dynamic1) {};
+        Constraint1D(RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) : dynamic0(dynamic0), dynamic1(dynamic1) {};
         void preSolve();
         void solve(float timeStep = 0);
     };

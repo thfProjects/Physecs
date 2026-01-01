@@ -326,7 +326,7 @@ void physecs::Scene::simulate(float timeStep) {
             auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
             auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
 
-            Constraint1DLayout constraintLayout(jointConstraints, transform0, transform1, dynamic0, dynamic1);
+            Constraint1DLayout constraintLayout(jointConstraints, dynamic0, dynamic1);
             auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
             jointSolverDataBuffer.emplace_back(
@@ -473,14 +473,17 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
-            transform.position += h * rigidDynamic.velocity;
+            transform.position += h * rigidDynamic.velocity + rigidDynamic.pseudoVelocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += h * glm::quat(0, rigidDynamic.angularVelocity) * transform.orientation / 2.f;
+            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + rigidDynamic.pseudoAngularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
+
+            rigidDynamic.pseudoVelocity = glm::vec3(0);
+            rigidDynamic.pseudoAngularVelocity = glm::vec3(0);
         }
         PhysecsZoneEnd(ctx4);
 

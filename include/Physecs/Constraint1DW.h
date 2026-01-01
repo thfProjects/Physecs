@@ -10,8 +10,6 @@ namespace physecs {
 
     template<int flags>
     struct Constraint1DW {
-        TransformComponent* transform0[4] = {};
-        TransformComponent* transform1[4] = {};
         RigidBodyDynamicComponent* dynamic0[4] = {};
         RigidBodyDynamicComponent* dynamic1[4] = {};
         Vec3W linear;

@@ -34,16 +34,17 @@ void physecs::Constraint1D<flags>::preSolve() {
         if constexpr (flags & LIMITED)
             lambda = glm::clamp(lambda, min, max);
 
-        if constexpr (!(flags & ANGULAR)) {
-            transform0.position += lambda * invMass0 * n;
-            transform1.position -= lambda * invMass1 * n;
+        if (dynamic0 && !dynamic0->isKinematic) {
+            if constexpr (!(flags & ANGULAR))
+                dynamic0->pseudoVelocity += lambda * invMass0 * n;
+            dynamic0->pseudoAngularVelocity += lambda * r0xnt;
         }
 
-        transform0.orientation += 0.5f * glm::quat(0, lambda * r0xnt) * transform0.orientation;
-        transform0.orientation = glm::normalize(transform0.orientation);
-
-        transform1.orientation -= 0.5f * glm::quat(0, lambda * r1xnt) * transform1.orientation;
-        transform1.orientation = glm::normalize(transform1.orientation);
+        if (dynamic1 && !dynamic1->isKinematic) {
+            if constexpr (!(flags & ANGULAR))
+                dynamic1->pseudoVelocity -= lambda * invMass1 * n;
+            dynamic1->pseudoAngularVelocity -= lambda * r1xnt;
+        }
     }
 
     // warm start

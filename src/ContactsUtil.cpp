@@ -3,6 +3,7 @@
 
 namespace {
     thread_local std::vector<glm::vec3> penetratedPoints;
+    constexpr float epsilon = 1e-4f;
 }
 
 void physecs::generateContactsPolygonBoxFace(
@@ -29,7 +30,7 @@ void physecs::generateContactsPolygonBoxFace(
         glm::vec3 dir(0);
         dir[boxAxis] = boxAxisSign;
         float distance = glm::dot((incPlaneOrig - point3), incPlaneNormal) / glm::dot(dir, incPlaneNormal); //intersection of ray and plane
-        if (distance < boxHalfExtents[boxAxis]) {
+        if (distance < boxHalfExtents[boxAxis] + epsilon) {
             point3[boxAxis] = boxAxisSign * distance;
             penetratedPoints.push_back(point3);
         }
@@ -126,7 +127,7 @@ void physecs::generateContactsPolygonPolygonFace(
         glm::vec3 point3(point.y, 0, point.x);
         glm::vec3 dir(0, 1, 0);
         float distance = glm::dot((incPlaneOrigin - point3), incPlaneNormal) / glm::dot(dir, incPlaneNormal); //intersection of ray and plane
-        if (distance < distanceToRefPlane) {
+        if (distance < distanceToRefPlane + epsilon) {
             point3.y = distance;
             penetratedPoints.push_back(point3);
         }

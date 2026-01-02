@@ -408,6 +408,8 @@ void physecs::Scene::simulate(float timeStep) {
                 contactPoint.r0xt = r0xt;
                 contactPoint.r1xt = r1xt;
                 contactPoint.c = cn;
+                contactPoint.totalLambdaN = 0;
+                contactPoint.totalLambdaT = 0;
             }
         }
         PhysecsZoneEnd(ctx1);
@@ -452,6 +454,9 @@ void physecs::Scene::simulate(float timeStep) {
 
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
+        for (auto& constraints : contactConstraints) {
+            constraints.preSolve();
+        }
         for (auto& color : jointGraph.colors) {
             color.jointConstraints.preSolve();
         }

@@ -32,6 +32,7 @@ namespace physecs {
         int numPoints;
         ContactPointConstraints contactPointConstraints[4];
 
+        void preSolve();
         void solve(bool useBias, float timeStep = 0);
     };
 }

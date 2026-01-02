@@ -1,5 +1,21 @@
 #include "ContactConstraints.h"
 
+void physecs::ContactConstraints::preSolve() {
+    // for (int i = 0; i < numPoints; ++i) {
+    //     auto& [r0, r1, r0xn, r1xn, t, r0xt, r1xt, targetVelocity, bias, totalLambdaN, totalLambdaT] = contactPointConstraints[i];
+    //
+    //     if (dynamic0 && !dynamic0->isKinematic) {
+    //         dynamic0->velocity += totalLambdaN * dynamic0->invMass * n + totalLambdaT * dynamic0->invMass * t;
+    //         dynamic0->angularVelocity += totalLambdaN * dynamic0->invInertiaTensorWorld * r0xn + totalLambdaT * dynamic0->invInertiaTensorWorld * r0xt;
+    //     }
+    //
+    //     if (dynamic1 && !dynamic1->isKinematic) {
+    //         dynamic1->velocity -= totalLambdaN * dynamic1->invMass * n + totalLambdaT * dynamic1->invMass * t;
+    //         dynamic1->angularVelocity -= totalLambdaN * dynamic1->invInertiaTensorWorld * r1xn + totalLambdaT * dynamic1->invInertiaTensorWorld * r1xt;
+    //     }
+    // }
+}
+
 void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
     float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
@@ -52,6 +68,8 @@ void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
         totalLambdaN += lambda;
         totalLambdaN = glm::min(totalLambdaN, 0.f);
         lambda = totalLambdaN - prevLambda;
+
+        //if (timeStep) printf("normal force: %f\n", totalLambdaN / timeStep);
 
         if (dynamic0 && !dynamic0->isKinematic) {
             dynamic0->velocity += lambda * invMass0 * n;

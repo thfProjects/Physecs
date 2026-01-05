@@ -181,6 +181,15 @@ namespace physecs {
         RigidBodyDynamicComponent* dynamic0;
         RigidBodyDynamicComponent* dynamic1;
         FlagsMap<NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED> currentIndices;
+        int numConstraints = 0;
+
+        template<int flags = NONE, int count>
+        void createConstraintsHelper() {
+            if constexpr (count) {
+                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
+                createConstraintsHelper<flags, count - 1>();
+            }
+        }
 
     public:
         Constraint1DLayout(Constraint1DContainer& container, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) :
@@ -190,11 +199,11 @@ namespace physecs {
 
         template<int flags = NONE, int count = 1>
         void createConstraints() {
-            if constexpr (count) {
-                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
-                createConstraints<flags, count - 1>();
-            }
+            numConstraints += count;
+            createConstraintsHelper<flags, count>();
         }
+
+        int getNumConstraints() const { return numConstraints; }
     };
 
     class Constraint1DWriter {

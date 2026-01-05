@@ -327,7 +327,7 @@ void physecs::Scene::simulate(float timeStep) {
             auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
 
             Constraint1DLayout constraintLayout(jointConstraints, dynamic0, dynamic1);
-            auto [numConstraints, additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
+            auto [additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
             jointSolverDataBuffer.emplace_back(
                 transform0,
@@ -338,7 +338,7 @@ void physecs::Scene::simulate(float timeStep) {
                 joint->getAnchor0Or(),
                 joint->getAnchor1Pos(),
                 joint->getAnchor1Or(),
-                numConstraints,
+                constraintLayout.getNumConstraints(),
                 additionalData,
                 makeConstraintsFunc
             );

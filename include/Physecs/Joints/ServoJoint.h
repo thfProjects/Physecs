@@ -12,7 +12,6 @@ namespace physecs {
 
         ServoJointData data;
 
-        constexpr  static int numConstraints = 4;
         static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
     public:
         void setTargetAngle(float angle);

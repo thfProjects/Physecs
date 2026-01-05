@@ -156,7 +156,6 @@ physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &
     const int numConstraints = 5 + (data.makeUpperLimit || data.makeLowerLimit) + data.driveEnabled;
 
     return {
-        numConstraints,
         &data,
         makeConstraints
     };

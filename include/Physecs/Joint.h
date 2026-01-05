@@ -41,7 +41,6 @@ namespace physecs {
     };
 
     struct JointSolverDesc {
-        int numConstraints;
         void* additionalData;
         MakeConstraintsFunc makeConstraintsFunc;
     };

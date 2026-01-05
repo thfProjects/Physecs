@@ -56,7 +56,6 @@ void physecs::GearJoint::setGearRatio(float gearRatio) {
 physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
     constraintLayout.createConstraints<ANGULAR>();
     return {
-        numConstraints,
         &data,
         makeConstraints
     };

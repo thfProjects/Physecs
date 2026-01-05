@@ -64,7 +64,6 @@ physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &r
     const int numConstraints = data.driveEnabled ? 4 : 3;
 
     return {
-        numConstraints,
         &data,
         makeConstraints
     };

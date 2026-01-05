@@ -60,7 +60,6 @@ physecs::JointSolverDesc physecs::ServoJoint::getSolverDesc(entt::registry &regi
     constraintLayout.createConstraints<ANGULAR, 2>();
     constraintLayout.createConstraints<ANGULAR | SOFT>();
     return {
-        numConstraints,
         &data,
         makeConstraints
     };

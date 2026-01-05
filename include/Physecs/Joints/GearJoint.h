@@ -15,7 +15,6 @@ namespace physecs {
 
         GearJointData data;
 
-        constexpr  static int numConstraints = 1;
         static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
     public:
         void setGearRatio(float gearRatio);

@@ -21,7 +21,6 @@ void physecs::SphericalJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
 physecs::JointSolverDesc physecs::SphericalJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
     constraintLayout.createConstraints();
     return {
-        numConstraints,
         nullptr,
         makeConstraints
     };

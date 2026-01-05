@@ -46,7 +46,6 @@ physecs::JointSolverDesc physecs::FixedJoint::getSolverDesc(entt::registry &regi
     constraintLayout.createConstraints();
     constraintLayout.createConstraints<ANGULAR, 3>();
     return {
-        numConstraints,
         nullptr,
         makeConstraints
     };

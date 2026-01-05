@@ -33,7 +33,6 @@ namespace physecs {
         glm::quat anchor0Or;
         glm::vec3 anchor1Pos;
         glm::quat anchor1Or;
-        int numConstraints;
         void* additionalData;
         MakeConstraintsFunc makeConstraintsFunc;
 

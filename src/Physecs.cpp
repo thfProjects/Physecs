@@ -338,7 +338,6 @@ void physecs::Scene::simulate(float timeStep) {
                 joint->getAnchor0Or(),
                 joint->getAnchor1Pos(),
                 joint->getAnchor1Or(),
-                constraintLayout.getNumConstraints(),
                 additionalData,
                 makeConstraintsFunc
             );
@@ -417,13 +416,11 @@ void physecs::Scene::simulate(float timeStep) {
         //update joint constraints
         PhysecsZoneN(ctx2, "update joint constraints", true);
         for (auto& [_, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
-            int index = 0;
+            Constraint1DWriter constraintWriter(jointConstraints);
             for (auto& jointSolverData : jointSolverDataBuffer) {
                 JointWorldSpaceData worldSpaceData;
                 jointSolverData.calculateWorldSpaceData(worldSpaceData);
-                Constraint1DWriter constraintWriter(jointConstraints, index);
                 jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, constraintWriter);
-                index += jointSolverData.numConstraints;
             }
         }
         PhysecsZoneEnd(ctx2);

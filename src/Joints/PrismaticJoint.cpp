@@ -14,7 +14,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r0xy = glm::cross(r0, u0[1]);
     const glm::vec3 r1xy = glm::cross(r1, u0[1]);
 
-    constraints.at(0)
+    constraints.next()
     .setLinear(u0[1])
     .setAngular0(r0xy)
     .setAngular1(r1xy)
@@ -24,7 +24,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r0xz = glm::cross(r0, u0[2]);
     const glm::vec3 r1xz = glm::cross(r1, u0[2]);
 
-    constraints.at(1)
+    constraints.next()
    .setLinear(u0[2])
    .setAngular0(r0xz)
    .setAngular1(r1xz)
@@ -34,7 +34,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
-    constraints.at<ANGULAR>(2)
+    constraints.next<ANGULAR>()
    .setAngular0(u11xu00)
    .setAngular1(u11xu00)
    .setC(d01);
@@ -42,7 +42,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const float d02 = glm::dot(u0[0], u1[2]);
     const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
-    constraints.at<ANGULAR>(3)
+    constraints.next<ANGULAR>()
    .setAngular0(u12xu00)
    .setAngular1(u12xu00)
    .setC(d02);
@@ -50,7 +50,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const float d12 = glm::dot(u0[1], u1[2]);
     const glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
 
-    constraints.at<ANGULAR>(4)
+    constraints.next<ANGULAR>()
     .setAngular0(u12xu01)
     .setAngular1(u12xu01)
     .setC(d12);
@@ -60,31 +60,26 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r1xx = glm::cross(r1, u0[0]);
 
     //limits
-    int index = 5;
     if (makeUpperLimit) {
-        constraints.at<LIMITED>(index)
+        constraints.next<LIMITED>()
         .setLinear(u0[0])
         .setAngular0(r0xx)
         .setAngular1(r1xx)
         .setC(dx - upperLimit)
         .setMin(0);
-
-        index++;
     }
     else if (makeLowerLimit) {
-        constraints.at<LIMITED>(index)
+        constraints.next<LIMITED>()
         .setLinear(u0[0])
         .setAngular0(r0xx)
         .setAngular1(r1xx)
         .setC(dx - lowerLimit)
         .setMax(0);
-
-        index++;
     }
 
     //drive
     if (driveEnabled) {
-        constraints.at<SOFT>(index)
+        constraints.next<SOFT>()
        .setLinear(u0[0])
        .setAngular0(r0xx)
        .setAngular1(r1xx)
@@ -152,8 +147,6 @@ physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &
     if (data.driveEnabled) {
         constraintLayout.createConstraints<SOFT>();
     }
-
-    const int numConstraints = 5 + (data.makeUpperLimit || data.makeLowerLimit) + data.driveEnabled;
 
     return {
         &data,

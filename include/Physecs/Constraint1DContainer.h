@@ -181,15 +181,6 @@ namespace physecs {
         RigidBodyDynamicComponent* dynamic0;
         RigidBodyDynamicComponent* dynamic1;
         FlagsMap<NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED> currentIndices;
-        int numConstraints = 0;
-
-        template<int flags = NONE, int count>
-        void createConstraintsHelper() {
-            if constexpr (count) {
-                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
-                createConstraintsHelper<flags, count - 1>();
-            }
-        }
 
     public:
         Constraint1DLayout(Constraint1DContainer& container, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) :
@@ -199,23 +190,23 @@ namespace physecs {
 
         template<int flags = NONE, int count = 1>
         void createConstraints() {
-            numConstraints += count;
-            createConstraintsHelper<flags, count>();
+            if constexpr (count) {
+                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
+                createConstraints<flags, count - 1>();
+            }
         }
-
-        int getNumConstraints() const { return numConstraints; }
     };
 
     class Constraint1DWriter {
         Constraint1DContainer& container;
-        int baseIndex;
+        int index = 0;
 
     public:
-        Constraint1DWriter(Constraint1DContainer& container, int index) : container(container), baseIndex(index) {}
+        Constraint1DWriter(Constraint1DContainer& container) : container(container) {}
 
         template<int flags = NONE>
-        __forceinline Constraint1DView<flags> at(int offset) {
-            auto& [i, o] = container.constraintRefs[baseIndex + offset];
+        __forceinline Constraint1DView<flags> next() {
+            auto& [i, o] = container.constraintRefs[index++];
             if (std::holds_alternative<Constraint1DContainer::SimdConstraints>(container.constraintCollection)) {
                 auto& constraintsCollection = std::get<Constraint1DContainer::SimdConstraints>(container.constraintCollection);
                 auto& constraintList = constraintsCollection.get<flags>();

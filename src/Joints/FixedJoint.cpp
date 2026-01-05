@@ -11,7 +11,7 @@ void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, v
     const glm::vec3 r0xd = glm::cross(r0, d);
     const glm::vec3 r1xd = glm::cross(r1, d);
 
-    constraints.at(0)
+    constraints.next()
     .setLinear(d)
     .setAngular0(r0xd)
     .setAngular1(r1xd)
@@ -20,7 +20,7 @@ void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, v
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
-    constraints.at<ANGULAR>(1)
+    constraints.next<ANGULAR>()
     .setAngular0(u11xu00)
     .setAngular1(u11xu00)
     .setC(d01);
@@ -28,7 +28,7 @@ void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, v
     const float d02 = glm::dot(u0[0], u1[2]);
     const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
-    constraints.at<ANGULAR>(2)
+    constraints.next<ANGULAR>()
     .setAngular0(u12xu00)
     .setAngular1(u12xu00)
     .setC(d02);
@@ -36,7 +36,7 @@ void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, v
     const float d12 = glm::dot(u0[1], u1[2]);
     const glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
 
-    constraints.at<ANGULAR>(3)
+    constraints.next<ANGULAR>()
     .setAngular0(u12xu01)
     .setAngular1(u12xu01)
     .setC(d12);

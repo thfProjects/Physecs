@@ -11,7 +11,7 @@ void physecs::SphericalJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     const glm::vec3 r0xd = glm::cross(r0, d);
     const glm::vec3 r1xd = glm::cross(r1, d);
 
-    constraints.at(0)
+    constraints.next()
     .setLinear(d)
     .setAngular0(r0xd)
     .setAngular1(r1xd)

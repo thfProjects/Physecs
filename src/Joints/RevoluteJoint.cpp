@@ -12,7 +12,7 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
     const glm::vec3 r0xd = glm::cross(r0, d);
     const glm::vec3 r1xd = glm::cross(r1, d);
 
-    constraints.at(0)
+    constraints.next()
     .setLinear(d)
     .setAngular0(r0xd)
     .setAngular1(r1xd)
@@ -21,7 +21,7 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
 
-    constraints.at<ANGULAR>(1)
+    constraints.next<ANGULAR>()
     .setAngular0(u11xu00)
     .setAngular1(u11xu00)
     .setC(d01);
@@ -29,13 +29,13 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
     const float d02 = glm::dot(u0[0], u1[2]);
     const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
 
-    constraints.at<ANGULAR>(2)
+    constraints.next<ANGULAR>()
     .setAngular0(u12xu00)
     .setAngular1(u12xu00)
     .setC(d02);
 
     if (driveEnabled) {
-        constraints.at<ANGULAR | LIMITED>(3)
+        constraints.next<ANGULAR | LIMITED>()
         .setAngular0(u0[0])
         .setAngular1(u0[0])
         .setTargetVelocity(driveVelocity)
@@ -60,9 +60,6 @@ physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &r
     constraintLayout.createConstraints();
     constraintLayout.createConstraints<ANGULAR, 2>();
     if (data.driveEnabled) constraintLayout.createConstraints<ANGULAR | LIMITED>();
-
-    const int numConstraints = data.driveEnabled ? 4 : 3;
-
     return {
         &data,
         makeConstraints

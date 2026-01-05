@@ -43,7 +43,7 @@ void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, vo
     persistentAngle0 = angle0;
     persistentAngle1 = angle1;
 
-    constraints.at<ANGULAR>(0)
+    constraints.next<ANGULAR>()
     .setAngular0(u0[0] * gearRatio)
     .setAngular1(-u1[0])
     .setC(virtualAngle0 * gearRatio - virtualAngle1);

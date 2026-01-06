@@ -1,4 +1,7 @@
 #include "ServoJoint.h"
+
+#include <JointsUtil.h>
+
 #include "Constraint1D.h"
 #include <glm/gtx/vector_angle.hpp>
 #include "Constraint1DContainer.h"
@@ -7,17 +10,7 @@ void physecs::ServoJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, v
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [targetAngle, driveStiffness, driveDamping] = *static_cast<ServoJointData*>(additionalData);
 
-    const glm::vec3 d = p1 - p0;
-
-    const float cn = glm::dot(d, d);
-    const glm::vec3 r0xd = glm::cross(r0, d);
-    const glm::vec3 r1xd = glm::cross(r1, d);
-
-    constraints.next()
-    .setLinear(d)
-    .setAngular0(r0xd)
-    .setAngular1(r1xd)
-    .setC(cn);
+    createPointToPointConstraint(p0, p1, r0, r1, constraints);
 
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
@@ -56,7 +49,7 @@ void physecs::ServoJoint::setDriveDamping(float damping) {
 }
 
 physecs::JointSolverDesc physecs::ServoJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints();
+    constraintLayout.createConstraints<NONE, 3>();
     constraintLayout.createConstraints<ANGULAR, 2>();
     constraintLayout.createConstraints<ANGULAR | SOFT>();
     return {

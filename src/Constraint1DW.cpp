@@ -99,9 +99,7 @@ void physecs::Constraint1DW<flags>::preSolve() {
     auto ngsMask = _mm_and_ps(cMask, invEffMassMask);
 
     if (!isZero(ngsMask)) {
-        const auto factor = _mm_set1_ps(0.1f);
-
-        auto lambda = factor * c / invEffMass;
+        auto lambda = c / invEffMass;
         if constexpr (flags & LIMITED) {
             lambda = _mm_min_ps(_mm_max_ps(lambda, min), max);
         }
@@ -125,6 +123,8 @@ void physecs::Constraint1DW<flags>::preSolve() {
             }
             angularVelocity0.get(dynamic0[i]->angularVelocity, i);
             pseudoAngularVelocity0.get(dynamic0[i]->pseudoAngularVelocity, i);
+
+            if (ngsMask.m128_i32[i]) ++dynamic0[i]->invPseudoVelocityScale;
         }
 
         if (dynamic1[i] && !dynamic1[i]->isKinematic) {
@@ -134,6 +134,8 @@ void physecs::Constraint1DW<flags>::preSolve() {
             }
             angularVelocity1.get(dynamic1[i]->angularVelocity, i);
             pseudoAngularVelocity1.get(dynamic1[i]->pseudoAngularVelocity, i);
+
+            if (ngsMask.m128_i32[i]) ++dynamic1[i]->invPseudoVelocityScale;
         }
     }
 }

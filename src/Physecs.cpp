@@ -475,17 +475,20 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
             if (rigidDynamic.isKinematic) continue;
 
-            transform.position += h * rigidDynamic.velocity + rigidDynamic.pseudoVelocity;
+            float pseudoVelocityScale = rigidDynamic.invPseudoVelocityScale ? 1.f / rigidDynamic.invPseudoVelocityScale : 1.f;
+
+            transform.position += h * rigidDynamic.velocity + pseudoVelocityScale * rigidDynamic.pseudoVelocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + rigidDynamic.pseudoAngularVelocity)) * transform.orientation;
+            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + pseudoVelocityScale * rigidDynamic.pseudoAngularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
 
             rigidDynamic.pseudoVelocity = glm::vec3(0);
             rigidDynamic.pseudoAngularVelocity = glm::vec3(0);
+            rigidDynamic.invPseudoVelocityScale = 0;
         }
         PhysecsZoneEnd(ctx4);
 

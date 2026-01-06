@@ -29,7 +29,7 @@ void physecs::Constraint1D<flags>::preSolve() {
 
     //correct position error
     if (c && invEffMass) {
-        float lambda = 0.1f * c / invEffMass;
+        float lambda = c / invEffMass;
         if constexpr (flags & LIMITED)
             lambda = glm::clamp(lambda, min, max);
 
@@ -37,12 +37,14 @@ void physecs::Constraint1D<flags>::preSolve() {
             if constexpr (!(flags & ANGULAR))
                 dynamic0->pseudoVelocity += lambda * invMass0 * linear;
             dynamic0->pseudoAngularVelocity += lambda * angular0t;
+            ++dynamic0->invPseudoVelocityScale;
         }
 
         if (dynamic1 && !dynamic1->isKinematic) {
             if constexpr (!(flags & ANGULAR))
                 dynamic1->pseudoVelocity -= lambda * invMass1 * linear;
             dynamic1->pseudoAngularVelocity -= lambda * angular1t;
+            ++dynamic1->invPseudoVelocityScale;
         }
     }
 

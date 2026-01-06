@@ -13,6 +13,7 @@ namespace physecs {
         glm::vec3 angularVelocity;
         glm::vec3 pseudoVelocity;
         glm::vec3 pseudoAngularVelocity;
+        int invPseudoVelocityScale;
         float invMass;
         glm::vec3 com;
         glm::mat3 invInertiaTensor;

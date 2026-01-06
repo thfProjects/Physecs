@@ -1,4 +1,7 @@
 #include "RevoluteJoint.h"
+
+#include <JointsUtil.h>
+
 #include "Constraint1D.h"
 #include "Constraint1DContainer.h"
 
@@ -6,17 +9,7 @@ void physecs::RevoluteJoint::makeConstraints(JointWorldSpaceData &worldSpaceData
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [driveEnabled, driveVelocity, driveMaxTorque] = *static_cast<RevoluteJointData*>(additionalData);
 
-    const glm::vec3 d = p1 - p0;
-
-    const float cn = glm::dot(d, d);
-    const glm::vec3 r0xd = glm::cross(r0, d);
-    const glm::vec3 r1xd = glm::cross(r1, d);
-
-    constraints.next()
-    .setLinear(d)
-    .setAngular0(r0xd)
-    .setAngular1(r1xd)
-    .setC(cn);
+    createPointToPointConstraint(p0, p1, r0, r1, constraints);
 
     const float d01 = glm::dot(u0[0], u1[1]);
     const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
@@ -57,7 +50,7 @@ void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
 }
 
 physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints();
+    constraintLayout.createConstraints<NONE, 3>();
     constraintLayout.createConstraints<ANGULAR, 2>();
     if (data.driveEnabled) constraintLayout.createConstraints<ANGULAR | LIMITED>();
     return {

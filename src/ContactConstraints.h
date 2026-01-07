@@ -17,6 +17,12 @@ namespace physecs {
         float c;
         float totalLambdaN;
         float totalLambdaT;
+        glm::vec3 r0xnt;
+        glm::vec3 r1xnt;
+        glm::vec3 r0xtt;
+        glm::vec3 r1xtt;
+        float invEffMassN;
+        float invEffMassT;
     };
 
     struct ContactConstraints {

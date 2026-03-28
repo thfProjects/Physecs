@@ -11,6 +11,9 @@
 namespace physecs {
     struct ContactManifold;
     struct ContactConstraints;
+    struct VelocityData;
+    struct PseudoVelocityData;
+    struct MassData;
 
     struct OverlapHit {
         entt::entity entity;
@@ -173,6 +176,9 @@ namespace physecs {
         ThreadPool threadPool;
         std::mutex collisionMutex;
         std::mutex triggerMutex;
+        std::vector<VelocityData> velocityTemp;
+        std::vector<PseudoVelocityData> pseudoVelocityTemp;
+        std::vector<MassData> massTemp;
 
         void onRigidBodyCreate(entt::registry& registry, entt::entity entity);
         void onRigidBodyDelete(entt::registry& registry, entt::entity entity);

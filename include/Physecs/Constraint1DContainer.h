@@ -124,14 +124,15 @@ namespace physecs {
         friend class Constraint1DWriter;
 
     public:
-        void preSolve();
-        void solve(float timeStep);
+        void preSolve(const MassData* masses);
+        void correctPositionError(PseudoVelocityData* pseudoVelocities) const;
+        void solve(VelocityData* velocities, float timeStep, bool warmStart = false);
         void clear();
 
         void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }
 
         template<int flags>
-        int createConstraint(RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1, int prevIndex) {
+        int createConstraint(int bodyIndex0, int bodyIndex1, int prevIndex) {
             if (std::holds_alternative<SimdConstraints>(constraintCollection)) {
                 auto& constraintsCollection = std::get<SimdConstraints>(constraintCollection);
                 auto& [constraintsList, lanes] = constraintsCollection.get<flags>();
@@ -146,8 +147,8 @@ namespace physecs {
                 if (currentIndex == constraintsList.size()) {
                     constraintsList.emplace_back();
                 }
-                constraintsList[currentIndex].dynamic0[lane] = dynamic0;
-                constraintsList[currentIndex].dynamic1[lane] = dynamic1;
+                constraintsList[currentIndex].bodies0[lane] = bodyIndex0;
+                constraintsList[currentIndex].bodies1[lane] = bodyIndex1;
                 constraintRefs.emplace_back(currentIndex, lane);
                 return currentIndex++;
             }
@@ -155,7 +156,7 @@ namespace physecs {
             auto& constraintsCollection = std::get<OverflowConstraints>(constraintCollection);
             auto& constraintsList = constraintsCollection.get<flags>().constraints;
             constraintRefs.emplace_back(static_cast<int>(constraintsList.size()), -1);
-            constraintsList.emplace_back(dynamic0, dynamic1);
+            constraintsList.emplace_back(bodyIndex0, bodyIndex1);
             return 0;
         }
     };
@@ -178,20 +179,20 @@ namespace physecs {
 
     class Constraint1DLayout {
         Constraint1DContainer& container;
-        RigidBodyDynamicComponent* dynamic0;
-        RigidBodyDynamicComponent* dynamic1;
+        int b0;
+        int b1;
         FlagsMap<NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED> currentIndices;
 
     public:
-        Constraint1DLayout(Constraint1DContainer& container, RigidBodyDynamicComponent* dynamic0, RigidBodyDynamicComponent* dynamic1) :
+        Constraint1DLayout(Constraint1DContainer& container, int b0, int b1) :
         container(container),
-        dynamic0(dynamic0),
-        dynamic1(dynamic1) {}
+        b0(b0),
+        b1(b1) {}
 
         template<int flags = NONE, int count = 1>
         void createConstraints() {
             if constexpr (count) {
-                currentIndices.get<flags>() = container.createConstraint<flags>(dynamic0, dynamic1, currentIndices.get<flags>());
+                currentIndices.get<flags>() = container.createConstraint<flags>(b0, b1, currentIndices.get<flags>());
                 createConstraints<flags, count - 1>();
             }
         }

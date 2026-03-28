@@ -1,10 +1,9 @@
 #include "Physecs.h"
 #include <chrono>
-#include <execution>
+#include <ranges>
 
 #include "BoundsUtil.h"
 #include "Collision.h"
-#include "Constraint1D.h"
 #include <glm/gtx/matrix_cross_product.hpp>
 #include "Components.h"
 #include "BVH.h"
@@ -14,6 +13,7 @@
 #include "Raycast.h"
 #include "ContactManifold.h"
 #include "Profiling.h"
+#include "SolverData.h"
 
 const char* frameName = "Solver";
 
@@ -113,6 +113,9 @@ void physecs::Scene::simulate(float timeStep) {
     PhysecsFrameMarkStart(frameName);
     PhysecsZoneScoped;
 
+    auto& entities = registry.storage<RigidBodyDynamicComponent>();
+    auto* rigidBodies = entities.raw() ? *entities.raw() : nullptr;
+
     //SAP broad-phase
     PhysecsZoneN(broadPhase, "BroadPhase", true);
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
@@ -175,7 +178,7 @@ void physecs::Scene::simulate(float timeStep) {
     triggerCacheTemp.clear();
     contactCacheTemp.clear();
     contactPoints.clear();
-    threadPool.parallelFor(potentialContacts.size(), [this](int index){
+    threadPool.parallelFor(potentialContacts.size(), [this, rigidBodies](int index){
         PhysecsZoneScopedN("handle potential contact");
         auto& contactPair = potentialContacts[index];
 
@@ -265,7 +268,10 @@ void physecs::Scene::simulate(float timeStep) {
                     restitution = (col0.material.restitution + col1.material.restitution) * 0.5f;
                 }
 
-                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, n, friction, isSoft, frequency, damping, collisionResult.numPoints, {}};
+                int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
+                int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
+
+                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, frequency, damping, collisionResult.numPoints, {}};
 
                 for (int k = 0; k < collisionResult.numPoints; ++k) {
                     glm::vec3 r0 = collisionResult.points[k].position0 - com0;
@@ -326,7 +332,10 @@ void physecs::Scene::simulate(float timeStep) {
             auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
             auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
 
-            Constraint1DLayout constraintLayout(jointConstraints, dynamic0, dynamic1);
+            int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
+            int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
+
+            Constraint1DLayout constraintLayout(jointConstraints, b0, b1);
             auto [additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
             jointSolverDataBuffer.emplace_back(
@@ -344,6 +353,10 @@ void physecs::Scene::simulate(float timeStep) {
         }
     }
     PhysecsZoneEnd(ctx7);
+
+    velocityTemp.resize(entities.size());
+    pseudoVelocityTemp.resize(entities.size());
+    massTemp.resize(entities.size());
 
     auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -425,10 +438,14 @@ void physecs::Scene::simulate(float timeStep) {
         }
         PhysecsZoneEnd(ctx2);
 
-        //integrate velocities and update world space inertia tensors
+        //integrate velocities and fill temp buffers
         PhysecsZoneN(ctx3, "Integrate velocities", true);
-        for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
+        for (int i = 0; i < entities.size(); ++i) {
+            auto& rigidDynamic = rigidBodies[i];
+
             if (rigidDynamic.isKinematic) continue;
+
+            auto& transform = registry.get<TransformComponent>(entities.at(i));
 
             glm::mat3 rot = glm::toMat3(transform.orientation);
             glm::mat3 invRot = glm::transpose(rot);
@@ -444,51 +461,59 @@ void physecs::Scene::simulate(float timeStep) {
 
             rigidDynamic.angularVelocity = rot * omegaLocal;
 
-            //update world space inertia tensor
-            rigidDynamic.invInertiaTensorWorld = rot * rigidDynamic.invInertiaTensor * invRot;
+            // fill temp buffers
+            velocityTemp[i] = { rigidDynamic.velocity, rigidDynamic.angularVelocity };
+            pseudoVelocityTemp[i] = { glm::vec3(0), glm::vec3(0), 0 };
+            massTemp[i] = { rigidDynamic.invMass, rot * rigidDynamic.invInertiaTensor * invRot };
         }
         PhysecsZoneEnd(ctx3);
 
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
         for (auto& constraints : contactConstraints) {
-            constraints.preSolve();
+            constraints.preSolve(massTemp.data());
         }
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.preSolve();
+            color.jointConstraints.preSolve(massTemp.data());
+            color.jointConstraints.correctPositionError(pseudoVelocityTemp.data());
         }
         PhysecsZoneEnd(ctx8);
 
         //constraint solve
+
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
             for (auto& constraints : contactConstraints) {
-                constraints.solve(true, h);
+                constraints.solve(velocityTemp.data(), true, h);
             }
             for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(h);
+                color.jointConstraints.solve(velocityTemp.data(), h, i == 0);
             }
         }
 
         //integrate positions
         PhysecsZoneN(ctx4, "integrate positions", true);
-        for (auto [entity, transform, rigidDynamic] : registry.view<TransformComponent, RigidBodyDynamicComponent>().each()) {
+        for (int i = 0; i < entities.size(); ++i) {
+            auto& rigidDynamic = rigidBodies[i];
+
             if (rigidDynamic.isKinematic) continue;
 
-            float pseudoVelocityScale = rigidDynamic.invPseudoVelocityScale ? 1.f / rigidDynamic.invPseudoVelocityScale : 1.f;
+            // write back from temp buffers
+            rigidDynamic.velocity = velocityTemp[i].velocity;
+            rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
 
-            transform.position += h * rigidDynamic.velocity + pseudoVelocityScale * rigidDynamic.pseudoVelocity;
+            auto& transform = registry.get<TransformComponent>(entities.at(i));
+
+            float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
+
+            transform.position += h * rigidDynamic.velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + pseudoVelocityScale * rigidDynamic.pseudoAngularVelocity)) * transform.orientation;
+            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
-
-            rigidDynamic.pseudoVelocity = glm::vec3(0);
-            rigidDynamic.pseudoAngularVelocity = glm::vec3(0);
-            rigidDynamic.invPseudoVelocityScale = 0;
         }
         PhysecsZoneEnd(ctx4);
 
@@ -496,7 +521,7 @@ void physecs::Scene::simulate(float timeStep) {
         PhysecsZoneN(ctx5, "relaxation", true);
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;
-            constraints.solve(false);
+            constraints.solve(velocityTemp.data(), false);
         }
         PhysecsZoneEnd(ctx5);
     }

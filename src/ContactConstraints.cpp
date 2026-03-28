@@ -1,18 +1,19 @@
 #include "ContactConstraints.h"
+#include <SolverData.h>
 
-void physecs::ContactConstraints::preSolve() {
+void physecs::ContactConstraints::preSolve(const MassData* masses) {
     float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
-    if (dynamic0 && !dynamic0->isKinematic) {
-        invMass0 = dynamic0->invMass;
-        invInertiaTensor0 = dynamic0->invInertiaTensorWorld;
+    if (b0 >= 0) {
+        invMass0 = masses[b0].invMass;
+        invInertiaTensor0 = masses[b0].invInertiaTensor;
     }
 
     float invMass1 = 0;
     glm::mat3 invInertiaTensor1(0);
-    if (dynamic1 && !dynamic1->isKinematic) {
-        invMass1 = dynamic1->invMass;
-        invInertiaTensor1 = dynamic1->invInertiaTensorWorld;
+    if (b1 >= 0) {
+        invMass1 = masses[b1].invMass;
+        invInertiaTensor1 = masses[b1].invInertiaTensor;
     }
 
     for (int i = 0; i < numPoints; ++i) {
@@ -29,7 +30,7 @@ void physecs::ContactConstraints::preSolve() {
     }
 }
 
-void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
+void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, float timeStep) {
     for (int i = 0; i < numPoints; ++i) {
 
         auto& [r0, r1, r0xn, r1xn, t, r0xt, r1xt, targetVelocity, c, totalLambdaN, totalLambdaT, r0xnt, r1xnt, r0xtt, r1xtt, invEffMassN, invEffMassT] = contactPointConstraints[i];
@@ -37,15 +38,15 @@ void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
         if (!invEffMassN) continue;
 
         glm::vec3 velocity0(0), angularVelocity0(0);
-        if (dynamic0 && !dynamic0->isKinematic) {
-            velocity0 = dynamic0->velocity;
-            angularVelocity0 = dynamic0->angularVelocity;
+        if (b0 >= 0) {
+            velocity0 = velocities[b0].velocity;
+            angularVelocity0 = velocities[b0].angularVelocity;
         }
 
         glm::vec3 velocity1(0), angularVelocity1(0);
-        if (dynamic1 && !dynamic1->isKinematic) {
-            velocity1 = dynamic1->velocity;
-            angularVelocity1 = dynamic1->angularVelocity;
+        if (b1 >= 0) {
+            velocity1 = velocities[b1].velocity;
+            angularVelocity1 = velocities[b1].angularVelocity;
         }
 
         float relativeVelocity = glm::dot(-n, velocity0) + glm::dot(-r0xn, angularVelocity0) + glm::dot(n, velocity1) + glm::dot(r1xn, angularVelocity1);
@@ -70,14 +71,14 @@ void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
 
         //if (timeStep) printf("normal force: %f\n", totalLambdaN / timeStep);
 
-        if (dynamic0 && !dynamic0->isKinematic) {
-            dynamic0->velocity += lambda * dynamic0->invMass * n;
-            dynamic0->angularVelocity += lambda * r0xnt;
+        if (b0 >= 0) {
+            velocities[b0].velocity += lambda * dynamic0->invMass * n;
+            velocities[b0].angularVelocity += lambda * r0xnt;
         }
 
-        if (dynamic1 && !dynamic1->isKinematic) {
-            dynamic1->velocity -= lambda * dynamic1->invMass * n;
-            dynamic1->angularVelocity -= lambda * r1xnt;
+        if (b1 >= 0) {
+            velocities[b1].velocity -= lambda * dynamic1->invMass * n;
+            velocities[b1].angularVelocity -= lambda * r1xnt;
         }
     }
 
@@ -89,13 +90,13 @@ void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
         if (!invEffMassT) continue;
 
         glm::vec3 velocity0(0), angularVelocity0(0);
-        if (dynamic0 && !dynamic0->isKinematic) {
+        if (b0 >= 0) {
             velocity0 = dynamic0->velocity;
             angularVelocity0 = dynamic0->angularVelocity;
         }
 
         glm::vec3 velocity1(0), angularVelocity1(0);
-        if (dynamic1 && !dynamic1->isKinematic) {
+        if (b1 >= 0) {
             velocity1 = dynamic1->velocity;
             angularVelocity1 = dynamic1->angularVelocity;
         }
@@ -110,14 +111,14 @@ void physecs::ContactConstraints::solve(bool useBias, float timeStep) {
         totalLambdaT = glm::clamp(totalLambdaT, frictionLimit, -frictionLimit);
         lambda = totalLambdaT - prevLambda;
 
-        if (dynamic0 && !dynamic0->isKinematic) {
-            dynamic0->velocity += lambda * dynamic0->invMass * t;
-            dynamic0->angularVelocity += lambda * r0xtt;
+        if (b0 >= 0) {
+            velocities[b0].velocity += lambda * dynamic0->invMass * t;
+            velocities[b0].angularVelocity += lambda * r0xtt;
         }
 
-        if (dynamic1 && !dynamic1->isKinematic) {
-            dynamic1->velocity -= lambda * dynamic1->invMass * t;
-            dynamic1->angularVelocity -= lambda * r1xtt;
+        if (b1 >= 0) {
+            velocities[b1].velocity -= lambda * dynamic1->invMass * t;
+            velocities[b1].angularVelocity -= lambda * r1xtt;
         }
     }
 }

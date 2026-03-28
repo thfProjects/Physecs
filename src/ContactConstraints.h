@@ -5,6 +5,9 @@
 
 namespace physecs {
 
+    struct MassData;
+    struct VelocityData;
+
     struct ContactPointConstraints {
         glm::vec3 r0;
         glm::vec3 r1;
@@ -30,6 +33,8 @@ namespace physecs {
         TransformComponent& transform1;
         RigidBodyDynamicComponent* dynamic0;
         RigidBodyDynamicComponent* dynamic1;
+        int b0;
+        int b1;
         glm::vec3 n;
         float friction;
         bool isSoft;
@@ -38,8 +43,8 @@ namespace physecs {
         int numPoints;
         ContactPointConstraints contactPointConstraints[4];
 
-        void preSolve();
-        void solve(bool useBias, float timeStep = 0);
+        void preSolve(const MassData* masses);
+        void solve(VelocityData* velocities, bool useBias, float timeStep = 0);
     };
 }
 

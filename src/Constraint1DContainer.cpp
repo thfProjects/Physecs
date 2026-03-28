@@ -3,13 +3,13 @@
 #include "Constraint1DW.cpp"
 #include "SIMD.h"
 
-void physecs::Constraint1DContainer::preSolve() {
-    std::visit([](auto& constraintsCollection) {
-        std::apply([](auto&... constraintsLists) {
+void physecs::Constraint1DContainer::preSolve(const MassData* masses) {
+    std::visit([masses](auto& constraintsCollection) {
+        std::apply([&](auto&... constraintsLists) {
             (
                 [&] {
                     for (auto& constraint : constraintsLists.constraints) {
-                        constraint.preSolve();
+                        constraint.preSolve(masses);
                     }
                 }(),
                 ...
@@ -18,13 +18,28 @@ void physecs::Constraint1DContainer::preSolve() {
     }, constraintCollection);
 }
 
-void physecs::Constraint1DContainer::solve(float timeStep) {
-    std::visit([timeStep](auto& constraintsCollection) {
+void physecs::Constraint1DContainer::correctPositionError(PseudoVelocityData* pseudoVelocities) const {
+    std::visit([pseudoVelocities](auto& constraintsCollection) {
         std::apply([&](auto&... constraintsLists) {
             (
                 [&] {
                     for (auto& constraint : constraintsLists.constraints) {
-                        constraint.solve(timeStep);
+                        constraint.correctPositionError(pseudoVelocities);
+                    }
+                }(),
+                ...
+            );
+        }, constraintsCollection.constraints);
+    }, constraintCollection);
+}
+
+void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool warmStart) {
+    std::visit([velocities, timeStep, warmStart](auto& constraintsCollection) {
+        std::apply([&](auto&... constraintsLists) {
+            (
+                [&] {
+                    for (auto& constraint : constraintsLists.constraints) {
+                        constraint.solve(velocities, timeStep, warmStart);
                     }
                 }(),
                 ...

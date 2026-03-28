@@ -4,12 +4,14 @@
 
 namespace physecs {
 
-    struct RigidBodyDynamicComponent;
+    struct VelocityData;
+    struct PseudoVelocityData;
+    struct MassData;
 
     template<int flags>
     struct Constraint1DW {
-        RigidBodyDynamicComponent* dynamic0[4] = {};
-        RigidBodyDynamicComponent* dynamic1[4] = {};
+        int bodies0[4] = { -1, -1, -1, -1 };
+        int bodies1[4] = { -1, -1, -1, -1 };
         Vec3W linear;
         Vec3W angular0;
         Vec3W angular1;
@@ -26,8 +28,9 @@ namespace physecs {
         FloatW invEffMass = _mm_setzero_ps();
         FloatW totalLambda = _mm_setzero_ps();
 
-        void preSolve();
-        void solve(float timeStep);
+        void preSolve(const MassData* masses);
+        void correctPositionError(PseudoVelocityData* pseudoVelocities) const;
+        void solve(VelocityData* velocities, float timeStep, bool warmStart);
     };
 }
 

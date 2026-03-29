@@ -70,9 +70,7 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
     }
 
     if constexpr (!(flags & SOFT)) {
-        if (warmStart) {
-            if (glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) return;
-
+        if (warmStart && !(glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000)) {
             totalLambda = totalLambda * 0.5f;
             if (b0 >= 0) {
                 if constexpr (!(flags & ANGULAR))

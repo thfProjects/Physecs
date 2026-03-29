@@ -3,7 +3,7 @@
 #include <glm/ext/scalar_constants.hpp>
 
 template<int flags>
-void physecs::Constraint1D<flags>::preSolve(const MassData* masses) {
+void physecs::Constraint1D<flags>::preSolve(const MassData* masses, PseudoVelocityData *pseudoVelocities) {
     float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
     if (b0 >= 0) {
@@ -27,10 +27,7 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses) {
         linear0t = invMass0 * linear;
         linear1t = invMass1 * linear;
     }
-}
 
-template<int flags>
-void physecs::Constraint1D<flags>::correctPositionError(PseudoVelocityData *pseudoVelocities) const {
     if constexpr (flags & SOFT) return;
 
     if (!c || !invEffMass) return;

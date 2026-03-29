@@ -3,7 +3,8 @@
 #include "SolverData.h"
 
 template<int flags>
-void physecs::Constraint1DW<flags>::preSolve(const MassData* masses) {
+void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, PseudoVelocityData *pseudoVelocities) {
+    Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
         const int b0 = bodies0[i];
@@ -18,7 +19,10 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses) {
 
             if constexpr (!(flags & ANGULAR)) {
                 invMass0.m128_f32[i] = masses[b0].invMass;
+                pseudoVelocity0.set(pseudoVelocities[b0].pseudoVelocity, i);
             }
+
+            pseudoAngularVelocity0.set(pseudoVelocities[b0].pseudoAngularVelocity, i);
         }
 
         FloatW invI1[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
@@ -30,7 +34,10 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses) {
 
             if constexpr (!(flags & ANGULAR)) {
                 invMass1.m128_f32[i] = masses[b1].invMass;
+                pseudoVelocity1.set(pseudoVelocities[b1].pseudoVelocity, i);
             }
+
+            pseudoAngularVelocity1.set(pseudoVelocities[b1].pseudoAngularVelocity, i);
         }
 
         const FloatW angular0x = _mm_set1_ps(angular0.x.m128_f32[i]);
@@ -58,29 +65,8 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses) {
         linear0t = invMass0 * linear;
         linear1t = invMass1 * linear;
     }
-}
 
-template<int flags>
-void physecs::Constraint1DW<flags>::correctPositionError(PseudoVelocityData *pseudoVelocities) const {
     if constexpr (flags & SOFT) return;
-
-    Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
-    for (int i = 0; i < 4; ++i) {
-        const int b0 = bodies0[i];
-        const int b1 = bodies1[i];
-
-        if (b0 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                pseudoVelocity0.set(pseudoVelocities[b0].pseudoVelocity, i);
-            pseudoAngularVelocity0.set(pseudoVelocities[b0].pseudoAngularVelocity, i);
-        }
-
-        if (b1 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                pseudoVelocity1.set(pseudoVelocities[b1].pseudoVelocity, i);
-            pseudoAngularVelocity1.set(pseudoVelocities[b1].pseudoAngularVelocity, i);
-        }
-    }
 
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
     const auto cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());

@@ -3,28 +3,13 @@
 #include "Constraint1DW.cpp"
 #include "SIMD.h"
 
-void physecs::Constraint1DContainer::preSolve(const MassData* masses) {
-    std::visit([masses](auto& constraintsCollection) {
+void physecs::Constraint1DContainer::preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities) {
+    std::visit([masses, pseudoVelocities](auto& constraintsCollection) {
         std::apply([&](auto&... constraintsLists) {
             (
                 [&] {
                     for (auto& constraint : constraintsLists.constraints) {
-                        constraint.preSolve(masses);
-                    }
-                }(),
-                ...
-            );
-        }, constraintsCollection.constraints);
-    }, constraintCollection);
-}
-
-void physecs::Constraint1DContainer::correctPositionError(PseudoVelocityData* pseudoVelocities) const {
-    std::visit([pseudoVelocities](auto& constraintsCollection) {
-        std::apply([&](auto&... constraintsLists) {
-            (
-                [&] {
-                    for (auto& constraint : constraintsLists.constraints) {
-                        constraint.correctPositionError(pseudoVelocities);
+                        constraint.preSolve(masses, pseudoVelocities);
                     }
                 }(),
                 ...

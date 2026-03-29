@@ -124,8 +124,7 @@ namespace physecs {
         friend class Constraint1DWriter;
 
     public:
-        void preSolve(const MassData* masses);
-        void correctPositionError(PseudoVelocityData* pseudoVelocities) const;
+        void preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities);
         void solve(VelocityData* velocities, float timeStep, bool warmStart = false);
         void clear();
 

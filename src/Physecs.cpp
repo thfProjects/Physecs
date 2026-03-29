@@ -474,8 +474,7 @@ void physecs::Scene::simulate(float timeStep) {
             constraints.preSolve(massTemp.data());
         }
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.preSolve(massTemp.data());
-            color.jointConstraints.correctPositionError(pseudoVelocityTemp.data());
+            color.jointConstraints.preSolve(massTemp.data(), pseudoVelocityTemp.data());
         }
         PhysecsZoneEnd(ctx8);
 

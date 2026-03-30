@@ -74,21 +74,21 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
             totalLambda = totalLambda * 0.5f;
             if (b0 >= 0) {
                 if constexpr (!(flags & ANGULAR))
-                    velocities[b0].velocity += totalLambda * linear0t;
-                velocities[b0].angularVelocity += totalLambda * angular0t;
+                    velocity0 += totalLambda * linear0t;
+                angularVelocity0 += totalLambda * angular0t;
             }
 
             if (b1 >= 0) {
                 if constexpr (!(flags & ANGULAR))
-                    velocities[b1].velocity -= totalLambda * linear1t;
-                velocities[b1].angularVelocity -= totalLambda * angular1t;
+                    velocity1 -= totalLambda * linear1t;
+                angularVelocity1 -= totalLambda * angular1t;
             }
         }
     }
 
-    float relativeVelocity = glm::dot(-angular0, angularVelocity0) + glm::dot(angular1, angularVelocity1);
+    float relativeVelocity = glm::dot(angular1, angularVelocity1) - glm::dot(angular0, angularVelocity0);
     if constexpr (!(flags & ANGULAR)) {
-        relativeVelocity += glm::dot(-linear, velocity0) + glm::dot(linear, velocity1);
+        relativeVelocity += glm::dot(linear, velocity1) - glm::dot(linear, velocity0);
     }
 
     float lambda;

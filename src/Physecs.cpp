@@ -479,7 +479,6 @@ void physecs::Scene::simulate(float timeStep) {
         PhysecsZoneEnd(ctx8);
 
         //constraint solve
-
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
             for (auto& constraints : contactConstraints) {
@@ -501,11 +500,11 @@ void physecs::Scene::simulate(float timeStep) {
 
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transform.position += h * rigidDynamic.velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
+            transform.position += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += glm::quat(0, 0.5f * (h * rigidDynamic.angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
+            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;

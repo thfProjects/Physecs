@@ -497,10 +497,6 @@ void physecs::Scene::simulate(float timeStep) {
 
             if (rigidDynamic.isKinematic) continue;
 
-            // write back from temp buffers
-            rigidDynamic.velocity = velocityTemp[i].velocity;
-            rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
-
             auto& transform = registry.get<TransformComponent>(entities.at(i));
 
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
@@ -523,6 +519,16 @@ void physecs::Scene::simulate(float timeStep) {
             constraints.solve(velocityTemp.data(), false);
         }
         PhysecsZoneEnd(ctx5);
+
+        // write back from temp buffers
+        for (int i = 0; i < entities.size(); ++i) {
+            auto& rigidDynamic = rigidBodies[i];
+
+            if (rigidDynamic.isKinematic) continue;
+
+            rigidDynamic.velocity = velocityTemp[i].velocity;
+            rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
+        }
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();

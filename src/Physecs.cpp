@@ -785,6 +785,13 @@ void physecs::Scene::removeOnTriggerExitCallback(OnTriggerExitListener *callback
     onTriggerExitCallbacks.erase(std::find(onTriggerExitCallbacks.begin(), onTriggerExitCallbacks.end(), callback));
 }
 
+void physecs::Scene::setCanCollide(entt::entity entity0, entt::entity entity1, bool canCollide) {
+    if (canCollide)
+        nonCollidingPairs.erase(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
+    else
+        nonCollidingPairs.insert(entity0 < entity1 ? EntityPair{ entity0, entity1} : EntityPair{ entity1, entity0 });
+}
+
 void physecs::Scene::setContactFilter(ContactType(*filter)(bool, int, bool, int)) {
     contactFilter = filter;
 }

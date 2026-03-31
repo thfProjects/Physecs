@@ -220,6 +220,7 @@ namespace physecs {
         PHYSECS_API void addOnTriggerExitCallback(OnTriggerExitListener* callback);
         PHYSECS_API void removeOnTriggerEnterCallback(OnTriggerEnterListener* callback);
         PHYSECS_API void removeOnTriggerExitCallback(OnTriggerExitListener* callback);
+        PHYSECS_API void setCanCollide(entt::entity entity0, entt::entity entity1, bool canCollide);
         PHYSECS_API void setContactFilter(ContactType (*filter)(bool, int, bool, int));
         PHYSECS_API entt::registry& getRegistry();
         PHYSECS_API const std::vector<glm::vec3>& getContactPoints();

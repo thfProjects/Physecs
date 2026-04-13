@@ -176,6 +176,7 @@ namespace physecs {
         ThreadPool threadPool;
         std::mutex collisionMutex;
         std::mutex triggerMutex;
+        std::mutex debugContactsMutex;
         std::vector<VelocityData> velocityTemp;
         std::vector<PseudoVelocityData> pseudoVelocityTemp;
         std::vector<MassData> massTemp;

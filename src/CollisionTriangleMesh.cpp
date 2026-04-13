@@ -8,6 +8,7 @@
 #include "GJK.h"
 #include "ContactsUtil.h"
 #include <glm/gtx/string_cast.hpp>
+#include "ContactManifoldClustering.h"
 
 using namespace physecs;
 
@@ -621,6 +622,13 @@ static bool collisionConvexMeshTriangle(glm::vec3 pos, glm::quat ori, ConvexMesh
     triangleContactInfo.normal = EPA<ConvexMeshSupportFunction, TriangleSupportFunction>::epa(convexMeshSupport, triangleSupport, s, triangleContactInfo.closestPointBody, triangleContactInfo.closestPointTriangle);
     triangleContactInfo.distance = glm::dot(triangleContactInfo.closestPointTriangle - triangleContactInfo.closestPointBody, triangleContactInfo.normal);
 
+    // if normal from EPA is almost aligned with normal of triangle, treat it as a face contact
+    if (glm::dot(triangleContactInfo.normal, n) < -0.99f) {
+        triangleContactInfo.feature = TriangleFeature::FACE;
+
+        return true;
+    }
+
     //compute barycentric coords for closest point on triangle
 
     glm::vec3 v0 = b - a;
@@ -937,13 +945,13 @@ bool physecs::collisionTriangleMesh(glm::vec3 pos0, glm::quat or0, const Geometr
 
         switch (contact.feature) {
             case TriangleFeature::EDGE:
-                if (voidedVertices.find(tri.indices[(contact.featureIndex + 1) % 3]) != voidedVertices.end() && voidedVertices.find(tri.indices[(contact.featureIndex + 2) % 3]) != voidedVertices.end())
-                    continue;
+                if (voidedVertices.contains(tri.indices[(contact.featureIndex + 1) % 3]) && voidedVertices.contains(tri.indices[(contact.featureIndex + 2) % 3]))
+                    break;
                 generateContactsTriangleEdge(localPos, localOr, geom0, pos1, or1, mesh1, contact, results);
             break;
             case TriangleFeature::VERTEX:
-                if (voidedVertices.find(tri.indices[contact.featureIndex]) != voidedVertices.end())
-                    continue;
+                if (voidedVertices.contains(tri.indices[contact.featureIndex]))
+                    break;
                 generateContactsTriangleVertex(localPos, localOr, geom0, pos1, or1, mesh1, contact, results);
         }
 
@@ -951,6 +959,8 @@ bool physecs::collisionTriangleMesh(glm::vec3 pos0, glm::quat or0, const Geometr
         voidedVertices.insert(tri.indices[1]);
         voidedVertices.insert(tri.indices[2]);
     }
+
+    clusterContactManifolds(results);
 
     return true;
 }

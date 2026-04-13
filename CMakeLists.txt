@@ -9,6 +9,7 @@ include(FetchContent)
 
 option(BUILD_DEMO "Build demo")
 option(PROFILE "Profile")
+option(DEBUG_CONTACT_POINTS "Debug contact points")
 
 set(PHYSECS_LIB Physecs)
 
@@ -32,6 +33,12 @@ add_definitions(
 		-DGLM_FORCE_INLINE
 		-DPHYSECS_EXPORTS
 )
+
+if (DEBUG_CONTACT_POINTS)
+	add_definitions(
+		-DDEBUG_CONTACT_POINTS
+)
+endif ()
 
 if (PROFILE)
 	FetchContent_Declare (

@@ -229,6 +229,40 @@ void physecs::Scene::simulate(float timeStep) {
                 angularVelocity1 = dynamic1->angularVelocity;
             }
 
+            float friction = (col0.material.friction + col1.material.friction) * 0.5f;
+
+            bool isSoft;
+            float frequency;
+            float damping;
+            float restitution;
+            if (col0.material.damping || col1.material.damping) {
+                //soft contact
+                isSoft = true;
+                if (col0.material.damping && col1.material.damping) {
+                    frequency = glm::min(col0.material.restitution, col1.material.restitution);
+                    damping = glm::min(col0.material.damping, col1.material.damping);
+                }
+                else if (col0.material.damping) {
+                    frequency = col0.material.restitution;
+                    damping = col0.material.damping;
+                }
+                else if (col1.material.damping) {
+                    frequency = col1.material.restitution;
+                    damping = col1.material.damping;
+                }
+                restitution = 0;
+            }
+            else {
+                //hard contact
+                isSoft = false;
+                frequency = 0;
+                damping = 0;
+                restitution = (col0.material.restitution + col1.material.restitution) * 0.5f;
+            }
+
+            int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
+            int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
+
             for (auto& collisionResult : contactBuffer) {
                 if (!collisionResult.numPoints) continue;
 
@@ -237,48 +271,19 @@ void physecs::Scene::simulate(float timeStep) {
                 ContactManifoldData* prevContactData = contactCache.find({ contactPair, collisionResult.triangleIndex }) != contactCache.end() ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
                 ContactManifoldData currContactData{ collisionResult.numPoints, {} };
 
-                float friction = (col0.material.friction + col1.material.friction) * 0.5f;
-
-                bool isSoft;
-                float frequency;
-                float damping;
-                float restitution;
-                if (col0.material.damping || col1.material.damping) {
-                    //soft contact
-                    isSoft = true;
-                    if (col0.material.damping && col1.material.damping) {
-                        frequency = glm::min(col0.material.restitution, col1.material.restitution);
-                        damping = glm::min(col0.material.damping, col1.material.damping);
-                    }
-                    else if (col0.material.damping) {
-                        frequency = col0.material.restitution;
-                        damping = col0.material.damping;
-                    }
-                    else if (col1.material.damping) {
-                        frequency = col1.material.restitution;
-                        damping = col1.material.damping;
-                    }
-                    restitution = 0;
-                }
-                else {
-                    //hard contact
-                    isSoft = false;
-                    frequency = 0;
-                    damping = 0;
-                    restitution = (col0.material.restitution + col1.material.restitution) * 0.5f;
-                }
-
-                int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
-                int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
-
                 ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, frequency, damping, collisionResult.numPoints, {}};
 
                 for (int k = 0; k < collisionResult.numPoints; ++k) {
                     glm::vec3 r0 = collisionResult.points[k].position0 - com0;
                     glm::vec3 r1 = collisionResult.points[k].position1 - com1;
 
-                    // contactPoints.push_back(collisionResult.points[k].position0);
-                    // contactPoints.push_back(collisionResult.points[k].position1);
+#ifdef DEBUG_CONTACT_POINTS
+                    {
+                        std::unique_lock lock(debugContactsMutex);
+                        contactPoints.push_back(collisionResult.points[k].position0);
+                        contactPoints.push_back(collisionResult.points[k].position1);
+                    }
+#endif
 
                     glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
                     float relNVelocity = glm::dot(relVelocity, n);

@@ -29,7 +29,7 @@ namespace physecs {
         FloatW totalLambda = _mm_setzero_ps();
 
         void preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool warmStart);
+        void solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart);
     };
 }
 

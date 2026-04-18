@@ -91,14 +91,14 @@ void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, 
 
         glm::vec3 velocity0(0), angularVelocity0(0);
         if (b0 >= 0) {
-            velocity0 = dynamic0->velocity;
-            angularVelocity0 = dynamic0->angularVelocity;
+            velocity0 = velocities[b0].velocity;
+            angularVelocity0 = velocities[b0].angularVelocity;
         }
 
         glm::vec3 velocity1(0), angularVelocity1(0);
         if (b1 >= 0) {
-            velocity1 = dynamic1->velocity;
-            angularVelocity1 = dynamic1->angularVelocity;
+            velocity1 = velocities[b1].velocity;
+            angularVelocity1 = velocities[b1].angularVelocity;
         }
 
         float relativeVelocity = glm::dot(-t, velocity0) + glm::dot(-r0xt, angularVelocity0) + glm::dot(t, velocity1) + glm::dot(r1xt, angularVelocity1);

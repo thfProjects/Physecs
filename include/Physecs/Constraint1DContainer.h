@@ -125,7 +125,7 @@ namespace physecs {
 
     public:
         void preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool warmStart = false);
+        void solve(VelocityData* velocities, float timeStep, bool useBias = false, bool warmStart = false);
         void clear();
 
         void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }

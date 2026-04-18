@@ -154,7 +154,7 @@ namespace physecs {
         entt::registry& registry;
 
         int numSubSteps = 8;
-        int numIterations = 2;
+        int numIterations = 1;
 
         float g = 9.81f;
 

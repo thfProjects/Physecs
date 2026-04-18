@@ -18,13 +18,13 @@ void physecs::Constraint1DContainer::preSolve(const MassData* masses, PseudoVelo
     }, constraintCollection);
 }
 
-void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool warmStart) {
-    std::visit([velocities, timeStep, warmStart](auto& constraintsCollection) {
+void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart) {
+    std::visit([velocities, timeStep, useBias, warmStart](auto& constraintsCollection) {
         std::apply([&](auto&... constraintsLists) {
             (
                 [&] {
                     for (auto& constraint : constraintsLists.constraints) {
-                        constraint.solve(velocities, timeStep, warmStart);
+                        constraint.solve(velocities, timeStep, useBias, warmStart);
                     }
                 }(),
                 ...

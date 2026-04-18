@@ -490,7 +490,7 @@ void physecs::Scene::simulate(float timeStep) {
                 constraints.solve(velocityTemp.data(), true, h);
             }
             for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(velocityTemp.data(), h, i == 0);
+                color.jointConstraints.solve(velocityTemp.data(), h, true, i == 0);
             }
         }
 
@@ -521,6 +521,9 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;
             constraints.solve(velocityTemp.data(), false);
+        }
+        for (auto& color : jointGraph.colors) {
+            color.jointConstraints.solve(velocityTemp.data(), h, false);
         }
         PhysecsZoneEnd(ctx5);
 

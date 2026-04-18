@@ -115,7 +115,7 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, PseudoVeloc
 }
 
 template<int flags>
-void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool warmStart) {
+void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart) {
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     for (int i = 0; i < 4; ++i) {
         const int b0 = bodies0[i];
@@ -169,7 +169,7 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
     }
 
     const auto one = _mm_set1_ps(1.f);
-    const auto biasFactor = _mm_set1_ps(0.2 / timeStep);
+    const auto biasFactor = _mm_set1_ps((useBias ? 0.5f : 0.f) / timeStep);
 
     const auto effMass = one / invEffMass;
 

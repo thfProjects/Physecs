@@ -52,7 +52,7 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses, PseudoVeloci
 }
 
 template<int flags>
-void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool warmStart) {
+void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart) {
     if (!invEffMass) return;
 
     glm::vec3 velocity0(0), angularVelocity0(0);
@@ -100,7 +100,7 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
         float beta = timeStep * stiffness / (damping + timeStep * stiffness);
         lambda = (relativeVelocity + beta * c / timeStep) / (invEffMass + gamma / timeStep);
     } else {
-        lambda = (relativeVelocity - targetVelocity + 0.2f * c / timeStep) / invEffMass;
+        lambda = (relativeVelocity - targetVelocity + (useBias ? 0.5f : 0.f) * c / timeStep) / invEffMass;
     }
 
     if constexpr (flags & LIMITED) {

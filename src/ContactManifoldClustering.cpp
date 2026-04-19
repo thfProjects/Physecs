@@ -120,6 +120,7 @@ void physecs::clusterContactManifolds(std::vector<ContactManifold> &manifolds) {
 
             const auto& firstContactOnHull = manifolds[centroidContactsList[firstContactOnHullIndex].manifoldIndex].points[centroidContactsList[firstContactOnHullIndex].contactPointIndex];
             int maxDistanceIndex = 0;
+            maxDistance = 0.f;
             for (int j = 0; j < centroidContactsList.size(); ++j) {
                 const auto& contactIndices = centroidContactsList[j];
                 const auto& contact = manifolds[contactIndices.manifoldIndex].points[contactIndices.contactPointIndex];
@@ -142,19 +143,17 @@ void physecs::clusterContactManifolds(std::vector<ContactManifold> &manifolds) {
             glm::mat3 worldToCluster = glm::transpose(clusterFrame);
 
             int minXIndex = 0, maxXIndex = 0;
+            float minX = FLT_MAX, maxX = -FLT_MAX;
             for (int j = 0; j < centroidContactsList.size(); ++j) {
                 const auto& contactIndices = centroidContactsList[j];
-                const auto& minXIndices = centroidContactsList[minXIndex];
-                const auto& maxXIndices = centroidContactsList[maxXIndex];
-
                 const auto& contact = manifolds[contactIndices.manifoldIndex].points[contactIndices.contactPointIndex];
-                const auto& minXContact = manifolds[minXIndices.manifoldIndex].points[minXIndices.contactPointIndex];
-                const auto& maxXContact = manifolds[maxXIndices.manifoldIndex].points[maxXIndices.contactPointIndex];
-
-                if ((worldToCluster * contact.position1).x > (worldToCluster * maxXContact.position1).x) {
+                float x = (worldToCluster * contact.position1).x;
+                if (x > maxX) {
+                    maxX = x;
                     maxXIndex = j;
                 }
-                if ((worldToCluster * contact.position1).x < (worldToCluster * minXContact.position1).x) {
+                if (x < minX) {
+                    minX = x;
                     minXIndex = j;
                 }
             }

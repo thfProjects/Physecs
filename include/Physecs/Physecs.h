@@ -7,6 +7,7 @@
 #include "BVH.h"
 #include "Joint.h"
 #include "Colliders.h"
+#include "DebugDraw.h"
 
 namespace physecs {
     struct ContactManifold;
@@ -225,6 +226,7 @@ namespace physecs {
         PHYSECS_API void setContactFilter(ContactType (*filter)(bool, int, bool, int));
         PHYSECS_API entt::registry& getRegistry();
         PHYSECS_API const std::vector<glm::vec3>& getContactPoints();
+        PHYSECS_API const DebugDrawContext& getDebugDrawContext();
         PHYSECS_API const std::vector<BVHNode>& getBVH();
         PHYSECS_API const int getBHVRootId();
         PHYSECS_API ~Scene();

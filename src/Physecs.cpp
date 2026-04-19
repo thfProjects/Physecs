@@ -17,6 +17,8 @@
 
 const char* frameName = "Solver";
 
+physecs::DebugDrawContext debugDrawContext;
+
 physecs::ContactType physecs::defaultContactFilter(bool isTrigger0, int data0, bool isTrigger1, int data1) {
     if (isTrigger0 || isTrigger1) return TRIGGER;
     return COLLISION;
@@ -112,6 +114,8 @@ void physecs::Scene::setGravity(float gravity) {
 void physecs::Scene::simulate(float timeStep) {
     PhysecsFrameMarkStart(frameName);
     PhysecsZoneScoped;
+
+    debugDrawContext.clear();
 
     auto& entities = registry.storage<RigidBodyDynamicComponent>();
     auto* rigidBodies = entities.raw() ? *entities.raw() : nullptr;
@@ -810,6 +814,10 @@ entt::registry & physecs::Scene::getRegistry() {
 
 const std::vector<glm::vec3> & physecs::Scene::getContactPoints() {
     return contactPoints;
+}
+
+const physecs::DebugDrawContext & physecs::Scene::getDebugDrawContext() {
+    return debugDrawContext;
 }
 
 const std::vector<physecs::BVHNode> & physecs::Scene::getBVH() {

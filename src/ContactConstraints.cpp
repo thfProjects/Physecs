@@ -18,36 +18,54 @@ void physecs::ContactConstraints::preSolve(const MassData* masses) {
 
     for (int i = 0; i < numPoints; ++i) {
 
-        auto& [r0, r1, r0xn, r1xn, t, r0xt, r1xt, targetVelocity, c, totalLambdaN, totalLambdaT, r0xnt, r1xnt, r0xtt, r1xtt, invEffMassN, invEffMassT] = contactPointConstraints[i];
+        auto& [r0, r1, r0xn, r1xn, targetVelocity, c, totalLambdaN, r0xnt, r1xnt, invEffMassN, distToFrictionAnchor] = contactPointConstraints[i];
 
         r0xnt = invInertiaTensor0 * r0xn;
         r1xnt = invInertiaTensor1 * r1xn;
-        r0xtt = invInertiaTensor0 * r0xt;
-        r1xtt = invInertiaTensor1 * r1xt;
 
         invEffMassN = glm::dot(n, n) * (invMass0 + invMass1) + glm::dot(r0xn, r0xnt) + glm::dot(r1xn, r1xnt);
-        invEffMassT = glm::dot(t, t) * (invMass0 + invMass1) + glm::dot(r0xt, r0xtt) + glm::dot(r1xt, r1xtt);
     }
+
+    // friction
+    auto& [r0, r1, t, r0xt, r1xt, totalLambdaT, totalLambdaTwist, r0xtt, r1xtt, n0t, n1t, invEffMassT, invEffMassTwist] = frictionConstraints;
+
+    r0xtt = invInertiaTensor0 * r0xt;
+    r1xtt = invInertiaTensor1 * r1xt;
+
+    invEffMassT = glm::dot(t, t) * (invMass0 + invMass1) + glm::dot(r0xt, r0xtt) + glm::dot(r1xt, r1xtt);
+
+    n0t = invInertiaTensor0 * n;
+    n1t = invInertiaTensor1 * n;
+
+    invEffMassTwist = glm::dot(n, n0t + n1t);
 }
 
 void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, float timeStep) {
+
+    glm::vec3 velocity0(0), angularVelocity0(0);
+    float invMass0 = 0;
+    if (b0 >= 0) {
+        velocity0 = velocities[b0].velocity;
+        angularVelocity0 = velocities[b0].angularVelocity;
+        invMass0 = dynamic0->invMass;
+    }
+
+    glm::vec3 velocity1(0), angularVelocity1(0);
+    float invMass1 = 0;
+    if (b1 >= 0) {
+        velocity1 = velocities[b1].velocity;
+        angularVelocity1 = velocities[b1].angularVelocity;
+        invMass1 = dynamic1->invMass;
+    }
+
+    float totalNImpulse = 0.f;
+    float rEffTimesN = 0.f;
+
     for (int i = 0; i < numPoints; ++i) {
 
-        auto& [r0, r1, r0xn, r1xn, t, r0xt, r1xt, targetVelocity, c, totalLambdaN, totalLambdaT, r0xnt, r1xnt, r0xtt, r1xtt, invEffMassN, invEffMassT] = contactPointConstraints[i];
+        auto& [r0, r1, r0xn, r1xn, targetVelocity, c, totalLambdaN, r0xnt, r1xnt, invEffMassN, distToFrictionAnchor] = contactPointConstraints[i];
 
         if (!invEffMassN) continue;
-
-        glm::vec3 velocity0(0), angularVelocity0(0);
-        if (b0 >= 0) {
-            velocity0 = velocities[b0].velocity;
-            angularVelocity0 = velocities[b0].angularVelocity;
-        }
-
-        glm::vec3 velocity1(0), angularVelocity1(0);
-        if (b1 >= 0) {
-            velocity1 = velocities[b1].velocity;
-            angularVelocity1 = velocities[b1].angularVelocity;
-        }
 
         float relativeVelocity = glm::dot(-n, velocity0) + glm::dot(-r0xn, angularVelocity0) + glm::dot(n, velocity1) + glm::dot(r1xn, angularVelocity1);
 
@@ -69,56 +87,62 @@ void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, 
         totalLambdaN = glm::min(totalLambdaN, 0.f);
         lambda = totalLambdaN - prevLambda;
 
-        //if (timeStep) printf("normal force: %f\n", totalLambdaN / timeStep);
+        totalNImpulse += totalLambdaN;
+        rEffTimesN += distToFrictionAnchor * totalLambdaN;
 
-        if (b0 >= 0) {
-            velocities[b0].velocity += lambda * dynamic0->invMass * n;
-            velocities[b0].angularVelocity += lambda * r0xnt;
-        }
+        velocity0 += lambda * invMass0 * n;
+        angularVelocity0 += lambda * r0xnt;
 
-        if (b1 >= 0) {
-            velocities[b1].velocity -= lambda * dynamic1->invMass * n;
-            velocities[b1].angularVelocity -= lambda * r1xnt;
-        }
+        velocity1 -= lambda * invMass1 * n;
+        angularVelocity1 -= lambda * r1xnt;
     }
 
     //friction
-    for (int i = 0; i < numPoints; ++i) {
+    {
+        auto& [r0, r1, t, r0xt, r1xt, totalLambdaT, totalLambdaTwist, r0xtt, r1xtt, n0t, n1t, invEffMassT, invEffMassTwist] = frictionConstraints;
 
-        auto& [r0, r1, r0xn, r1xn, t, r0xt, r1xt, targetVelocity, c, totalLambdaN, totalLambdaT, r0xnt, r1xnt, r0xtt, r1xtt, invEffMassN, invEffMassT] = contactPointConstraints[i];
+        if (invEffMassT) {
+            float relativeVelocity = glm::dot(-t, velocity0) + glm::dot(-r0xt, angularVelocity0) + glm::dot(t, velocity1) + glm::dot(r1xt, angularVelocity1);
 
-        if (!invEffMassT) continue;
+            float lambda = relativeVelocity / invEffMassT;
 
-        glm::vec3 velocity0(0), angularVelocity0(0);
-        if (b0 >= 0) {
-            velocity0 = velocities[b0].velocity;
-            angularVelocity0 = velocities[b0].angularVelocity;
+            float frictionLimit = friction * totalNImpulse;
+            float prevLambda = totalLambdaT;
+            totalLambdaT += lambda;
+            totalLambdaT = glm::clamp(totalLambdaT, frictionLimit, -frictionLimit);
+            lambda = totalLambdaT - prevLambda;
+
+            velocity0 += lambda * invMass0 * t;
+            angularVelocity0 += lambda * r0xtt;
+
+            velocity1 -= lambda * invMass1 * t;
+            angularVelocity1 -= lambda * r1xtt;
         }
 
-        glm::vec3 velocity1(0), angularVelocity1(0);
-        if (b1 >= 0) {
-            velocity1 = velocities[b1].velocity;
-            angularVelocity1 = velocities[b1].angularVelocity;
+        if (invEffMassTwist) {
+            float relativeVelocity = glm::dot(n, angularVelocity1 - angularVelocity0);
+
+            float lambda = relativeVelocity / invEffMassTwist;
+
+            float frictionLimit = friction * rEffTimesN;
+            float prevLambda = totalLambdaTwist;
+            totalLambdaTwist += lambda;
+            totalLambdaTwist = glm::clamp(totalLambdaTwist, frictionLimit, -frictionLimit);
+            lambda = totalLambdaTwist - prevLambda;
+
+            angularVelocity0 += lambda * n0t;
+
+            angularVelocity1 -= lambda * n1t;
         }
+    }
 
-        float relativeVelocity = glm::dot(-t, velocity0) + glm::dot(-r0xt, angularVelocity0) + glm::dot(t, velocity1) + glm::dot(r1xt, angularVelocity1);
+    if (b0 >= 0) {
+        velocities[b0].velocity = velocity0;
+        velocities[b0].angularVelocity = angularVelocity0;
+    }
 
-        float lambda = relativeVelocity / invEffMassT;
-
-        float frictionLimit = friction * totalLambdaN;
-        float prevLambda = totalLambdaT;
-        totalLambdaT += lambda;
-        totalLambdaT = glm::clamp(totalLambdaT, frictionLimit, -frictionLimit);
-        lambda = totalLambdaT - prevLambda;
-
-        if (b0 >= 0) {
-            velocities[b0].velocity += lambda * dynamic0->invMass * t;
-            velocities[b0].angularVelocity += lambda * r0xtt;
-        }
-
-        if (b1 >= 0) {
-            velocities[b1].velocity -= lambda * dynamic1->invMass * t;
-            velocities[b1].angularVelocity -= lambda * r1xtt;
-        }
+    if (b1 >= 0) {
+        velocities[b1].velocity = velocity1;
+        velocities[b1].angularVelocity = angularVelocity1;
     }
 }

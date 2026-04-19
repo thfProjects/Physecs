@@ -554,7 +554,9 @@ static void generateCapsuleBoxContacts(glm::vec3 p0Local, glm::vec3 p1Local, flo
 
         int numPoints = 0;
 
-        if (glm::abs(p0[boxAxis]) < halfExtents[boxAxis]) {
+        constexpr float epsilon = 1e-4;
+
+        if (glm::abs(p0[boxAxis]) < halfExtents[boxAxis] + epsilon) {
             p0[clipX] = line0.x;
             p0[clipY] = line0.y;
 
@@ -564,7 +566,7 @@ static void generateCapsuleBoxContacts(glm::vec3 p0Local, glm::vec3 p1Local, flo
             result.points[numPoints++] = { boxCenter + boxBasis * p0, boxCenter + boxBasis * onBox0 };
         }
 
-        if (glm::abs(p1[boxAxis]) < halfExtents[boxAxis]) {
+        if (glm::abs(p1[boxAxis]) < halfExtents[boxAxis] + epsilon) {
             p1[clipX] = line1.x;
             p1[clipY] = line1.y;
 
@@ -757,7 +759,9 @@ static void generateCapsuleConvexMeshContacts(glm::vec3 p0Local, glm::vec3 p1Loc
 
         int numPoints = 0;
 
-        if (p0[faceAxis] < distToPlane) {
+        constexpr float epsilon = 1e-4;
+
+        if (p0[faceAxis] < distToPlane + epsilon) {
             p0[clipX] = line0.x;
             p0[clipY] = line0.y;
 
@@ -767,7 +771,7 @@ static void generateCapsuleConvexMeshContacts(glm::vec3 p0Local, glm::vec3 p1Loc
             result.points[numPoints++] = { meshPos + refToWorld * p0, meshPos + refToWorld * onFace };
         }
 
-        if (p1[faceAxis] < distToPlane) {
+        if (p1[faceAxis] < distToPlane + epsilon) {
             p1[clipX] = line1.x;
             p1[clipY] = line1.y;
 

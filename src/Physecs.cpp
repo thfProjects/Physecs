@@ -277,6 +277,8 @@ void physecs::Scene::simulate(float timeStep) {
 
                 ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, frequency, damping, collisionResult.numPoints, {}};
 
+                glm::vec3 frictionAnchor0 = glm::vec3(0), frictionAnchor1 = glm::vec3(0);
+
                 for (int k = 0; k < collisionResult.numPoints; ++k) {
                     glm::vec3 r0 = collisionResult.points[k].position0 - com0;
                     glm::vec3 r1 = collisionResult.points[k].position1 - com1;
@@ -312,10 +314,21 @@ void physecs::Scene::simulate(float timeStep) {
                         targetVelocity = -restitution * relNVelocity;
                     }
 
-                    //printf("triangle index: %d, prevContactFound: %d, normal: %f %f %f, targetVelocity: %f\n", collisionResult.triangleIndex, prevContactFound, n.x, n.y, n.z, targetVelocity);
-
                     currContactData.contactPointData[k] = { r0, targetVelocity };
-                    cc.contactPointConstraints[k] = { r0, r1, glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0), glm::vec3(0), targetVelocity, 0, 0, 0 };
+                    cc.contactPointConstraints[k] = { r0, r1, glm::vec3(0), glm::vec3(0), targetVelocity, 0, 0 };
+
+                    frictionAnchor0 += r0;
+                    frictionAnchor1 += r1;
+                }
+
+                frictionAnchor0 /= collisionResult.numPoints;
+                frictionAnchor1 /= collisionResult.numPoints;
+
+                cc.frictionConstraints = { frictionAnchor0, frictionAnchor1, glm::vec3(0), glm::vec3(0), glm::vec3(0), 0 };
+
+                for (int k = 0; k < collisionResult.numPoints; ++k) {
+                    float distToFrictionAnchor = glm::distance(cc.contactPointConstraints[k].r0, frictionAnchor0);
+                    cc.contactPointConstraints[k].distToFrictionAnchor = distToFrictionAnchor;
                 }
 
                 std::unique_lock lock(collisionMutex);
@@ -412,26 +425,34 @@ void physecs::Scene::simulate(float timeStep) {
                 glm::vec3 r0xn = glm::cross(r0, n);
                 glm::vec3 r1xn = glm::cross(r1, n);
 
-                glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
-                float relNVelocity = glm::dot(relVelocity, n);
-
-                //friction
-                glm::vec3 t = relVelocity - relNVelocity * n;
-                float tLen = glm::length(t);
-                if (tLen) t = t / tLen;
-
-                glm::vec3 r0xt = glm::cross(r0, t);
-                glm::vec3 r1xt = glm::cross(r1, t);
-
                 contactPoint.r0xn = r0xn;
                 contactPoint.r1xn = r1xn;
-                contactPoint.t = t;
-                contactPoint.r0xt = r0xt;
-                contactPoint.r1xt = r1xt;
                 contactPoint.c = cn;
-                contactPoint.totalLambdaN = 0;
-                contactPoint.totalLambdaT = 0;
+                contactPoint.totalLambda = 0;
             }
+
+            //friction
+
+            auto& fc = contact.frictionConstraints;
+
+            glm::vec3 r0 = transform0.orientation * fc.r0;
+            glm::vec3 r1 = transform1.orientation * fc.r1;
+
+            glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
+            float relNVelocity = glm::dot(relVelocity, n);
+
+            glm::vec3 t = relVelocity - relNVelocity * n;
+            float tLen = glm::length(t);
+            if (tLen) t = t / tLen;
+
+            glm::vec3 r0xt = glm::cross(r0, t);
+            glm::vec3 r1xt = glm::cross(r1, t);
+
+            fc.t = t;
+            fc.r0xt = r0xt;
+            fc.r1xt = r1xt;
+            fc.totalLambda = 0;
+
         }
         PhysecsZoneEnd(ctx1);
 

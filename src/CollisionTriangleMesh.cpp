@@ -187,7 +187,9 @@ static void generateContactsCapsuleTriangleFace(glm::vec3 pos0, glm::quat or0, f
     result.triangleIndex = contact.triangleIndex;
     result.normal = meshToWorld * contact.normal;
 
-    if (p0[faceAxis] < distToPlane) {
+    constexpr float epsilon = 1e-4;
+
+    if (p0[faceAxis] < distToPlane + epsilon) {
         p0[clipX] = line0.x;
         p0[clipY] = line0.y;
 
@@ -197,7 +199,7 @@ static void generateContactsCapsuleTriangleFace(glm::vec3 pos0, glm::quat or0, f
         result.points[numPoints++] = { pos1 + refToWorld * p0, pos1 + refToWorld * onFace };
     }
 
-    if (p1[faceAxis] < distToPlane) {
+    if (p1[faceAxis] < distToPlane + epsilon) {
         p1[clipX] = line1.x;
         p1[clipY] = line1.y;
 

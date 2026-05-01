@@ -32,8 +32,8 @@ void physecs::ServoJoint::makeConstraints(JointWorldSpaceData &worldSpaceData, v
     .setAngular0(u0[0])
     .setAngular1(u0[0])
     .setC(glm::orientedAngle(u0[2], u1[2], u0[0]) - targetAngle)
-    .setFrequency(driveStiffness)
-    .setDampingRatio(driveDamping);
+    .setStiffness(driveStiffness)
+    .setDamping(driveDamping);
 }
 
 void physecs::ServoJoint::setTargetAngle(float angle) {

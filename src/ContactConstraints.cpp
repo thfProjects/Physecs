@@ -72,9 +72,6 @@ void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, 
         float effMass = 1.f / invEffMassN;
         float lambda;
         if (isSoft) {
-            float angularFreq = 2.f * glm::pi<float>() * frequency;
-            float stiffness = angularFreq * angularFreq * effMass;
-            float damping = 2.f * angularFreq * dampingRatio * effMass;
             float gamma = 1.f / (damping + timeStep * stiffness);
             float beta = timeStep * stiffness / (damping + timeStep * stiffness);
             lambda = (relativeVelocity + beta * c / timeStep) / (invEffMassN + gamma / timeStep);

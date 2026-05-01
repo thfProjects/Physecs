@@ -84,8 +84,8 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
        .setAngular0(r0xx)
        .setAngular1(r1xx)
        .setC(dx - targetPosition)
-       .setFrequency(driveStiffness)
-       .setDampingRatio(driveDamping);
+       .setStiffness(driveStiffness)
+       .setDamping(driveDamping);
     }
 }
 

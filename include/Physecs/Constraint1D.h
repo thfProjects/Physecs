@@ -26,8 +26,8 @@ namespace physecs {
         float c = 0;
         float min = std::numeric_limits<float>::lowest();
         float max = std::numeric_limits<float>::max();
-        float frequency = 0;
-        float dampingRatio = 0;
+        float stiffness = 0;
+        float damping = 0;
         glm::vec3 linear0t = glm::vec3(0);
         glm::vec3 linear1t = glm::vec3(0);
         glm::vec3 angular0t = glm::vec3(0);

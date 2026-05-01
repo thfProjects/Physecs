@@ -48,8 +48,8 @@ namespace physecs {
         glm::vec3 n;
         float friction;
         bool isSoft;
-        float frequency;
-        float dampingRatio;
+        float stiffness;
+        float damping;
         int numPoints;
         ContactPointConstraint contactPointConstraints[4];
         FrictionConstraints frictionConstraints;

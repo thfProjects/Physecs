@@ -84,6 +84,9 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
                 angularVelocity1 -= totalLambda * angular1t;
             }
         }
+        else {
+            totalLambda = 0.f;
+        }
     }
 
     float relativeVelocity = glm::dot(angular1, angularVelocity1) - glm::dot(angular0, angularVelocity0);
@@ -93,9 +96,6 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
 
     float lambda;
     if constexpr (flags & SOFT) {
-        float angularFreq = 2.f * glm::pi<float>() * frequency;
-        float stiffness = angularFreq * angularFreq / invEffMass;
-        float damping = 2.f * angularFreq * dampingRatio / invEffMass;
         float gamma = 1.f / (damping + timeStep * stiffness);
         float beta = timeStep * stiffness / (damping + timeStep * stiffness);
         lambda = (relativeVelocity + beta * c / timeStep) / (invEffMass + gamma / timeStep);

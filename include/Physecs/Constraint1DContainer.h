@@ -75,19 +75,19 @@ namespace physecs {
             return *this;
         }
 
-        __forceinline Constraint1DView& setFrequency(float frequency) {
+        __forceinline Constraint1DView& setStiffness(float stiffness) {
             if (offset < 0)
-                sequential->frequency = frequency;
+                sequential->stiffness = stiffness;
             else
-                color->frequency.m128_f32[offset] = frequency;
+                color->stiffness.m128_f32[offset] = stiffness;
             return *this;
         }
 
-        __forceinline Constraint1DView& setDampingRatio(float dampingRatio) {
+        __forceinline Constraint1DView& setDamping(float damping) {
             if (offset < 0)
-                sequential->dampingRatio = dampingRatio;
+                sequential->damping = damping;
             else
-                color->dampingRatio.m128_f32[offset] = dampingRatio;
+                color->damping.m128_f32[offset] = damping;
             return *this;
         }
     };

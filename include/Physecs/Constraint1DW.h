@@ -19,8 +19,8 @@ namespace physecs {
         FloatW c = _mm_setzero_ps();
         FloatW min = _mm_set1_ps(std::numeric_limits<float>::lowest());
         FloatW max = _mm_set1_ps(std::numeric_limits<float>::max());
-        FloatW frequency = _mm_setzero_ps();
-        FloatW dampingRatio = _mm_setzero_ps();
+        FloatW stiffness = _mm_setzero_ps();
+        FloatW damping = _mm_setzero_ps();
         Vec3W linear0t;
         Vec3W linear1t;
         Vec3W angular0t;

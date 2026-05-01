@@ -145,17 +145,15 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
 
             if (!isZero(warmStartMask)) {
                 auto lambda = totalLambda * half;
-                lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
+                totalLambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
 
                 if constexpr (!(flags & ANGULAR)) {
-                    velocity0 += lambda * linear0t;
-                    velocity1 -= lambda * linear1t;
+                    velocity0 += totalLambda * linear0t;
+                    velocity1 -= totalLambda * linear1t;
                 }
 
-                angularVelocity0 += lambda * angular0t;
-                angularVelocity1 -= lambda * angular1t;
-
-                totalLambda = _mm_blendv_ps(totalLambda, lambda, warmStartMask);
+                angularVelocity0 += totalLambda * angular0t;
+                angularVelocity1 -= totalLambda * angular1t;
             }
         }
     }
@@ -177,12 +175,6 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
 
     FloatW lambda;
     if constexpr (flags & SOFT) {
-        const auto two = _mm_set1_ps(2.f);
-        const auto twoPi = _mm_set1_ps(2.f * glm::pi<float>());
-
-        auto angularFreq = twoPi * frequency;
-        auto stiffness = angularFreq * angularFreq * effMass;
-        auto damping = two * angularFreq * dampingRatio * effMass;
         auto gamma = one / (damping + timeStepW * stiffness);
         auto beta = timeStepW * stiffness * gamma;
         lambda = (relativeVelocityW + beta * c / timeStepW) / (invEffMass + gamma / timeStepW);

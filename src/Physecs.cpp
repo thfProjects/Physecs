@@ -236,22 +236,22 @@ void physecs::Scene::simulate(float timeStep) {
             float friction = (col0.material.friction + col1.material.friction) * 0.5f;
 
             bool isSoft;
-            float frequency;
+            float stiffness;
             float damping;
             float restitution;
             if (col0.material.damping || col1.material.damping) {
                 //soft contact
                 isSoft = true;
                 if (col0.material.damping && col1.material.damping) {
-                    frequency = glm::min(col0.material.restitution, col1.material.restitution);
+                    stiffness = glm::min(col0.material.restitution, col1.material.restitution);
                     damping = glm::min(col0.material.damping, col1.material.damping);
                 }
                 else if (col0.material.damping) {
-                    frequency = col0.material.restitution;
+                    stiffness = col0.material.restitution;
                     damping = col0.material.damping;
                 }
                 else if (col1.material.damping) {
-                    frequency = col1.material.restitution;
+                    stiffness = col1.material.restitution;
                     damping = col1.material.damping;
                 }
                 restitution = 0;
@@ -259,7 +259,7 @@ void physecs::Scene::simulate(float timeStep) {
             else {
                 //hard contact
                 isSoft = false;
-                frequency = 0;
+                stiffness = 0;
                 damping = 0;
                 restitution = (col0.material.restitution + col1.material.restitution) * 0.5f;
             }
@@ -275,7 +275,7 @@ void physecs::Scene::simulate(float timeStep) {
                 ContactManifoldData* prevContactData = contactCache.find({ contactPair, collisionResult.triangleIndex }) != contactCache.end() ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
                 ContactManifoldData currContactData{ collisionResult.numPoints, {} };
 
-                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, frequency, damping, collisionResult.numPoints, {}};
+                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, stiffness, damping, collisionResult.numPoints, {}};
 
                 glm::vec3 frictionAnchor0 = glm::vec3(0), frictionAnchor1 = glm::vec3(0);
 

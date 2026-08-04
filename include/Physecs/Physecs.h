@@ -40,6 +40,17 @@ namespace physecs {
         virtual ~OnTriggerExitListener() = default;
     };
 
+    struct ContactPointData {
+        glm::vec3 localPosition0;
+        float targetVelocity;
+        float totalLambda;
+    };
+
+    struct ContactManifoldData {
+        int numPoints;
+        ContactPointData contactPointData[4];
+    };
+
     enum ContactType { COLLISION, TRIGGER };
     PHYSECS_API ContactType defaultContactFilter (bool isTrigger0, int data0, bool isTrigger1, int data1);
 
@@ -123,16 +134,6 @@ namespace physecs {
             std::size_t operator()(const CollisionPair& pair) const {
                 return ContactHash{}(pair.contactPair) << 32 | pair.triangleIndex;
             }
-        };
-
-        struct ContactPointData {
-            glm::vec3 localPosition0;
-            float targetVelocity;
-        };
-
-        struct ContactManifoldData {
-            int numPoints;
-            ContactPointData contactPointData[4];
         };
 
         struct JointGraphColor {

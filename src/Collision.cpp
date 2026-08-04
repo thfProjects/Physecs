@@ -134,7 +134,8 @@ static bool collisionCapsuleCapsule(glm::vec3 pos0, glm::quat or0, float halfHei
 
 static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents0, glm::vec3 pos1, glm::quat or1, glm::vec3 halfExtents1, ContactManifold &result) {
     float edgeOffset = 0.1f;
-    const float edgeLimit = 0.999f;
+    constexpr float edgeLimit = 0.999f;
+    constexpr float epsilon = 1e-4f;
 
     float ra, rb, l, d;
 
@@ -169,7 +170,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
         rb = halfExtents1[0] * absR[i][0] + halfExtents1[1] * absR[i][1] + halfExtents1[2] * absR[i][2];
         l = glm::abs(t[i]);
         d = l - ra - rb;
-        if (d > 0) return false;
+        if (d > epsilon) {
+            return false;
+        }
         if (d > max) {
             max = d;
             contactType = FACE;
@@ -183,7 +186,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
         rb = halfExtents1[i];
         l = glm::abs(t[0] * r[0][i] + t[1] * r[1][i] + t[2] * r[2][i]);
         d = l - ra - rb;
-        if (d > 0) return false;
+        if (d > epsilon) {
+            return false;
+        }
         if (d > max) {
             max = d;
             contactType = FACE;
@@ -196,7 +201,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[1] * absR[0][2] + halfExtents1[2] * absR[0][1];
     l = glm::abs(t[2] * r[1][0] - t[1] * r[2][0]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[0][0] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -209,7 +216,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[0][2] + halfExtents1[2] * absR[0][0];
     l = glm::abs(t[2] * r[1][1] - t[1] * r[2][1]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[0][1] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -222,7 +231,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[0][1] + halfExtents1[1] * absR[0][0];
     l = glm::abs(t[2] * r[1][2] - t[1] * r[2][2]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[0][2] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -235,7 +246,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[1] * absR[1][2] + halfExtents1[2] * absR[1][1];
     l = glm::abs(t[0] * r[2][0] - t[2] * r[0][0]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[1][0] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -248,7 +261,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[1][2] + halfExtents1[2] * absR[1][0];
     l = glm::abs(t[0] * r[2][1] - t[2] * r[0][1]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[1][1] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -261,7 +276,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[1][1] + halfExtents1[1] * absR[1][0];
     l = glm::abs(t[0] * r[2][2] - t[2] * r[0][2]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[1][2] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -274,7 +291,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[1] * absR[2][2] + halfExtents1[2] * absR[2][1];
     l = glm::abs(t[1] * r[0][0] - t[0] * r[1][0]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[2][0] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -287,7 +306,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[2][2] + halfExtents1[2] * absR[2][0];
     l = glm::abs(t[1] * r[0][1] - t[0] * r[1][1]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[2][1] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;
@@ -300,7 +321,9 @@ static bool collisionBoxBox(glm::vec3 pos0, glm::quat or0, glm::vec3 halfExtents
     rb = halfExtents1[0] * absR[2][1] + halfExtents1[1] * absR[2][0];
     l = glm::abs(t[1] * r[0][2] - t[0] * r[1][2]);
     d = l - ra - rb;
-    if (d > 0) return false;
+    if (d > epsilon) {
+        return false;
+    }
     if (absR[2][2] < edgeLimit && d > max + edgeOffset) {
         max = d;
         contactType = EDGE;

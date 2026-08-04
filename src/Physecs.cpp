@@ -97,6 +97,10 @@ physecs::Scene::Scene(entt::registry& registry, int numThreads) : registry(regis
     registry.on_update<TransformComponent>().connect<&Scene::onRigidBodyMove>(this);
     registry.on_construct<RigidBodyDynamicComponent>().connect<&Scene::onDynamicCreate>(this);
     registry.on_destroy<RigidBodyDynamicComponent>().connect<&Scene::onDynamicDelete>(this);
+
+    // constexpr size_t bufferSize = 1024;
+    // char* buffer = new char[bufferSize];
+    // setvbuf(stdout, buffer, _IOFBF, bufferSize);
 }
 
 void physecs::Scene::setNumSubSteps(int numSubSteps) {
@@ -210,7 +214,7 @@ void physecs::Scene::simulate(float timeStep) {
             return;
         }
 
-        if (nonCollidingPairs.count({ entity0, entity1 })) return;
+        if (nonCollidingPairs.contains({ entity0, entity1 })) return;
 
         thread_local std::vector<ContactManifold> contactBuffer;
         contactBuffer.clear();
@@ -272,10 +276,10 @@ void physecs::Scene::simulate(float timeStep) {
 
                 glm::vec3 n = collisionResult.normal;
 
-                ContactManifoldData* prevContactData = contactCache.find({ contactPair, collisionResult.triangleIndex }) != contactCache.end() ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
+                ContactManifoldData* prevContactData = contactCache.contains({ contactPair, collisionResult.triangleIndex }) ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
                 ContactManifoldData currContactData{ collisionResult.numPoints, {} };
 
-                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, b0, b1, n, friction, isSoft, stiffness, damping, collisionResult.numPoints, {}};
+                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, nullptr, b0, b1, n, friction, isSoft, stiffness, damping, collisionResult.numPoints, {}};
 
                 glm::vec3 frictionAnchor0 = glm::vec3(0), frictionAnchor1 = glm::vec3(0);
 
@@ -298,6 +302,7 @@ void physecs::Scene::simulate(float timeStep) {
                     r1 = glm::inverse(transform1.orientation) * r1;
 
                     float targetVelocity;
+                    float totalLambda;
                     bool prevContactFound = false;
                     if (prevContactData) {
                         for (int i = 0; i < prevContactData->numPoints; ++i) {
@@ -305,6 +310,7 @@ void physecs::Scene::simulate(float timeStep) {
                             if (glm::distance(r0, prevContact.localPosition0) < 0.1) {
                                 prevContactFound = true;
                                 targetVelocity = prevContact.targetVelocity;
+                                totalLambda = prevContact.totalLambda;
                                 break;
                             }
                         }
@@ -312,10 +318,11 @@ void physecs::Scene::simulate(float timeStep) {
 
                     if (!prevContactFound) {
                         targetVelocity = -restitution * relNVelocity;
+                        totalLambda = 0.f;
                     }
 
                     currContactData.contactPointData[k] = { r0, targetVelocity };
-                    cc.contactPointConstraints[k] = { r0, r1, glm::vec3(0), glm::vec3(0), targetVelocity, 0, 0 };
+                    cc.contactPointConstraints[k] = { r0, r1, glm::vec3(0), glm::vec3(0), targetVelocity, 0, totalLambda };
 
                     frictionAnchor0 += r0;
                     frictionAnchor1 += r1;
@@ -333,6 +340,7 @@ void physecs::Scene::simulate(float timeStep) {
 
                 std::unique_lock lock(collisionMutex);
                 contactCacheTemp[{ contactPair, collisionResult.triangleIndex }] = currContactData;
+                cc.contactManifoldData = &contactCacheTemp[{ contactPair, collisionResult.triangleIndex }];
                 contactConstraints.push_back(cc);
             }
         }
@@ -428,7 +436,6 @@ void physecs::Scene::simulate(float timeStep) {
                 contactPoint.r0xn = r0xn;
                 contactPoint.r1xn = r1xn;
                 contactPoint.c = cn;
-                contactPoint.totalLambda = 0;
             }
 
             //friction
@@ -451,8 +458,6 @@ void physecs::Scene::simulate(float timeStep) {
             fc.t = t;
             fc.r0xt = r0xt;
             fc.r1xt = r1xt;
-            fc.totalLambda = 0;
-
         }
         PhysecsZoneEnd(ctx1);
 
@@ -501,21 +506,21 @@ void physecs::Scene::simulate(float timeStep) {
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
         for (auto& constraints : contactConstraints) {
-            constraints.preSolve(massTemp.data());
+            constraints.preSolve(massTemp.data(), velocityTemp.data());
         }
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.preSolve(massTemp.data(), pseudoVelocityTemp.data());
+            color.jointConstraints.preSolve(massTemp.data(), velocityTemp.data(), pseudoVelocityTemp.data());
         }
         PhysecsZoneEnd(ctx8);
 
         //constraint solve
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
+            for (auto& color : jointGraph.colors) {
+                color.jointConstraints.solve(velocityTemp.data(), h, true);
+            }
             for (auto& constraints : contactConstraints) {
                 constraints.solve(velocityTemp.data(), true, h);
-            }
-            for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(velocityTemp.data(), h, true, i == 0);
             }
         }
 
@@ -530,11 +535,11 @@ void physecs::Scene::simulate(float timeStep) {
 
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transform.position += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
+            transform.position += h * velocityTemp[i].velocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
+            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
@@ -543,12 +548,14 @@ void physecs::Scene::simulate(float timeStep) {
 
         //relaxation
         PhysecsZoneN(ctx5, "relaxation", true);
-        for (auto& constraints : contactConstraints) {
-            if (constraints.isSoft) continue;
-            constraints.solve(velocityTemp.data(), false);
-        }
-        for (auto& color : jointGraph.colors) {
-            color.jointConstraints.solve(velocityTemp.data(), h, false);
+        for (int i = 0; i < 10; ++i) {
+            for (auto& color : jointGraph.colors) {
+                color.jointConstraints.solve(velocityTemp.data(), h, false);
+            }
+            for (auto& constraints : contactConstraints) {
+                if (constraints.isSoft) continue;
+                constraints.solve(velocityTemp.data(), false);
+            }
         }
         PhysecsZoneEnd(ctx5);
 
@@ -563,23 +570,39 @@ void physecs::Scene::simulate(float timeStep) {
         }
     }
 
+    for (auto& contacts : contactConstraints) {
+        float totalForce = 0.f;
+        for (int i = 0; i < contacts.numPoints; ++i) {
+            totalForce += contacts.contactPointConstraints[i].totalLambda;
+        }
+        totalForce /= h;
+        totalForce *= 0.1f;
+        glm::vec3 start = contacts.transform0.position + contacts.transform0.orientation * contacts.frictionConstraints.r0;
+        debugDrawContext.addLine(start, start - contacts.n * totalForce, Color::RED);
+    }
+
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms_double = t2 - t1;
     //printf("%f\n", ms_double.count());
 
     //cache triggers and contacts
     for (const auto& pair : triggerCacheTemp) {
-        if (triggerCache.find(pair) == triggerCache.end()) {
+        if (!triggerCache.contains(pair)) {
             for (auto callback : onTriggerEnterCallbacks) {
                 callback->onTriggerEnter(pair.entity0, pair.colliderIndex0, pair.entity1, pair.colliderIndex1);
             }
         }
     }
     for (const auto& pair : triggerCache) {
-        if (triggerCacheTemp.find(pair) == triggerCacheTemp.end()) {
+        if (!triggerCacheTemp.contains(pair)) {
             for (auto callback : onTriggerExitCallbacks) {
                 callback->onTriggerExit(pair.entity0, pair.colliderIndex0, pair.entity1, pair.colliderIndex1);
             }
+        }
+    }
+    for (auto& contacts : contactConstraints) {
+        for (int i = 0; i < contacts.numPoints; ++i) {
+            contacts.contactManifoldData->contactPointData[i].totalLambda = contacts.contactPointConstraints[i].totalLambda;
         }
     }
     triggerCache.swap(triggerCacheTemp);

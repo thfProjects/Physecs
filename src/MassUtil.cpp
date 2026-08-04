@@ -20,7 +20,7 @@ glm::mat3 physecs::getInertiaCapsule(float mass, float halfHeight, float radius)
 }
 
 glm::mat3 physecs::getInertiaBox(float mass, glm::vec3 halfExtents) {
-    float m = mass / 12.f;
+    float m = mass / 3.f;
     float x = halfExtents.x * halfExtents.x;
     float y = halfExtents.y * halfExtents.y;
     float z = halfExtents.z * halfExtents.z;
@@ -89,7 +89,7 @@ void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &c
             }
             break;
             case BOX: {
-                float volume = collider.geometry.box.halfExtents.x * collider.geometry.box.halfExtents.y * collider.geometry.box.halfExtents.z;
+                float volume = 8.f * collider.geometry.box.halfExtents.x * collider.geometry.box.halfExtents.y * collider.geometry.box.halfExtents.z;
                 com += collider.position * volume;
                 totalVolume += volume;
             }
@@ -146,7 +146,7 @@ void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &c
             }
             break;
             case BOX: {
-                float volume = collider.geometry.box.halfExtents.x * collider.geometry.box.halfExtents.y * collider.geometry.box.halfExtents.z;
+                float volume = 8.f * collider.geometry.box.halfExtents.x * collider.geometry.box.halfExtents.y * collider.geometry.box.halfExtents.z;
                 float m = mass * volume / totalVolume;
                 glm::mat3 localInertiaTensor = getInertiaBox(m, collider.geometry.box.halfExtents);
                 glm::mat3 rot = glm::toMat3(collider.orientation);
@@ -162,12 +162,13 @@ void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &c
                     center += convex.scale * vertex;
                 }
                 center /= convex.mesh->vertices.size();
+                center = collider.orientation * center;
 
                 for (auto& face : convex.mesh->faces) {
-                    glm::vec3 v0 = convex.scale * convex.mesh->vertices[face.indices[0]];
+                    glm::vec3 v0 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[0]]);
                     for (int i = 1; i < face.indices.size() - 1; i++) {
-                        glm::vec3 v1 = convex.scale * convex.mesh->vertices[face.indices[i]];
-                        glm::vec3 v2 = convex.scale * convex.mesh->vertices[face.indices[i + 1]];
+                        glm::vec3 v1 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[i]]);
+                        glm::vec3 v2 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[i + 1]]);
 
                         float volume = glm::abs(glm::dot(glm::cross(v0 - center, v1 - center), v2 - center)) / 6.f;
                         float m = mass * volume / totalVolume;

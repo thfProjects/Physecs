@@ -3,7 +3,7 @@
 #include "SolverData.h"
 
 template<int flags>
-void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, PseudoVelocityData *pseudoVelocities) {
+void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
     Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
@@ -68,6 +68,65 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, PseudoVeloc
 
     if constexpr (flags & SOFT) return;
 
+    // warm start
+    {
+        const auto half = _mm_set1_ps(0.5f);
+
+        const auto cMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
+        const auto totalLambdaMask = _mm_cmplt_ps(_mm_abs_ps(totalLambda), _mm_set1_ps(10000.f));
+
+        const auto warmStartMask = _mm_and_ps(cMask, totalLambdaMask);
+
+        totalLambda = _mm_blendv_ps(_mm_setzero_ps(), totalLambda * half, warmStartMask);
+
+        if (!isZero(warmStartMask)) {
+            Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
+            for (int i = 0; i < 4; ++i) {
+                const int b0 = bodies0[i];
+                const int b1 = bodies1[i];
+
+                if (b0 >= 0) {
+                    if constexpr (!(flags & ANGULAR))
+                        velocity0.set(velocities[b0].velocity, i);
+                    angularVelocity0.set(velocities[b0].angularVelocity, i);
+                }
+
+                if (b1 >= 0) {
+                    if constexpr (!(flags & ANGULAR))
+                        velocity1.set(velocities[b1].velocity, i);
+                    angularVelocity1.set(velocities[b1].angularVelocity, i);
+                }
+            }
+
+            if constexpr (!(flags & ANGULAR)) {
+                velocity0 += totalLambda * linear0t;
+                velocity1 -= totalLambda * linear1t;
+            }
+
+            angularVelocity0 += totalLambda * angular0t;
+            angularVelocity1 -= totalLambda * angular1t;
+
+            for (int i = 0; i < 4; ++i) {
+                if (!warmStartMask.m128_i32[i]) continue;
+
+                const int b0 = bodies0[i];
+                const int b1 = bodies1[i];
+
+                if (b0 >= 0) {
+                    if constexpr (!(flags & ANGULAR))
+                        velocity0.get(velocities[b0].velocity, i);
+                    angularVelocity0.get(velocities[b0].angularVelocity, i);
+                }
+
+                if (b1 >= 0) {
+                    if constexpr (!(flags & ANGULAR))
+                        velocity1.get(velocities[b1].velocity, i);
+                    angularVelocity1.get(velocities[b1].angularVelocity, i);
+                }
+            }
+        }
+    }
+
     const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
     const auto cMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
@@ -115,7 +174,7 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, PseudoVeloc
 }
 
 template<int flags>
-void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart) {
+void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     for (int i = 0; i < 4; ++i) {
         const int b0 = bodies0[i];
@@ -131,30 +190,6 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
             if constexpr (!(flags & ANGULAR))
                 velocity1.set(velocities[b1].velocity, i);
             angularVelocity1.set(velocities[b1].angularVelocity, i);
-        }
-    }
-
-    if constexpr (!(flags & SOFT)) {
-        if (warmStart) {
-            const auto half = _mm_set1_ps(0.5f);
-
-            auto cMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
-            const auto totalLambdaMask = _mm_cmplt_ps(_mm_abs_ps(totalLambda), _mm_set1_ps(10000.f));
-
-            const auto warmStartMask = _mm_and_ps(cMask, totalLambdaMask);
-
-            if (!isZero(warmStartMask)) {
-                auto lambda = totalLambda * half;
-                totalLambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, warmStartMask);
-
-                if constexpr (!(flags & ANGULAR)) {
-                    velocity0 += totalLambda * linear0t;
-                    velocity1 -= totalLambda * linear1t;
-                }
-
-                angularVelocity0 += totalLambda * angular0t;
-                angularVelocity1 -= totalLambda * angular1t;
-            }
         }
     }
 

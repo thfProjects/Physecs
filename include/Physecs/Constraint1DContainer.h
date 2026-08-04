@@ -124,8 +124,8 @@ namespace physecs {
         friend class Constraint1DWriter;
 
     public:
-        void preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool useBias = false, bool warmStart = false);
+        void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
+        void solve(VelocityData* velocities, float timeStep, bool useBias = false);
         void clear();
 
         void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }

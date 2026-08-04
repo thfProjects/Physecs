@@ -28,8 +28,8 @@ namespace physecs {
         FloatW invEffMass = _mm_setzero_ps();
         FloatW totalLambda = _mm_setzero_ps();
 
-        void preSolve(const MassData* masses, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart);
+        void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
+        void solve(VelocityData* velocities, float timeStep, bool useBias);
     };
 }
 

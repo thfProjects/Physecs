@@ -1,17 +1,23 @@
 #include "ContactConstraints.h"
 #include <SolverData.h>
 
-void physecs::ContactConstraints::preSolve(const MassData* masses) {
+void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData* velocities) {
+    glm::vec3 velocity0(0), angularVelocity0(0);
     float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
     if (b0 >= 0) {
+        velocity0 = velocities[b0].velocity;
+        angularVelocity0 = velocities[b0].angularVelocity;
         invMass0 = masses[b0].invMass;
         invInertiaTensor0 = masses[b0].invInertiaTensor;
     }
 
+    glm::vec3 velocity1(0), angularVelocity1(0);
     float invMass1 = 0;
     glm::mat3 invInertiaTensor1(0);
     if (b1 >= 0) {
+        velocity1 = velocities[b1].velocity;
+        angularVelocity1 = velocities[b1].angularVelocity;
         invMass1 = masses[b1].invMass;
         invInertiaTensor1 = masses[b1].invInertiaTensor;
     }
@@ -24,6 +30,13 @@ void physecs::ContactConstraints::preSolve(const MassData* masses) {
         r1xnt = invInertiaTensor1 * r1xn;
 
         invEffMassN = glm::dot(n, n) * (invMass0 + invMass1) + glm::dot(r0xn, r0xnt) + glm::dot(r1xn, r1xnt);
+
+        totalLambdaN *= 0.5f;
+        velocity0 += totalLambdaN * invMass0 * n;
+        angularVelocity0 += totalLambdaN * r0xnt;
+
+        velocity1 -= totalLambdaN * invMass1 * n;
+        angularVelocity1 -= totalLambdaN * r1xnt;
     }
 
     // friction
@@ -38,6 +51,25 @@ void physecs::ContactConstraints::preSolve(const MassData* masses) {
     n1t = invInertiaTensor1 * n;
 
     invEffMassTwist = glm::dot(n, n0t + n1t);
+
+    velocity0 += totalLambdaT * invMass0 * t;
+    angularVelocity0 += totalLambdaT * r0xtt;
+
+    velocity1 -= totalLambdaT * invMass1 * t;
+    angularVelocity1 -= totalLambdaT * r1xtt;
+
+    angularVelocity0 += totalLambdaTwist * n0t;
+    angularVelocity1 -= totalLambdaTwist * n1t;
+
+    if (b0 >= 0) {
+        velocities[b0].velocity = velocity0;
+        velocities[b0].angularVelocity = angularVelocity0;
+    }
+
+    if (b1 >= 0) {
+        velocities[b1].velocity = velocity1;
+        velocities[b1].angularVelocity = angularVelocity1;
+    }
 }
 
 void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, float timeStep) {
@@ -121,7 +153,7 @@ void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, 
 
             float lambda = relativeVelocity / invEffMassTwist;
 
-            float frictionLimit = friction * rEffTimesN;
+            float frictionLimit = 0.5f * friction * rEffTimesN;
             float prevLambda = totalLambdaTwist;
             totalLambdaTwist += lambda;
             totalLambdaTwist = glm::clamp(totalLambdaTwist, frictionLimit, -frictionLimit);

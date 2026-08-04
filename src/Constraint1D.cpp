@@ -3,7 +3,7 @@
 #include <glm/ext/scalar_constants.hpp>
 
 template<int flags>
-void physecs::Constraint1D<flags>::preSolve(const MassData* masses, PseudoVelocityData *pseudoVelocities) {
+void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
     float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
     if (b0 >= 0) {
@@ -30,6 +30,26 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses, PseudoVeloci
 
     if constexpr (flags & SOFT) return;
 
+    // warm start
+    if (glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) {
+        totalLambda = 0.f;
+    }
+    else {
+        totalLambda = totalLambda * 0.5f;
+
+        if (b0 >= 0) {
+            if constexpr (!(flags & ANGULAR))
+                velocities[b0].velocity += totalLambda * linear0t;
+            velocities[b0].angularVelocity += totalLambda * angular0t;
+        }
+
+        if (b1 >= 0) {
+            if constexpr (!(flags & ANGULAR))
+                velocities[b1].velocity -= totalLambda * linear1t;
+            velocities[b1].angularVelocity -= totalLambda * angular1t;
+        }
+    }
+
     if (!c || !invEffMass) return;
 
     float lambda = c / invEffMass;
@@ -52,7 +72,7 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses, PseudoVeloci
 }
 
 template<int flags>
-void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias, bool warmStart) {
+void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
     if (!invEffMass) return;
 
     glm::vec3 velocity0(0), angularVelocity0(0);
@@ -67,26 +87,6 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
         if constexpr (!(flags & ANGULAR))
             velocity1 = velocities[b1].velocity;
         angularVelocity1 = velocities[b1].angularVelocity;
-    }
-
-    if constexpr (!(flags & SOFT)) {
-        if (warmStart && !(glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000)) {
-            totalLambda = totalLambda * 0.5f;
-            if (b0 >= 0) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity0 += totalLambda * linear0t;
-                angularVelocity0 += totalLambda * angular0t;
-            }
-
-            if (b1 >= 0) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity1 -= totalLambda * linear1t;
-                angularVelocity1 -= totalLambda * angular1t;
-            }
-        }
-        else {
-            totalLambda = 0.f;
-        }
     }
 
     float relativeVelocity = glm::dot(angular1, angularVelocity1) - glm::dot(angular0, angularVelocity0);
@@ -106,7 +106,7 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
     if constexpr (flags & LIMITED) {
         float prevLambda = totalLambda;
         totalLambda += lambda;
-        totalLambda = glm::clamp(totalLambda, min, max);
+        totalLambda = glm::clamp(totalLambda, min * timeStep, max * timeStep);
         lambda = totalLambda - prevLambda;
     }
     else {

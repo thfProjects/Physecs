@@ -9,25 +9,39 @@ static float angleDiff(float angle0, float angle1) {
 
 void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [gearRatio, persistentAngle0, persistentAngle1, virtualAngle0, virtualAngle1, isInitialized] = *static_cast<GearJointData*>(additionalData);
+    auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointData*>(additionalData);
 
-    float angle0, angle1;
-    {
-        const glm::vec3 p1Proj = p1 + glm::dot(p0 - p1, u0[0]) * u0[0];
-        const glm::vec3 dir = glm::normalize(p0 - p1Proj);
-        const glm::vec3 n = glm::cross(u0[0], dir);
-        const glm::mat3 m(u0[0], -n, dir);
-        const glm::mat3 u0t = glm::transpose(m) * u0;
-        angle0 = glm::atan(u0t[1][2], u0t[2][2]);
-    }
-    {
-        const glm::vec3 p0Proj = p0 + glm::dot(p1 - p0, u1[0]) * u1[0];
-        const glm::vec3 dir = glm::normalize(p0Proj - p1);
-        const glm::vec3 n = glm::cross(u1[0], dir);
-        const glm::mat3 m(u1[0], -n, dir);
-        const glm::mat3 u1t = glm::transpose(u1) * m;
-        angle1 = glm::atan(u1t[1][2], u1t[2][2]);
-    }
+    constexpr float epsilon = 1e-4f;
+
+    auto inert = [&] {
+        isInitialized = false;
+        constraints.next<>()
+        .setLinear(glm::vec3(0))
+        .setAngular0(glm::vec3(0))
+        .setAngular1(glm::vec3(0))
+        .setC(0);
+    };
+
+    glm::vec3 d = p1 - p0;
+    glm::vec3 k = u0[0] + gearRatio * u1[0]; // line along which gears touch
+    glm::vec3 q = gearRatio * (glm::dot(k, d) * u1[0] + glm::dot(k, u1[0]) * d) / length2(k) + p0; // point on k closest to p0
+    float s0 = glm::dot(p0 - q, u0[0]) / glm::dot(k, u0[0]); // scalar such that q + s0 * k - p0 is orthogonal to the axis of gear 0
+    float s1 = glm::dot(p1 - q, u1[0]) / glm::dot(k, u1[0]); // scalar such that q + s1 * k - p1 is orthogonal to the axis of gear 1
+    float s = 0.5f * (s0 + s1);
+    glm::vec3 meshPoint = q + s * k;
+
+    glm::vec3 arm0 = meshPoint - p0;
+    glm::vec3 arm1 = meshPoint - p1;
+
+    const glm::vec3 tRaw = glm::cross(u0[0], arm0);
+    const float rho0 = glm::length(tRaw); // pitch radius
+    if (rho0 < epsilon) { inert(); return; }
+    const glm::vec3 t = tRaw / rho0;
+    const float rho1 = glm::dot(t, glm::cross(u1[0], arm1));
+    if (glm::abs(rho1) < epsilon) { inert(); return; }
+
+    const float angle0 = glm::atan(glm::dot(u0[2], arm0), glm::dot(u0[1], arm0));
+    const float angle1 = glm::atan(glm::dot(u1[2], arm1), glm::dot(u1[1], arm1));
 
     if (!isInitialized) {
         persistentAngle0 = angle0;
@@ -37,16 +51,17 @@ void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, vo
 
     const float travelThisFrame0 = angleDiff(angle0, persistentAngle0);
     const float travelThisFrame1 = angleDiff(angle1, persistentAngle1);
-    virtualAngle0 += travelThisFrame0;
-    virtualAngle1 += travelThisFrame1;
 
     persistentAngle0 = angle0;
     persistentAngle1 = angle1;
 
-    constraints.next<ANGULAR>()
-    .setAngular0(u0[0] * gearRatio)
-    .setAngular1(-u1[0])
-    .setC(virtualAngle0 * gearRatio - virtualAngle1);
+    slip += travelThisFrame1 * rho1 - travelThisFrame0 * rho0;
+
+    constraints.next<>()
+    .setLinear(t)
+    .setAngular0(glm::cross(r0 + arm0, t))
+    .setAngular1(glm::cross(r1 + arm1, t))
+    .setC(slip);
 }
 
 void physecs::GearJoint::setGearRatio(float gearRatio) {
@@ -54,7 +69,7 @@ void physecs::GearJoint::setGearRatio(float gearRatio) {
 }
 
 physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<ANGULAR>();
+    constraintLayout.createConstraints<NONE>();
     return {
         &data,
         makeConstraints

@@ -1,6 +1,5 @@
 #include "Constraint1D.h"
 #include "SolverData.h"
-#include <glm/ext/scalar_constants.hpp>
 
 template<int flags>
 void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
@@ -100,7 +99,7 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
         float beta = timeStep * stiffness / (damping + timeStep * stiffness);
         lambda = (relativeVelocity + beta * c / timeStep) / (invEffMass + gamma / timeStep);
     } else {
-        lambda = (relativeVelocity - targetVelocity + (useBias ? 0.5f : 0.f) * c / timeStep) / invEffMass;
+        lambda = (relativeVelocity - targetVelocity + (useBias ? baumgarteBias : 0.f) * c / timeStep) / invEffMass;
     }
 
     if constexpr (flags & LIMITED) {

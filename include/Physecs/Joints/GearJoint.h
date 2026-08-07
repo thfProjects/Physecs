@@ -8,8 +8,7 @@ namespace physecs {
             float gearRatio = 1;
             float persistentAngle0 = 0;
             float persistentAngle1 = 0;
-            float virtualAngle0 = 0;
-            float virtualAngle1 = 0;
+            float slip = 0;
             bool isInitialized = false;
         };
 

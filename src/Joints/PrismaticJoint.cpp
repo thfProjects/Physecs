@@ -9,9 +9,12 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
 
     glm::vec3 d = p1 - p0;
 
+    // prevents creating net torque on body pair, forces must be applied on same point
+    const glm::vec3 a0 = r0 + d;
+
     //translation
     const float dy = glm::dot(d, u0[1]);
-    const glm::vec3 r0xy = glm::cross(r0, u0[1]);
+    const glm::vec3 r0xy = glm::cross(a0, u0[1]);
     const glm::vec3 r1xy = glm::cross(r1, u0[1]);
 
     constraints.next()
@@ -21,7 +24,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setC(dy);
 
     const float dz = glm::dot(d, u0[2]);
-    const glm::vec3 r0xz = glm::cross(r0, u0[2]);
+    const glm::vec3 r0xz = glm::cross(a0, u0[2]);
     const glm::vec3 r1xz = glm::cross(r1, u0[2]);
 
     constraints.next()
@@ -56,7 +59,7 @@ void physecs::PrismaticJoint::makeConstraints(JointWorldSpaceData &worldSpaceDat
     .setC(d12);
 
     const float dx = glm::dot(d, u0[0]);
-    const glm::vec3 r0xx = glm::cross(r0, u0[0]);
+    const glm::vec3 r0xx = glm::cross(a0, u0[0]);
     const glm::vec3 r1xx = glm::cross(r1, u0[0]);
 
     //limits

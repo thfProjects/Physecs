@@ -202,7 +202,7 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
     }
 
     const auto one = _mm_set1_ps(1.f);
-    const auto biasFactor = _mm_set1_ps((useBias ? 0.5f : 0.f) / timeStep);
+    const auto biasFactor = _mm_set1_ps((useBias ? baumgarteBias : 0.f) / timeStep);
 
     const auto effMass = one / invEffMass;
 

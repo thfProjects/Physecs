@@ -548,14 +548,12 @@ void physecs::Scene::simulate(float timeStep) {
 
         //relaxation
         PhysecsZoneN(ctx5, "relaxation", true);
-        for (int i = 0; i < 10; ++i) {
-            for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(velocityTemp.data(), h, false);
-            }
-            for (auto& constraints : contactConstraints) {
-                if (constraints.isSoft) continue;
-                constraints.solve(velocityTemp.data(), false);
-            }
+        for (auto& color : jointGraph.colors) {
+            color.jointConstraints.solve(velocityTemp.data(), h, false);
+        }
+        for (auto& constraints : contactConstraints) {
+            if (constraints.isSoft) continue;
+            constraints.solve(velocityTemp.data(), false);
         }
         PhysecsZoneEnd(ctx5);
 

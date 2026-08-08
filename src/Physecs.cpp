@@ -24,7 +24,7 @@ physecs::ContactType physecs::defaultContactFilter(bool isTrigger0, int data0, b
     return COLLISION;
 }
 
-void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity entity) {
+void physecs::Scene::onRigidBodyCreate(const entt::registry& registry, entt::entity entity) {
     auto& transform = registry.get<TransformComponent>(entity);
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
     auto dynamic = registry.try_get<RigidBodyDynamicComponent>(entity);
@@ -38,7 +38,7 @@ void physecs::Scene::onRigidBodyCreate(entt::registry& registry, entt::entity en
     }
 }
 
-void physecs::Scene::onRigidBodyDelete(entt::registry& registry, entt::entity entity) {
+void physecs::Scene::onRigidBodyDelete(const entt::registry& registry, entt::entity entity) {
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
     for (int i = 0; i < col.colliders.size(); ++i) {
         int broadPhaseId = colToBroadPhaseEntry[{ entity, i }];
@@ -50,12 +50,12 @@ void physecs::Scene::onRigidBodyDelete(entt::registry& registry, entt::entity en
     }
 }
 
-void physecs::Scene::onRigidBodyMove(entt::registry& registry, entt::entity entity) {
+void physecs::Scene::onRigidBodyMove(const entt::registry& registry, entt::entity entity) {
     if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
     updateBounds(entity);
 }
 
-void physecs::Scene::onDynamicCreate(entt::registry &registry, entt::entity entity) {
+void physecs::Scene::onDynamicCreate(const entt::registry &registry, entt::entity entity) {
     if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
 
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
@@ -67,7 +67,7 @@ void physecs::Scene::onDynamicCreate(entt::registry &registry, entt::entity enti
     }
 }
 
-void physecs::Scene::onDynamicDelete(entt::registry &registry, entt::entity entity) {
+void physecs::Scene::onDynamicDelete(const entt::registry &registry, entt::entity entity) {
     if (!registry.any_of<RigidBodyCollisionComponent>(entity)) return;
 
     auto& col = registry.get<RigidBodyCollisionComponent>(entity);
@@ -97,10 +97,6 @@ physecs::Scene::Scene(entt::registry& registry, int numThreads) : registry(regis
     registry.on_update<TransformComponent>().connect<&Scene::onRigidBodyMove>(this);
     registry.on_construct<RigidBodyDynamicComponent>().connect<&Scene::onDynamicCreate>(this);
     registry.on_destroy<RigidBodyDynamicComponent>().connect<&Scene::onDynamicDelete>(this);
-
-    // constexpr size_t bufferSize = 1024;
-    // char* buffer = new char[bufferSize];
-    // setvbuf(stdout, buffer, _IOFBF, bufferSize);
 }
 
 void physecs::Scene::setNumSubSteps(int numSubSteps) {
@@ -388,8 +384,6 @@ void physecs::Scene::simulate(float timeStep) {
     pseudoVelocityTemp.resize(entities.size());
     massTemp.resize(entities.size());
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-
     float h = timeStep / numSubSteps;
     for (int m = 0; m < numSubSteps; ++m) {
 
@@ -513,7 +507,7 @@ void physecs::Scene::simulate(float timeStep) {
         }
         PhysecsZoneEnd(ctx8);
 
-        //constraint solve
+        // solve
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
             for (auto& color : jointGraph.colors) {
@@ -535,11 +529,11 @@ void physecs::Scene::simulate(float timeStep) {
 
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transform.position += h * velocityTemp[i].velocity;
+            transform.position += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
 
             glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
 
-            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity)) * transform.orientation;
+            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
             transform.orientation = glm::normalize(transform.orientation);
 
             transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
@@ -568,6 +562,7 @@ void physecs::Scene::simulate(float timeStep) {
         }
     }
 
+#ifdef DEBUG_CONTACT_FORCES
     for (auto& contacts : contactConstraints) {
         float totalForce = 0.f;
         for (int i = 0; i < contacts.numPoints; ++i) {
@@ -578,10 +573,7 @@ void physecs::Scene::simulate(float timeStep) {
         glm::vec3 start = contacts.transform0.position + contacts.transform0.orientation * contacts.frictionConstraints.r0;
         debugDrawContext.addLine(start, start - contacts.n * totalForce, Color::RED);
     }
-
-    auto t2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> ms_double = t2 - t1;
-    //printf("%f\n", ms_double.count());
+#endif
 
     //cache triggers and contacts
     for (const auto& pair : triggerCacheTemp) {
@@ -622,7 +614,7 @@ void physecs::Scene::updateBVH() {
     }
 }
 
-entt::entity physecs::Scene::raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance) {
+entt::entity physecs::Scene::raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance) const {
     const auto& node = bvh.getNodes()[nodeId];
     auto& bounds = node.bounds;
     if (intersectRayAABB(rayOrig, rayDir, bounds.min, bounds.max, distance)) {
@@ -679,7 +671,7 @@ entt::entity physecs::Scene::raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir,
     return entity;
 }
 
-void physecs::Scene::overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, int filter, std::vector<OverlapHit>& out) {
+void physecs::Scene::overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, const Bounds &bounds, int nodeId, int filter, std::vector<OverlapHit>& out) const {
     const auto& node = bvh.getNodes()[nodeId];
     if (intersects(bounds, node.bounds)) {
         if (node.isLeaf) {
@@ -696,7 +688,7 @@ void physecs::Scene::overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geome
     }
 }
 
-std::vector<physecs::OverlapHit> physecs::Scene::overlap(glm::vec3 pos, glm::quat ori, Geometry geometry, int filter) {
+std::vector<physecs::OverlapHit> physecs::Scene::overlap(glm::vec3 pos, glm::quat ori, const Geometry &geometry, int filter) {
     updateBVH();
     auto bounds = getBounds(pos, ori, geometry);
     std::vector<OverlapHit> out;
@@ -704,7 +696,7 @@ std::vector<physecs::OverlapHit> physecs::Scene::overlap(glm::vec3 pos, glm::qua
     return out;
 }
 
-void physecs::Scene::overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out) {
+void physecs::Scene::overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out) const {
     const auto& node = bvh.getNodes()[nodeId];
     if (intersects(bounds, node.bounds)) {
         if (node.isLeaf) {
@@ -733,7 +725,7 @@ void physecs::Scene::overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry ge
     }
 }
 
-std::vector<physecs::OverlapMtdHit> physecs::Scene::overlapWithMinTranslationalDistance(glm::vec3 pos, glm::quat ori, Geometry geometry) {
+std::vector<physecs::OverlapMtdHit> physecs::Scene::overlapWithMinTranslationalDistance(glm::vec3 pos, glm::quat ori, const Geometry &geometry) {
     updateBVH();
     auto bounds = getBounds(pos, ori, geometry);
     std::vector<OverlapMtdHit> out;
@@ -765,7 +757,7 @@ void physecs::Scene::addJoint(Joint *joint) {
 
 void physecs::Scene::destroyJoint(Joint *joint) {
     auto& joints = jointGraph.colors[joint->getColor()].joints;
-    const auto iter = std::find(joints.begin(), joints.end(), joint);
+    const auto iter = std::ranges::find(joints, joint);
     if (iter == joints.end()) return;
     joints.erase(iter);
     const auto entity0 = joint->getEntity0();
@@ -832,11 +824,11 @@ void physecs::Scene::addOnTriggerExitCallback(OnTriggerExitListener* callback) {
 }
 
 void physecs::Scene::removeOnTriggerEnterCallback(OnTriggerEnterListener *callback) {
-    onTriggerEnterCallbacks.erase(std::find(onTriggerEnterCallbacks.begin(), onTriggerEnterCallbacks.end(), callback));
+    onTriggerEnterCallbacks.erase(std::ranges::find(onTriggerEnterCallbacks, callback));
 }
 
 void physecs::Scene::removeOnTriggerExitCallback(OnTriggerExitListener *callback) {
-    onTriggerExitCallbacks.erase(std::find(onTriggerExitCallbacks.begin(), onTriggerExitCallbacks.end(), callback));
+    onTriggerExitCallbacks.erase(std::ranges::find(onTriggerExitCallbacks, callback));
 }
 
 void physecs::Scene::setCanCollide(entt::entity entity0, entt::entity entity1, bool canCollide) {
@@ -850,24 +842,24 @@ void physecs::Scene::setContactFilter(ContactType(*filter)(bool, int, bool, int)
     contactFilter = filter;
 }
 
-entt::registry & physecs::Scene::getRegistry() {
+entt::registry & physecs::Scene::getRegistry() const {
     return registry;
 }
 
-const std::vector<glm::vec3> & physecs::Scene::getContactPoints() {
-    return contactPoints;
-}
-
-const physecs::DebugDrawContext & physecs::Scene::getDebugDrawContext() {
-    return debugDrawContext;
-}
-
-const std::vector<physecs::BVHNode> & physecs::Scene::getBVH() {
+const std::vector<physecs::BVHNode> & physecs::Scene::getBVH() const {
     return bvh.getNodes();
 }
 
-const int physecs::Scene::getBHVRootId() {
+int physecs::Scene::getBHVRootId() const {
     return bvh.getRootId();
+}
+
+const std::vector<glm::vec3> & physecs::Scene::getContactPoints() const {
+    return contactPoints;
+}
+
+const physecs::DebugDrawContext & physecs::Scene::getDebugDrawContext() const {
+    return debugDrawContext;
 }
 
 physecs::Scene::~Scene() {

@@ -3,47 +3,42 @@
 #include "Constraint1DW.cpp"
 #include "SIMD.h"
 
+namespace {
+    template<typename Collection, typename F>
+    void forEachList(Collection& collection, F&& f) {
+        std::visit([&f](auto& constraintsCollection) {
+            std::apply([&f](auto&... constraintsLists) {
+                (f(constraintsLists), ...);
+            }, constraintsCollection.constraints);
+        }, collection);
+    }
+
+    template<typename Collection, typename F>
+    void forEachConstraint(Collection& collection, F&& f) {
+        forEachList(collection, [&f](auto& constraintsList) {
+            for (auto& constraint : constraintsList.constraints) {
+                f(constraint);
+            }
+        });
+    }
+}
+
 void physecs::Constraint1DContainer::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
-    std::visit([masses, velocities, pseudoVelocities](auto& constraintsCollection) {
-        std::apply([&](auto&... constraintsLists) {
-            (
-                [&] {
-                    for (auto& constraint : constraintsLists.constraints) {
-                        constraint.preSolve(masses, velocities, pseudoVelocities);
-                    }
-                }(),
-                ...
-            );
-        }, constraintsCollection.constraints);
-    }, constraintCollection);
+    forEachConstraint(constraintCollection, [=](auto& constraint) {
+        constraint.preSolve(masses, velocities, pseudoVelocities);
+    });
 }
 
 void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool useBias) {
-    std::visit([velocities, timeStep, useBias](auto& constraintsCollection) {
-        std::apply([&](auto&... constraintsLists) {
-            (
-                [&] {
-                    for (auto& constraint : constraintsLists.constraints) {
-                        constraint.solve(velocities, timeStep, useBias);
-                    }
-                }(),
-                ...
-            );
-        }, constraintsCollection.constraints);
-    }, constraintCollection);
+    forEachConstraint(constraintCollection, [=](auto& constraint) {
+        constraint.solve(velocities, timeStep, useBias);
+    });
 }
 
 void physecs::Constraint1DContainer::clear() {
-    std::visit([](auto& constraintsCollection) {
-        std::apply([](auto&... constraintsList) {
-            (
-                [&] {
-                    constraintsList.constraints.clear();
-                    constraintsList.lanes = _mm_setzero_si128();
-                }(),
-                ...
-            );
-        }, constraintsCollection.constraints);
-    }, constraintCollection);
+    forEachList(constraintCollection, [](auto& constraintsList) {
+        constraintsList.constraints.clear();
+        constraintsList.lanes = _mm_setzero_si128();
+    });
     constraintRefs.clear();
 }

@@ -18,5 +18,5 @@ namespace physecs {
         glm::mat3 invInertiaTensor;
     };
 
-    constexpr float baumgarteBias = 0.3f;
+    constexpr float baumgarteBias = 0.2f;
 }

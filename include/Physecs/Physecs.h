@@ -183,20 +183,20 @@ namespace physecs {
         std::vector<PseudoVelocityData> pseudoVelocityTemp;
         std::vector<MassData> massTemp;
 
-        void onRigidBodyCreate(entt::registry& registry, entt::entity entity);
-        void onRigidBodyDelete(entt::registry& registry, entt::entity entity);
-        void onRigidBodyMove(entt::registry& registry, entt::entity entity);
-        void onDynamicCreate(entt::registry& registry, entt::entity entity);
-        void onDynamicDelete(entt::registry& registry, entt::entity entity);
+        void onRigidBodyCreate(const entt::registry& registry, entt::entity entity);
+        void onRigidBodyDelete(const entt::registry& registry, entt::entity entity);
+        void onRigidBodyMove(const entt::registry& registry, entt::entity entity);
+        void onDynamicCreate(const entt::registry& registry, entt::entity entity);
+        void onDynamicDelete(const entt::registry& registry, entt::entity entity);
 
         void updateBounds(entt::entity entity);
         void updateBVH();
 
         PHYSECS_API void addJoint(Joint* joint);
 
-        entt::entity raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance);
-        void overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, int filter, std::vector<OverlapHit>& out);
-        void overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out);
+        entt::entity raycastClosestBVHNode(glm::vec3 rayOrig, glm::vec3 rayDir, int nodeId, float maxDistance, const std::function<bool(entt::entity)>& filter, float& distance) const;
+        void overlapBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, const Bounds &bounds, int nodeId, int filter, std::vector<OverlapHit>& out) const;
+        void overlapMtdBVHNode(glm::vec3 pos, glm::quat ori, Geometry geometry, Bounds bounds, int nodeId, std::vector<OverlapMtdHit>& out) const;
 
     public:
         PHYSECS_API Scene (entt::registry& registry, int numThreads);
@@ -207,8 +207,8 @@ namespace physecs {
         PHYSECS_API void simulate(float timeStep);
         PHYSECS_API entt::entity raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir, float maxDistance, glm::vec3* hitPos = nullptr);
         PHYSECS_API entt::entity raycastClosest(glm::vec3 rayOrig, glm::vec3 rayDir, float maxDistance, const std::function<bool(entt::entity)>& filter, glm::vec3* hitPos = nullptr);
-        PHYSECS_API std::vector<OverlapHit> overlap(glm::vec3 pos, glm::quat ori, Geometry geometry, int filter);
-        PHYSECS_API std::vector<OverlapMtdHit> overlapWithMinTranslationalDistance(glm::vec3 pos, glm::quat ori, Geometry geometry);
+        PHYSECS_API std::vector<OverlapHit> overlap(glm::vec3 pos, glm::quat ori, const Geometry &geometry, int filter);
+        PHYSECS_API std::vector<OverlapMtdHit> overlapWithMinTranslationalDistance(glm::vec3 pos, glm::quat ori, const Geometry &geometry);
         template<typename T>
         T* createJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) {
             T* joint = new T(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or);
@@ -225,11 +225,11 @@ namespace physecs {
         PHYSECS_API void removeOnTriggerExitCallback(OnTriggerExitListener* callback);
         PHYSECS_API void setCanCollide(entt::entity entity0, entt::entity entity1, bool canCollide);
         PHYSECS_API void setContactFilter(ContactType (*filter)(bool, int, bool, int));
-        PHYSECS_API entt::registry& getRegistry();
-        PHYSECS_API const std::vector<glm::vec3>& getContactPoints();
-        PHYSECS_API const DebugDrawContext& getDebugDrawContext();
-        PHYSECS_API const std::vector<BVHNode>& getBVH();
-        PHYSECS_API const int getBHVRootId();
+        PHYSECS_API entt::registry& getRegistry() const;
+        PHYSECS_API const std::vector<BVHNode>& getBVH() const;
+        PHYSECS_API int getBHVRootId() const;
+        PHYSECS_API const std::vector<glm::vec3>& getContactPoints() const;
+        PHYSECS_API const DebugDrawContext& getDebugDrawContext() const;
         PHYSECS_API ~Scene();
     };
 }

@@ -3,7 +3,7 @@
 #include "Constraint1DContainer.h"
 #include "JointsUtil.h"
 
-void physecs::FixedJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, void* /*additionalData*/, Constraint1DWriter& constraints) {
+void physecs::FixedJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* /*additionalData*/, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
     createPointToPointConstraint(p0, p1, r0, r1, constraints);

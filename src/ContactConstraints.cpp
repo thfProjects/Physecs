@@ -3,8 +3,8 @@
 
 void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData* velocities) {
     glm::vec3 velocity0(0), angularVelocity0(0);
-    float invMass0 = 0;
     glm::mat3 invInertiaTensor0(0);
+    invMass0 = 0;
     if (b0 >= 0) {
         velocity0 = velocities[b0].velocity;
         angularVelocity0 = velocities[b0].angularVelocity;
@@ -13,8 +13,8 @@ void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData*
     }
 
     glm::vec3 velocity1(0), angularVelocity1(0);
-    float invMass1 = 0;
     glm::mat3 invInertiaTensor1(0);
+    invMass1 = 0;
     if (b1 >= 0) {
         velocity1 = velocities[b1].velocity;
         angularVelocity1 = velocities[b1].angularVelocity;
@@ -75,19 +75,15 @@ void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData*
 void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, float timeStep) {
 
     glm::vec3 velocity0(0), angularVelocity0(0);
-    float invMass0 = 0;
     if (b0 >= 0) {
         velocity0 = velocities[b0].velocity;
         angularVelocity0 = velocities[b0].angularVelocity;
-        invMass0 = dynamic0->invMass;
     }
 
     glm::vec3 velocity1(0), angularVelocity1(0);
-    float invMass1 = 0;
     if (b1 >= 0) {
         velocity1 = velocities[b1].velocity;
         angularVelocity1 = velocities[b1].angularVelocity;
-        invMass1 = dynamic1->invMass;
     }
 
     float totalNImpulse = 0.f;

@@ -120,6 +120,14 @@ void physecs::Scene::simulate(float timeStep) {
     auto& entities = registry.storage<RigidBodyDynamicComponent>();
     auto* rigidBodies = entities.raw() ? *entities.raw() : nullptr;
 
+    // partition rigid bodies so that all non-kinematic ones are contiguous at the start
+    int numDynamicBodies = 0;
+    for (int i = 0; i < entities.size(); ++i) {
+        if (rigidBodies[i].isKinematic) continue;
+        if (i != numDynamicBodies) entities.swap_elements(entities.at(i), entities.at(numDynamicBodies));
+        ++numDynamicBodies;
+    }
+
     //SAP broad-phase
     PhysecsZoneN(broadPhase, "BroadPhase", true);
     for (int i = 1; i < broadPhaseEntries.size(); ++i) {
@@ -275,7 +283,7 @@ void physecs::Scene::simulate(float timeStep) {
                 ContactManifoldData* prevContactData = contactCache.contains({ contactPair, collisionResult.triangleIndex }) ? &contactCache.at({ contactPair, collisionResult.triangleIndex }) : nullptr;
                 ContactManifoldData currContactData{ collisionResult.numPoints, {} };
 
-                ContactConstraints cc = { transform0, transform1, dynamic0, dynamic1, nullptr, b0, b1, n, friction, isSoft, stiffness, damping, collisionResult.numPoints, {}};
+                ContactConstraints cc = {  nullptr, b0, b1, 0.f, 0.f, n, friction, isSoft, stiffness, damping, collisionResult.numPoints, {}};
 
                 glm::vec3 frictionAnchor0 = glm::vec3(0), frictionAnchor1 = glm::vec3(0);
 
@@ -294,16 +302,13 @@ void physecs::Scene::simulate(float timeStep) {
                     glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
                     float relNVelocity = glm::dot(relVelocity, n);
 
-                    r0 = glm::inverse(transform0.orientation) * r0;
-                    r1 = glm::inverse(transform1.orientation) * r1;
-
                     float targetVelocity;
                     float totalLambda;
                     bool prevContactFound = false;
                     if (prevContactData) {
                         for (int i = 0; i < prevContactData->numPoints; ++i) {
                             auto prevContact = prevContactData->contactPointData[i];
-                            if (glm::distance(r0, prevContact.localPosition0) < 0.1) {
+                            if (glm::distance(r0, prevContact.position0) < 0.1) {
                                 prevContactFound = true;
                                 targetVelocity = prevContact.targetVelocity;
                                 totalLambda = prevContact.totalLambda;
@@ -361,28 +366,40 @@ void physecs::Scene::simulate(float timeStep) {
             int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
             int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
 
+            glm::vec3 r0 = transform0.orientation * (dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos());
+            glm::vec3 r1 = transform1.orientation * (dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos());
+
+            glm::mat3 u0 = glm::toMat3(transform0.orientation * joint->getAnchor0Or());
+            glm::mat3 u1 = glm::toMat3(transform1.orientation * joint->getAnchor1Or());
+
             Constraint1DLayout constraintLayout(jointConstraints, b0, b1);
             auto [additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
-            jointSolverDataBuffer.emplace_back(
-                transform0,
-                transform1,
-                dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos(),
-                dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos(),
-                joint->getAnchor0Pos(),
-                joint->getAnchor0Or(),
-                joint->getAnchor1Pos(),
-                joint->getAnchor1Or(),
-                additionalData,
-                makeConstraintsFunc
-            );
+            jointSolverDataBuffer.emplace_back(b0, b1, r0, r1, u0, u1, additionalData, makeConstraintsFunc);
         }
     }
     PhysecsZoneEnd(ctx7);
 
-    velocityTemp.resize(entities.size());
-    pseudoVelocityTemp.resize(entities.size());
-    massTemp.resize(entities.size());
+    velocityTemp.resize(numDynamicBodies);
+    pseudoVelocityTemp.resize(numDynamicBodies);
+    massTemp.resize(numDynamicBodies);
+    transformTemp.resize(numDynamicBodies);
+
+    // write to temp buffers
+    for (int i = 0; i < numDynamicBodies; ++i) {
+        auto& rigidDynamic = rigidBodies[i];
+
+        auto& transform = registry.get<TransformComponent>(entities.at(i));
+
+        glm::mat3 rot = glm::toMat3(transform.orientation);
+        glm::mat3 invRot = glm::transpose(rot);
+        glm::vec3 comWorld = transform.position + transform.orientation * rigidDynamic.com;
+
+        velocityTemp[i].velocity = rigidDynamic.velocity;
+        velocityTemp[i].angularVelocity = rigidDynamic.angularVelocity;
+        massTemp[i] = { rigidDynamic.invMass, rot * rigidDynamic.invInertiaTensor * invRot };
+        transformTemp[i] = { glm::vec3(0), glm::quat(1, 0, 0, 0), comWorld, transform.orientation };
+    }
 
     float h = timeStep / numSubSteps;
     for (int m = 0; m < numSubSteps; ++m) {
@@ -393,39 +410,37 @@ void physecs::Scene::simulate(float timeStep) {
 
             auto& n = contact.n;
 
-            auto& transform0 = contact.transform0;
-            auto& transform1 = contact.transform1;
-
-            auto dynamic0 = contact.dynamic0;
-            auto dynamic1 = contact.dynamic1;
-
             glm::vec3 com0(0), velocity0(0), angularVelocity0(0);
-            if (dynamic0 && !dynamic0->isKinematic) {
-                com0 = transform0.position + transform0.orientation * dynamic0->com;
-                velocity0 = dynamic0->velocity;
-                angularVelocity0 = dynamic0->angularVelocity;
+            glm::quat deltaRotation0(1, 0, 0, 0);
+            if (contact.b0 >= 0) {
+                com0 = transformTemp[contact.b0].comWorld;
+                velocity0 = velocityTemp[contact.b0].velocity;
+                angularVelocity0 = velocityTemp[contact.b0].angularVelocity;
+                deltaRotation0 = transformTemp[contact.b0].deltaRotation;
             }
 
             glm::vec3 com1(0), velocity1(0), angularVelocity1(0);
-            if (dynamic1 && !dynamic1->isKinematic) {
-                com1 = transform1.position + transform1.orientation * dynamic1->com;
-                velocity1 = dynamic1->velocity;
-                angularVelocity1 = dynamic1->angularVelocity;
+            glm::quat deltaRotation1(1, 0, 0, 0);
+            if (contact.b1 >= 0) {
+                com1 = transformTemp[contact.b1].comWorld;
+                velocity1 = velocityTemp[contact.b1].velocity;
+                angularVelocity1 = velocityTemp[contact.b1].angularVelocity;
+                deltaRotation1 = transformTemp[contact.b1].deltaRotation;
             }
 
             for (int k = 0; k < contact.numPoints; ++k) {
                 auto& contactPoint = contact.contactPointConstraints[k];
 
-                glm::vec3 r0 = transform0.orientation * contactPoint.r0;
-                glm::vec3 r1 = transform1.orientation * contactPoint.r1;
+                contactPoint.r0 = deltaRotation0 * contactPoint.r0;
+                contactPoint.r1 = deltaRotation1 * contactPoint.r1;
 
-                glm::vec3 contactPoint0 = com0 + r0;
-                glm::vec3 contactPoint1 = com1 + r1;
+                glm::vec3 contactPoint0 = com0 + contactPoint.r0;
+                glm::vec3 contactPoint1 = com1 + contactPoint.r1;
 
                 float cn = glm::dot(contactPoint1 - contactPoint0, n);
 
-                glm::vec3 r0xn = glm::cross(r0, n);
-                glm::vec3 r1xn = glm::cross(r1, n);
+                glm::vec3 r0xn = glm::cross(contactPoint.r0, n);
+                glm::vec3 r1xn = glm::cross(contactPoint.r1, n);
 
                 contactPoint.r0xn = r0xn;
                 contactPoint.r1xn = r1xn;
@@ -436,18 +451,18 @@ void physecs::Scene::simulate(float timeStep) {
 
             auto& fc = contact.frictionConstraints;
 
-            glm::vec3 r0 = transform0.orientation * fc.r0;
-            glm::vec3 r1 = transform1.orientation * fc.r1;
+            fc.r0 = deltaRotation0 * fc.r0;
+            fc.r1 = deltaRotation1 * fc.r1;
 
-            glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, r1) - velocity0 - glm::cross(angularVelocity0, r0);
+            glm::vec3 relVelocity = velocity1 + glm::cross(angularVelocity1, fc.r1) - velocity0 - glm::cross(angularVelocity0, fc.r0);
             float relNVelocity = glm::dot(relVelocity, n);
 
             glm::vec3 t = relVelocity - relNVelocity * n;
             float tLen = glm::length(t);
             if (tLen) t = t / tLen;
 
-            glm::vec3 r0xt = glm::cross(r0, t);
-            glm::vec3 r1xt = glm::cross(r1, t);
+            glm::vec3 r0xt = glm::cross(fc.r0, t);
+            glm::vec3 r1xt = glm::cross(fc.r1, t);
 
             fc.t = t;
             fc.r0xt = r0xt;
@@ -460,40 +475,44 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto& [_, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
             Constraint1DWriter constraintWriter(jointConstraints);
             for (auto& jointSolverData : jointSolverDataBuffer) {
-                JointWorldSpaceData worldSpaceData;
-                jointSolverData.calculateWorldSpaceData(worldSpaceData);
-                jointSolverData.makeConstraintsFunc(worldSpaceData, jointSolverData.additionalData, constraintWriter);
+                glm::mat3 deltaRot0 = glm::mat3(transformTemp[jointSolverData.b0].deltaRotation);
+                glm::mat3 deltaRot1 = glm::mat3(transformTemp[jointSolverData.b1].deltaRotation);
+
+                jointSolverData.r0 = deltaRot0 * jointSolverData.r0;
+                jointSolverData.r1 = deltaRot1 * jointSolverData.r1;
+
+                glm::vec3 p0 = transformTemp[jointSolverData.b0].comWorld + jointSolverData.r0;
+                glm::vec3 p1 = transformTemp[jointSolverData.b1].comWorld + jointSolverData.r1;
+
+                jointSolverData.u0 = deltaRot0 * jointSolverData.u0;
+                jointSolverData.u1 = deltaRot1 * jointSolverData.u1;
+
+                jointSolverData.makeConstraintsFunc({ p0, p1, jointSolverData.r0, jointSolverData.r1, jointSolverData.u0, jointSolverData.u1 }, jointSolverData.additionalData, constraintWriter);
             }
         }
         PhysecsZoneEnd(ctx2);
 
-        //integrate velocities and fill temp buffers
+        //integrate velocities and update world space inertia tensors
         PhysecsZoneN(ctx3, "Integrate velocities", true);
-        for (int i = 0; i < entities.size(); ++i) {
-            auto& rigidDynamic = rigidBodies[i];
+        for (int i = 0; i < numDynamicBodies; ++i) {
+            velocityTemp[i].velocity += h * glm::vec3(0, -g, 0);
 
-            if (rigidDynamic.isKinematic) continue;
-
-            auto& transform = registry.get<TransformComponent>(entities.at(i));
-
-            glm::mat3 rot = glm::toMat3(transform.orientation);
+            // update world space inertia tensor
+            glm::mat3 rot = glm::toMat3(transformTemp[i].deltaRotation);
             glm::mat3 invRot = glm::transpose(rot);
 
-            rigidDynamic.velocity += h * glm::vec3(0, -g, 0);
+            glm::mat3& invInertiaTensorWorld = massTemp[i].invInertiaTensor;
+            invInertiaTensorWorld = rot * invInertiaTensorWorld * invRot;
 
-            //gyro term
-            glm::vec3 omegaLocal = invRot * rigidDynamic.angularVelocity;
-            glm::mat3x3 I = glm::inverse(rigidDynamic.invInertiaTensor);
-            glm::vec3 f = h * glm::cross(omegaLocal, I * omegaLocal);
-            glm::mat3x3 J = I + h * (glm::matrixCross3(omegaLocal) * I - glm::matrixCross3(I * omegaLocal));
-            omegaLocal = omegaLocal - solve33(J, f);
+            //gyro term, implicit euler in body space, evaluated in world space
+            glm::vec3& omega = velocityTemp[i].angularVelocity;
+            glm::vec3 L = solve33(invInertiaTensorWorld, omega);
+            glm::vec3 f = h * glm::cross(omega, L);
+            glm::mat3x3 A = glm::mat3(1.f) + h * (glm::matrixCross3(omega) - glm::matrixCross3(L) * invInertiaTensorWorld);
+            omega -= invInertiaTensorWorld * solve33(A, f);
 
-            rigidDynamic.angularVelocity = rot * omegaLocal;
-
-            // fill temp buffers
-            velocityTemp[i] = { rigidDynamic.velocity, rigidDynamic.angularVelocity };
+            // clear pseudo velocities
             pseudoVelocityTemp[i] = { glm::vec3(0), glm::vec3(0), 0 };
-            massTemp[i] = { rigidDynamic.invMass, rot * rigidDynamic.invInertiaTensor * invRot };
         }
         PhysecsZoneEnd(ctx3);
 
@@ -520,23 +539,12 @@ void physecs::Scene::simulate(float timeStep) {
 
         //integrate positions
         PhysecsZoneN(ctx4, "integrate positions", true);
-        for (int i = 0; i < entities.size(); ++i) {
-            auto& rigidDynamic = rigidBodies[i];
-
-            if (rigidDynamic.isKinematic) continue;
-
-            auto& transform = registry.get<TransformComponent>(entities.at(i));
-
+        for (int i = 0; i < numDynamicBodies; ++i) {
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transform.position += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
-
-            glm::vec3 prevComWorld = transform.orientation * rigidDynamic.com;
-
-            transform.orientation += glm::quat(0, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)) * transform.orientation;
-            transform.orientation = glm::normalize(transform.orientation);
-
-            transform.position += prevComWorld - transform.orientation * rigidDynamic.com;
+            transformTemp[i].deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)));
+            transformTemp[i].comWorld += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
+            transformTemp[i].worldRotation = transformTemp[i].deltaRotation * transformTemp[i].worldRotation;
         }
         PhysecsZoneEnd(ctx4);
 
@@ -550,16 +558,19 @@ void physecs::Scene::simulate(float timeStep) {
             constraints.solve(velocityTemp.data(), false);
         }
         PhysecsZoneEnd(ctx5);
+    }
 
-        // write back from temp buffers
-        for (int i = 0; i < entities.size(); ++i) {
-            auto& rigidDynamic = rigidBodies[i];
+    // write back from temp buffers
+    for (int i = 0; i < numDynamicBodies; ++i) {
+        auto& rigidDynamic = rigidBodies[i];
 
-            if (rigidDynamic.isKinematic) continue;
+        auto& transform = registry.get<TransformComponent>(entities.at(i));
 
-            rigidDynamic.velocity = velocityTemp[i].velocity;
-            rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
-        }
+        rigidDynamic.velocity = velocityTemp[i].velocity;
+        rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
+
+        transform.orientation = glm::normalize(transformTemp[i].worldRotation);
+        transform.position = transformTemp[i].comWorld - transform.orientation * rigidDynamic.com;
     }
 
 #ifdef DEBUG_CONTACT_FORCES
@@ -599,9 +610,8 @@ void physecs::Scene::simulate(float timeStep) {
     contactCache.swap(contactCacheTemp);
 
     //update bounds
-    for (auto [entity, rigidDynamic] : registry.view<RigidBodyDynamicComponent>().each()) {
-        if (rigidDynamic.isKinematic) continue;
-        updateBounds(entity);
+    for (int i = 0; i < numDynamicBodies; ++i) {
+        updateBounds(entities.at(i));
     }
     PhysecsFrameMarkEnd(frameName);
 }

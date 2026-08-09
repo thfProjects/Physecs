@@ -7,7 +7,7 @@ static float angleDiff(float angle0, float angle1) {
     return diff < -glm::pi<float>() ? diff + glm::two_pi<float>() : diff;
 }
 
-void physecs::GearJoint::makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
+void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointData*>(additionalData);
 

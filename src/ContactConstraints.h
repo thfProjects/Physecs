@@ -40,13 +40,11 @@ namespace physecs {
     };
 
     struct ContactConstraints {
-        TransformComponent& transform0;
-        TransformComponent& transform1;
-        RigidBodyDynamicComponent* dynamic0;
-        RigidBodyDynamicComponent* dynamic1;
         ContactManifoldData* contactManifoldData;
         int b0;
         int b1;
+        float invMass0;
+        float invMass1;
         glm::vec3 n;
         float friction;
         bool isSoft;

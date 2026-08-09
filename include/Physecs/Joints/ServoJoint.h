@@ -12,7 +12,7 @@ namespace physecs {
 
         ServoJointData data;
 
-        static void makeConstraints(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
     public:
         void setTargetAngle(float angle);
         void setDriveStiffness(float stiffness);

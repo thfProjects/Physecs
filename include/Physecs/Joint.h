@@ -22,21 +22,17 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    typedef void (*MakeConstraintsFunc)(JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+    typedef void (*MakeConstraintsFunc)(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
 
     struct JointSolverData {
-        TransformComponent& transform0;
-        TransformComponent& transform1;
+        int b0;
+        int b1;
         glm::vec3 r0;
         glm::vec3 r1;
-        glm::vec3 anchor0Pos;
-        glm::quat anchor0Or;
-        glm::vec3 anchor1Pos;
-        glm::quat anchor1Or;
+        glm::mat3 u0;
+        glm::mat3 u1;
         void* additionalData;
         MakeConstraintsFunc makeConstraintsFunc;
-
-        void calculateWorldSpaceData(JointWorldSpaceData& data) const;
     };
 
     struct JointSolverDesc {

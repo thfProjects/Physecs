@@ -15,6 +15,7 @@ namespace physecs {
     struct VelocityData;
     struct PseudoVelocityData;
     struct MassData;
+    struct TransformData;
 
     struct OverlapHit {
         entt::entity entity;
@@ -41,7 +42,7 @@ namespace physecs {
     };
 
     struct ContactPointData {
-        glm::vec3 localPosition0;
+        glm::vec3 position0;
         float targetVelocity;
         float totalLambda;
     };
@@ -182,6 +183,7 @@ namespace physecs {
         std::vector<VelocityData> velocityTemp;
         std::vector<PseudoVelocityData> pseudoVelocityTemp;
         std::vector<MassData> massTemp;
+        std::vector<TransformData> transformTemp;
 
         void onRigidBodyCreate(const entt::registry& registry, entt::entity entity);
         void onRigidBodyDelete(const entt::registry& registry, entt::entity entity);

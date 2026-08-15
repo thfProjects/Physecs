@@ -573,6 +573,14 @@ void physecs::Scene::simulate(float timeStep) {
         transform.position = transformTemp[i].comWorld - transform.orientation * rigidDynamic.com;
     }
 
+    // cache accumulated joint impulses for next step
+    for (auto& [joints, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
+        Constraint1DReader constraintReader(jointConstraints);
+        for (auto& joint : joints) {
+            joint->storeAccumulatedImpulses(constraintReader);
+        }
+    }
+
 #ifdef DEBUG_CONTACT_FORCES
     for (auto& contacts : contactConstraints) {
         float totalForce = 0.f;

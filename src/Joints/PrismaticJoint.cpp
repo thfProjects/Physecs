@@ -129,18 +129,18 @@ physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &
 
     const float dx = glm::dot(d, u00);
 
-    constraintLayout.createConstraints<NONE, 2>();
-    constraintLayout.createConstraints<ANGULAR, 3>();
+    constraintLayout.createConstraints<NONE, 2>(impulseCache.translationLambda);
+    constraintLayout.createConstraints<ANGULAR, 3>(impulseCache.angularLambda);
 
     if (dx > data.upperLimit) {
         data.makeUpperLimit = true;
         data.makeLowerLimit = false;
-        constraintLayout.createConstraints<LIMITED>();
+        constraintLayout.createConstraints<LIMITED>(&impulseCache.upperLimitLambda);
     }
     else if (dx < data.lowerLimit) {
         data.makeUpperLimit = false;
         data.makeLowerLimit = true;
-        constraintLayout.createConstraints<LIMITED>();
+        constraintLayout.createConstraints<LIMITED>(&impulseCache.lowerLimitLambda);
     }
     else {
         data.makeUpperLimit = false;
@@ -155,4 +155,12 @@ physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &
         &data,
         makeConstraints
     };
+}
+
+void physecs::PrismaticJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
+    for (float& lambda : impulseCache.translationLambda) lambda = constraints.nextTotalLambda<NONE>();
+    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
+    impulseCache.upperLimitLambda = data.makeUpperLimit ? constraints.nextTotalLambda<LIMITED>() : 0.f;
+    data.makeLowerLimit = data.makeLowerLimit ? constraints.nextTotalLambda<LIMITED>() : 0.f;
+    if (data.driveEnabled) constraints.nextTotalLambda<SOFT>();
 }

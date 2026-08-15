@@ -3,10 +3,18 @@
 
 namespace physecs {
     class PHYSECS_API FixedJoint final : public Joint {
+        struct ImpulseCache {
+            float pointLambda[3] = {};
+            float angularLambda[3] = {};
+        };
+
+        ImpulseCache impulseCache;
+
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
     public:
         FixedJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
         JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
+        void storeAccumulatedImpulses(Constraint1DReader& constraints) override;
     };
 }
 

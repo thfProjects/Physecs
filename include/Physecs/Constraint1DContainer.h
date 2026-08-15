@@ -122,6 +122,7 @@ namespace physecs {
         std::vector<ConstraintRef> constraintRefs;
 
         friend class Constraint1DWriter;
+        friend class Constraint1DReader;
 
     public:
         void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
@@ -131,7 +132,7 @@ namespace physecs {
         void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }
 
         template<int flags>
-        int createConstraint(int bodyIndex0, int bodyIndex1, int prevIndex) {
+        int createConstraint(int bodyIndex0, int bodyIndex1, float initLambda, int prevIndex) {
             if (std::holds_alternative<SimdConstraints>(constraintCollection)) {
                 auto& constraintsCollection = std::get<SimdConstraints>(constraintCollection);
                 auto& [constraintsList, lanes] = constraintsCollection.get<flags>();
@@ -148,6 +149,7 @@ namespace physecs {
                 }
                 constraintsList[currentIndex].bodies0[lane] = bodyIndex0;
                 constraintsList[currentIndex].bodies1[lane] = bodyIndex1;
+                constraintsList[currentIndex].totalLambda.m128_f32[lane] = initLambda;
                 constraintRefs.emplace_back(currentIndex, lane);
                 return currentIndex++;
             }
@@ -155,7 +157,7 @@ namespace physecs {
             auto& constraintsCollection = std::get<OverflowConstraints>(constraintCollection);
             auto& constraintsList = constraintsCollection.get<flags>().constraints;
             constraintRefs.emplace_back(static_cast<int>(constraintsList.size()), -1);
-            constraintsList.emplace_back(bodyIndex0, bodyIndex1);
+            constraintsList.emplace_back(bodyIndex0, bodyIndex1, initLambda);
             return 0;
         }
     };
@@ -189,11 +191,30 @@ namespace physecs {
         b1(b1) {}
 
         template<int flags = NONE, int count = 1>
-        void createConstraints() {
+        void createConstraints(const float* initLambda = nullptr) {
             if constexpr (count) {
-                currentIndices.get<flags>() = container.createConstraint<flags>(b0, b1, currentIndices.get<flags>());
-                createConstraints<flags, count - 1>();
+                currentIndices.get<flags>() = container.createConstraint<flags>(b0, b1, initLambda ? *initLambda : 0.f, currentIndices.get<flags>());
+                createConstraints<flags, count - 1>(initLambda ? initLambda + 1 : nullptr);
             }
+        }
+    };
+
+    class Constraint1DReader {
+        Constraint1DContainer& container;
+        int index = 0;
+
+    public:
+        Constraint1DReader(Constraint1DContainer& container) : container(container) {}
+
+        template<int flags = NONE>
+        __forceinline float nextTotalLambda() {
+            auto& [i, o] = container.constraintRefs[index++];
+            if (std::holds_alternative<Constraint1DContainer::SimdConstraints>(container.constraintCollection)) {
+                auto& constraintsList = std::get<Constraint1DContainer::SimdConstraints>(container.constraintCollection).get<flags>();
+                return constraintsList.constraints[i].totalLambda.m128_f32[o];
+            }
+            auto& constraintsList = std::get<Constraint1DContainer::OverflowConstraints>(container.constraintCollection).get<flags>();
+            return constraintsList.constraints[i].totalLambda;
         }
     };
 

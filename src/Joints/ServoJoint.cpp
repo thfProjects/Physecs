@@ -49,11 +49,17 @@ void physecs::ServoJoint::setDriveDamping(float damping) {
 }
 
 physecs::JointSolverDesc physecs::ServoJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>();
-    constraintLayout.createConstraints<ANGULAR, 2>();
+    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
+    constraintLayout.createConstraints<ANGULAR, 2>(impulseCache.angularLambda);
     constraintLayout.createConstraints<ANGULAR | SOFT>();
     return {
         &data,
         makeConstraints
     };
+}
+
+void physecs::ServoJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
+    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
+    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
+    constraints.nextTotalLambda<ANGULAR | SOFT>();
 }

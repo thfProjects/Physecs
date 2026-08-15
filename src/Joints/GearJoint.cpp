@@ -69,9 +69,13 @@ void physecs::GearJoint::setGearRatio(float gearRatio) {
 }
 
 physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE>();
+    constraintLayout.createConstraints<NONE>(&impulseCache.lambda);
     return {
         &data,
         makeConstraints
     };
+}
+
+void physecs::GearJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
+    impulseCache.lambda = constraints.nextTotalLambda<NONE>();
 }

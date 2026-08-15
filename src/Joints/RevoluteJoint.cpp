@@ -50,11 +50,17 @@ void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
 }
 
 physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>();
-    constraintLayout.createConstraints<ANGULAR, 2>();
-    if (data.driveEnabled) constraintLayout.createConstraints<ANGULAR | LIMITED>();
+    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
+    constraintLayout.createConstraints<ANGULAR, 2>(impulseCache.angularLambda);
+    if (data.driveEnabled) constraintLayout.createConstraints<ANGULAR | LIMITED>(&impulseCache.driveLambda);
     return {
         &data,
         makeConstraints
     };
+}
+
+void physecs::RevoluteJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
+    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
+    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
+    impulseCache.driveLambda = data.driveEnabled ? constraints.nextTotalLambda<ANGULAR | LIMITED>() : 0.f;
 }

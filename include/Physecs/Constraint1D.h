@@ -35,7 +35,7 @@ namespace physecs {
         float invEffMass = 0;
         float totalLambda = 0;
 
-        Constraint1D(int b0, int b1) : b0(b0), b1(b1) {};
+        Constraint1D(int b0, int b1, float initLambda) : b0(b0), b1(b1), totalLambda(initLambda) {};
         void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
         void solve(VelocityData* velocities, float timeStep, bool useBias);
     };

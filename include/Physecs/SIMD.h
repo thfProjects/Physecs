@@ -258,4 +258,24 @@ namespace physecs {
         );
         return _mm_and_ps(x, mask);
     }
+
+    inline void operator+= (__m128& a, glm::vec3 v) {
+        a.m128_f32[0] += v.x;
+        a.m128_f32[1] += v.y;
+        a.m128_f32[2] += v.z;
+    }
+
+    inline void operator-= (__m128& a, glm::vec3 v) {
+        a.m128_f32[0] -= v.x;
+        a.m128_f32[1] -= v.y;
+        a.m128_f32[2] -= v.z;
+    }
+
+    inline glm::vec3& asVec3(__m128& a) {
+        return reinterpret_cast<glm::vec3&>(a);
+    }
+
+    inline __m128 fromVec3(glm::vec3 a) {
+        return _mm_setr_ps(a.x, a.y, a.z, 0.f);
+    }
 }

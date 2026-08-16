@@ -2,17 +2,18 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include "SIMD.h"
 
 namespace physecs {
 
     struct VelocityData {
-        glm::vec3 velocity = glm::vec3(0);
-        glm::vec3 angularVelocity = glm::vec3(0);
+        FloatW velocity = _mm_setzero_ps();
+        FloatW angularVelocity = _mm_setzero_ps();
     };
 
     struct PseudoVelocityData {
-        glm::vec3 pseudoVelocity = glm::vec3(0);
-        glm::vec3 pseudoAngularVelocity = glm::vec3(0);
+        FloatW pseudoVelocity = _mm_setzero_ps();
+        FloatW pseudoAngularVelocity = _mm_setzero_ps();
         int constraintCount = 0;
     };
 

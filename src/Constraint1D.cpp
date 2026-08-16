@@ -60,13 +60,13 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
 
     glm::vec3 velocity0(0);
     if constexpr (!(flags & ANGULAR))
-        velocity0 = velocities[b0].velocity;
-    const glm::vec3 angularVelocity0 = velocities[b0].angularVelocity;
+        velocity0 = asVec3(velocities[b0].velocity);
+    const glm::vec3 angularVelocity0 = asVec3(velocities[b0].angularVelocity);
 
     glm::vec3 velocity1(0);
     if constexpr (!(flags & ANGULAR))
-        velocity1 = velocities[b1].velocity;
-    const glm::vec3 angularVelocity1 = velocities[b1].angularVelocity;
+        velocity1 = asVec3(velocities[b1].velocity);
+    const glm::vec3 angularVelocity1 = asVec3(velocities[b1].angularVelocity);
 
     float relativeVelocity = glm::dot(angular1, angularVelocity1) - glm::dot(angular0, angularVelocity0);
     if constexpr (!(flags & ANGULAR)) {

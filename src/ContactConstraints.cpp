@@ -2,13 +2,13 @@
 #include <SolverData.h>
 
 void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData* velocities) {
-    glm::vec3 velocity0 = velocities[b0].velocity;
-    glm::vec3 angularVelocity0 = velocities[b0].angularVelocity;
+    glm::vec3 velocity0 = asVec3(velocities[b0].velocity);
+    glm::vec3 angularVelocity0 = asVec3(velocities[b0].angularVelocity);
     invMass0 = masses[b0].invMass;
     const glm::mat3& invInertiaTensor0 = masses[b0].invInertiaTensor;
 
-    glm::vec3 velocity1 = velocities[b1].velocity;
-    glm::vec3 angularVelocity1 = velocities[b1].angularVelocity;
+    glm::vec3 velocity1 = asVec3(velocities[b1].velocity);
+    glm::vec3 angularVelocity1 = asVec3(velocities[b1].angularVelocity);
     invMass1 = masses[b1].invMass;
     const glm::mat3& invInertiaTensor1 = masses[b1].invInertiaTensor;
 
@@ -52,22 +52,22 @@ void physecs::ContactConstraints::preSolve(const MassData* masses, VelocityData*
     angularVelocity1 -= totalLambdaTwist * n1t;
 
     if (b0 >= 0) {
-        velocities[b0].velocity = velocity0;
-        velocities[b0].angularVelocity = angularVelocity0;
+        velocities[b0].velocity = fromVec3(velocity0);
+        velocities[b0].angularVelocity = fromVec3(angularVelocity0);
     }
 
     if (b1 >= 0) {
-        velocities[b1].velocity = velocity1;
-        velocities[b1].angularVelocity = angularVelocity1;
+        velocities[b1].velocity = fromVec3(velocity1);
+        velocities[b1].angularVelocity = fromVec3(angularVelocity1);
     }
 }
 
 void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, float timeStep) {
-    glm::vec3 velocity0 = velocities[b0].velocity;
-    glm::vec3 angularVelocity0 = velocities[b0].angularVelocity;
+    glm::vec3 velocity0 = asVec3(velocities[b0].velocity);
+    glm::vec3 angularVelocity0 = asVec3(velocities[b0].angularVelocity);
 
-    glm::vec3 velocity1 = velocities[b1].velocity;
-    glm::vec3 angularVelocity1 = velocities[b1].angularVelocity;
+    glm::vec3 velocity1 = asVec3(velocities[b1].velocity);
+    glm::vec3 angularVelocity1 = asVec3(velocities[b1].angularVelocity);
 
     float totalNImpulse = 0.f;
     float rEffTimesN = 0.f;
@@ -144,9 +144,9 @@ void physecs::ContactConstraints::solve(VelocityData* velocities, bool useBias, 
         }
     }
 
-    velocities[b0].velocity = velocity0;
-    velocities[b0].angularVelocity = angularVelocity0;
+    velocities[b0].velocity = fromVec3(velocity0);
+    velocities[b0].angularVelocity = fromVec3(angularVelocity0);
 
-    velocities[b1].velocity = velocity1;
-    velocities[b1].angularVelocity = angularVelocity1;
+    velocities[b1].velocity = fromVec3(velocity1);
+    velocities[b1].angularVelocity = fromVec3(angularVelocity1);
 }

@@ -395,8 +395,8 @@ void physecs::Scene::simulate(float timeStep) {
         glm::mat3 invRot = glm::transpose(rot);
         glm::vec3 comWorld = transform.position + transform.orientation * rigidDynamic.com;
 
-        velocityTemp[i].velocity = rigidDynamic.velocity;
-        velocityTemp[i].angularVelocity = rigidDynamic.angularVelocity;
+        velocityTemp[i].velocity = fromVec3(rigidDynamic.velocity);
+        velocityTemp[i].angularVelocity = fromVec3(rigidDynamic.angularVelocity);
         massTemp[i] = { rigidDynamic.invMass, rot * rigidDynamic.invInertiaTensor * invRot };
         transformTemp[i] = { glm::vec3(0), glm::quat(1, 0, 0, 0), comWorld, transform.orientation };
     }
@@ -411,13 +411,13 @@ void physecs::Scene::simulate(float timeStep) {
             auto& n = contact.n;
 
             glm::vec3 com0 = transformTemp[contact.b0].comWorld;
-            glm::vec3 velocity0 = velocityTemp[contact.b0].velocity;
-            glm::vec3 angularVelocity0 = velocityTemp[contact.b0].angularVelocity;
+            glm::vec3 velocity0 = asVec3(velocityTemp[contact.b0].velocity);
+            glm::vec3 angularVelocity0 = asVec3(velocityTemp[contact.b0].angularVelocity);
             glm::quat deltaRotation0 = transformTemp[contact.b0].deltaRotation;
 
             glm::vec3 com1 = transformTemp[contact.b1].comWorld;
-            glm::vec3 velocity1 = velocityTemp[contact.b1].velocity;
-            glm::vec3 angularVelocity1 = velocityTemp[contact.b1].angularVelocity;
+            glm::vec3 velocity1 = asVec3(velocityTemp[contact.b1].velocity);
+            glm::vec3 angularVelocity1 = asVec3(velocityTemp[contact.b1].angularVelocity);
             glm::quat deltaRotation1 = transformTemp[contact.b1].deltaRotation;
 
             for (int k = 0; k < contact.numPoints; ++k) {
@@ -497,7 +497,7 @@ void physecs::Scene::simulate(float timeStep) {
             invInertiaTensorWorld = rot * invInertiaTensorWorld * invRot;
 
             //gyro term, implicit euler in body space, evaluated in world space
-            glm::vec3& omega = velocityTemp[i].angularVelocity;
+            glm::vec3& omega = asVec3(velocityTemp[i].angularVelocity);
             glm::vec3 L = solve33(invInertiaTensorWorld, omega);
             glm::vec3 f = h * glm::cross(omega, L);
             glm::mat3x3 A = glm::mat3(1.f) + h * (glm::matrixCross3(omega) - glm::matrixCross3(L) * invInertiaTensorWorld);
@@ -534,8 +534,8 @@ void physecs::Scene::simulate(float timeStep) {
         for (int i = 0; i < numDynamicBodies; ++i) {
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transformTemp[i].deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * (h * velocityTemp[i].angularVelocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoAngularVelocity)));
-            transformTemp[i].comWorld += h * velocityTemp[i].velocity + pseudoVelocityScale * pseudoVelocityTemp[i].pseudoVelocity;
+            transformTemp[i].deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * (h * asVec3(velocityTemp[i].angularVelocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoAngularVelocity))));
+            transformTemp[i].comWorld += h * asVec3(velocityTemp[i].velocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoVelocity);
             transformTemp[i].worldRotation = transformTemp[i].deltaRotation * transformTemp[i].worldRotation;
         }
         PhysecsZoneEnd(ctx4);
@@ -558,8 +558,8 @@ void physecs::Scene::simulate(float timeStep) {
 
         auto& transform = registry.get<TransformComponent>(entities.at(i));
 
-        rigidDynamic.velocity = velocityTemp[i].velocity;
-        rigidDynamic.angularVelocity = velocityTemp[i].angularVelocity;
+        rigidDynamic.velocity = asVec3(velocityTemp[i].velocity);
+        rigidDynamic.angularVelocity = asVec3(velocityTemp[i].angularVelocity);
 
         transform.orientation = glm::normalize(transformTemp[i].worldRotation);
         transform.position = transformTemp[i].comWorld - transform.orientation * rigidDynamic.com;

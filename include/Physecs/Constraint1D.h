@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "SolverData.h"
 
 namespace physecs {
 
@@ -17,8 +17,8 @@ namespace physecs {
 
     template<int flags>
     struct Constraint1D {
-        int b0 = -1;
-        int b1 = -1;
+        BodyId b0 = INVALID_BODY_ID;
+        BodyId b1 = INVALID_BODY_ID;
         glm::vec3 linear = glm::vec3(0);
         glm::vec3 angular0 = glm::vec3(0);
         glm::vec3 angular1 = glm::vec3(0);

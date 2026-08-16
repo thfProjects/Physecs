@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Components.h"
-#include "Transform.h"
+#include "SolverData.h"
 
 namespace physecs {
 
@@ -41,8 +40,8 @@ namespace physecs {
 
     struct ContactConstraints {
         ContactManifoldData* contactManifoldData;
-        int b0;
-        int b1;
+        BodyId b0;
+        BodyId b1;
         float invMass0;
         float invMass1;
         glm::vec3 n;

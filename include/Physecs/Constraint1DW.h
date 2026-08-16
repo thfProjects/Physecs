@@ -1,17 +1,13 @@
 #pragma once
 
 #include "SIMD.h"
+#include "SolverData.h"
 
 namespace physecs {
-
-    struct VelocityData;
-    struct PseudoVelocityData;
-    struct MassData;
-
     template<int flags>
     struct Constraint1DW {
-        int bodies0[4] = { -1, -1, -1, -1 };
-        int bodies1[4] = { -1, -1, -1, -1 };
+        BodyId bodies0[4] = { INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID };
+        BodyId bodies1[4] = { INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID };
         Vec3W linear;
         Vec3W angular0;
         Vec3W angular1;

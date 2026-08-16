@@ -8,14 +8,12 @@
 #include "Joint.h"
 #include "Colliders.h"
 #include "DebugDraw.h"
+#include "PaddedVector.h"
+#include "SolverData.h"
 
 namespace physecs {
     struct ContactManifold;
     struct ContactConstraints;
-    struct VelocityData;
-    struct PseudoVelocityData;
-    struct MassData;
-    struct TransformData;
 
     struct OverlapHit {
         entt::entity entity;
@@ -180,10 +178,10 @@ namespace physecs {
         std::mutex collisionMutex;
         std::mutex triggerMutex;
         std::mutex debugContactsMutex;
-        std::vector<VelocityData> velocityTemp;
-        std::vector<PseudoVelocityData> pseudoVelocityTemp;
-        std::vector<MassData> massTemp;
-        std::vector<TransformData> transformTemp;
+        PaddedVector<VelocityData> velocityTemp;
+        PaddedVector<PseudoVelocityData> pseudoVelocityTemp;
+        PaddedVector<MassData> massTemp;
+        PaddedVector<TransformData> transformTemp;
 
         void onRigidBodyCreate(const entt::registry& registry, entt::entity entity);
         void onRigidBodyDelete(const entt::registry& registry, entt::entity entity);

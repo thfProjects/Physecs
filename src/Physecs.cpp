@@ -1,7 +1,7 @@
 #include "Physecs.h"
 #include <chrono>
 #include <ranges>
-
+#include "Transform.h"
 #include "BoundsUtil.h"
 #include "Collision.h"
 #include <glm/gtx/matrix_cross_product.hpp>
@@ -272,8 +272,8 @@ void physecs::Scene::simulate(float timeStep) {
                 restitution = (col0.material.restitution + col1.material.restitution) * 0.5f;
             }
 
-            int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
-            int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
+            BodyId b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : INVALID_BODY_ID;
+            BodyId b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : INVALID_BODY_ID;
 
             for (auto& collisionResult : contactBuffer) {
                 if (!collisionResult.numPoints) continue;
@@ -363,8 +363,8 @@ void physecs::Scene::simulate(float timeStep) {
             auto dynamic0 = registry.try_get<RigidBodyDynamicComponent>(entity0);
             auto dynamic1 = registry.try_get<RigidBodyDynamicComponent>(entity1);
 
-            int b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : -1;
-            int b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : -1;
+            BodyId b0 = dynamic0 && !dynamic0->isKinematic ? dynamic0 - rigidBodies : INVALID_BODY_ID;
+            BodyId b1 = dynamic1 && !dynamic1->isKinematic ? dynamic1 - rigidBodies : INVALID_BODY_ID;
 
             glm::vec3 r0 = transform0.orientation * (dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->com : joint->getAnchor0Pos());
             glm::vec3 r1 = transform1.orientation * (dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->com : joint->getAnchor1Pos());
@@ -410,23 +410,15 @@ void physecs::Scene::simulate(float timeStep) {
 
             auto& n = contact.n;
 
-            glm::vec3 com0(0), velocity0(0), angularVelocity0(0);
-            glm::quat deltaRotation0(1, 0, 0, 0);
-            if (contact.b0 >= 0) {
-                com0 = transformTemp[contact.b0].comWorld;
-                velocity0 = velocityTemp[contact.b0].velocity;
-                angularVelocity0 = velocityTemp[contact.b0].angularVelocity;
-                deltaRotation0 = transformTemp[contact.b0].deltaRotation;
-            }
+            glm::vec3 com0 = transformTemp[contact.b0].comWorld;
+            glm::vec3 velocity0 = velocityTemp[contact.b0].velocity;
+            glm::vec3 angularVelocity0 = velocityTemp[contact.b0].angularVelocity;
+            glm::quat deltaRotation0 = transformTemp[contact.b0].deltaRotation;
 
-            glm::vec3 com1(0), velocity1(0), angularVelocity1(0);
-            glm::quat deltaRotation1(1, 0, 0, 0);
-            if (contact.b1 >= 0) {
-                com1 = transformTemp[contact.b1].comWorld;
-                velocity1 = velocityTemp[contact.b1].velocity;
-                angularVelocity1 = velocityTemp[contact.b1].angularVelocity;
-                deltaRotation1 = transformTemp[contact.b1].deltaRotation;
-            }
+            glm::vec3 com1 = transformTemp[contact.b1].comWorld;
+            glm::vec3 velocity1 = velocityTemp[contact.b1].velocity;
+            glm::vec3 angularVelocity1 = velocityTemp[contact.b1].angularVelocity;
+            glm::quat deltaRotation1 = transformTemp[contact.b1].deltaRotation;
 
             for (int k = 0; k < contact.numPoints; ++k) {
                 auto& contactPoint = contact.contactPointConstraints[k];
@@ -512,17 +504,17 @@ void physecs::Scene::simulate(float timeStep) {
             omega -= invInertiaTensorWorld * solve33(A, f);
 
             // clear pseudo velocities
-            pseudoVelocityTemp[i] = { glm::vec3(0), glm::vec3(0), 0 };
+            pseudoVelocityTemp[i] = {};
         }
         PhysecsZoneEnd(ctx3);
 
         //pre solve
         PhysecsZoneN(ctx8, "pre solve", true);
         for (auto& constraints : contactConstraints) {
-            constraints.preSolve(massTemp.data(), velocityTemp.data());
+            constraints.preSolve(massTemp.getData(), velocityTemp.getData());
         }
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.preSolve(massTemp.data(), velocityTemp.data(), pseudoVelocityTemp.data());
+            color.jointConstraints.preSolve(massTemp.getData(), velocityTemp.getData(), pseudoVelocityTemp.getData());
         }
         PhysecsZoneEnd(ctx8);
 
@@ -530,10 +522,10 @@ void physecs::Scene::simulate(float timeStep) {
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
             for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(velocityTemp.data(), h, true);
+                color.jointConstraints.solve(velocityTemp.getData(), h, true);
             }
             for (auto& constraints : contactConstraints) {
-                constraints.solve(velocityTemp.data(), true, h);
+                constraints.solve(velocityTemp.getData(), true, h);
             }
         }
 
@@ -551,11 +543,11 @@ void physecs::Scene::simulate(float timeStep) {
         //relaxation
         PhysecsZoneN(ctx5, "relaxation", true);
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.solve(velocityTemp.data(), h, false);
+            color.jointConstraints.solve(velocityTemp.getData(), h, false);
         }
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;
-            constraints.solve(velocityTemp.data(), false);
+            constraints.solve(velocityTemp.getData(), false);
         }
         PhysecsZoneEnd(ctx5);
     }

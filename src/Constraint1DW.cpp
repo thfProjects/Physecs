@@ -1,6 +1,5 @@
 #include "Constraint1DW.h"
 #include <Constraint1D.h>
-#include "SolverData.h"
 
 template<int flags>
 void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
@@ -8,11 +7,11 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
     for (int i = 0; i < 4; ++i) {
-        const int b0 = bodies0[i];
-        const int b1 = bodies1[i];
+        const BodyId b0 = bodies0[i];
+        const BodyId b1 = bodies1[i];
 
         FloatW invI0[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
-        if (b0 >= 0) {
+        {
             auto& invI = masses[b0].invInertiaTensor;
             invI0[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
             invI0[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
@@ -33,7 +32,7 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
         }
 
         FloatW invI1[3] = { _mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps() };
-        if (b1 >= 0) {
+        {
             auto& invI = masses[b1].invInertiaTensor;
             invI1[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
             invI1[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
@@ -123,37 +122,33 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
     }
 
     for (int i = 0; i < 4; ++i) {
-        const int b0 = bodies0[i];
-        const int b1 = bodies1[i];
+        const BodyId b0 = bodies0[i];
+        const BodyId b1 = bodies1[i];
 
-        if (b0 >= 0) {
-            if constexpr (!(flags & ANGULAR)) {
-                pseudoVelocity0.get(pseudoVelocities[b0].pseudoVelocity, i);
-            }
-            pseudoAngularVelocity0.get(pseudoVelocities[b0].pseudoAngularVelocity, i);
+        if constexpr (!(flags & ANGULAR)) {
+            pseudoVelocity0.get(pseudoVelocities[b0].pseudoVelocity, i);
+        }
+        pseudoAngularVelocity0.get(pseudoVelocities[b0].pseudoAngularVelocity, i);
 
-            if (pseudoVelocityMask.m128_i32[i]) ++pseudoVelocities[b0].constraintCount;
+        if (pseudoVelocityMask.m128_i32[i]) ++pseudoVelocities[b0].constraintCount;
 
-            if (warmStartMask.m128_i32[i]) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity0.get(velocities[b0].velocity, i);
-                angularVelocity0.get(velocities[b0].angularVelocity, i);
-            }
+        if (warmStartMask.m128_i32[i]) {
+            if constexpr (!(flags & ANGULAR))
+                velocity0.get(velocities[b0].velocity, i);
+            angularVelocity0.get(velocities[b0].angularVelocity, i);
         }
 
-        if (b1 >= 0) {
-            if constexpr (!(flags & ANGULAR)) {
-                pseudoVelocity1.get(pseudoVelocities[b1].pseudoVelocity, i);
-            }
-            pseudoAngularVelocity1.get(pseudoVelocities[b1].pseudoAngularVelocity, i);
+        if constexpr (!(flags & ANGULAR)) {
+            pseudoVelocity1.get(pseudoVelocities[b1].pseudoVelocity, i);
+        }
+        pseudoAngularVelocity1.get(pseudoVelocities[b1].pseudoAngularVelocity, i);
 
-            if (pseudoVelocityMask.m128_i32[i]) ++pseudoVelocities[b1].constraintCount;
+        if (pseudoVelocityMask.m128_i32[i]) ++pseudoVelocities[b1].constraintCount;
 
-            if (warmStartMask.m128_i32[i]) {
-                if constexpr (!(flags & ANGULAR))
-                    velocity1.get(velocities[b1].velocity, i);
-                angularVelocity1.get(velocities[b1].angularVelocity, i);
-            }
+        if (warmStartMask.m128_i32[i]) {
+            if constexpr (!(flags & ANGULAR))
+                velocity1.get(velocities[b1].velocity, i);
+            angularVelocity1.get(velocities[b1].angularVelocity, i);
         }
     }
 }
@@ -162,20 +157,16 @@ template<int flags>
 void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     for (int i = 0; i < 4; ++i) {
-        const int b0 = bodies0[i];
-        const int b1 = bodies1[i];
+        const BodyId b0 = bodies0[i];
+        const BodyId b1 = bodies1[i];
 
-        if (b0 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                velocity0.set(velocities[b0].velocity, i);
-            angularVelocity0.set(velocities[b0].angularVelocity, i);
-        }
+        if constexpr (!(flags & ANGULAR))
+            velocity0.set(velocities[b0].velocity, i);
+        angularVelocity0.set(velocities[b0].angularVelocity, i);
 
-        if (b1 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                velocity1.set(velocities[b1].velocity, i);
-            angularVelocity1.set(velocities[b1].angularVelocity, i);
-        }
+        if constexpr (!(flags & ANGULAR))
+            velocity1.set(velocities[b1].velocity, i);
+        angularVelocity1.set(velocities[b1].angularVelocity, i);
     }
 
     auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
@@ -227,19 +218,15 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
     for (int i = 0; i < 4; ++i) {
         if (!invEffMass.m128_f32[i]) continue;
 
-        const int b0 = bodies0[i];
-        const int b1 = bodies1[i];
+        const BodyId b0 = bodies0[i];
+        const BodyId b1 = bodies1[i];
 
-        if (b0 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                velocity0.get(velocities[b0].velocity, i);
-            angularVelocity0.get(velocities[b0].angularVelocity, i);
-        }
+        if constexpr (!(flags & ANGULAR))
+            velocity0.get(velocities[b0].velocity, i);
+        angularVelocity0.get(velocities[b0].angularVelocity, i);
 
-        if (b1 >= 0) {
-            if constexpr (!(flags & ANGULAR))
-                velocity1.get(velocities[b1].velocity, i);
-            angularVelocity1.get(velocities[b1].angularVelocity, i);
-        }
+        if constexpr (!(flags & ANGULAR))
+            velocity1.get(velocities[b1].velocity, i);
+        angularVelocity1.get(velocities[b1].angularVelocity, i);
     }
 }

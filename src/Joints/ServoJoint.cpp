@@ -47,3 +47,7 @@ void physecs::ServoJoint::setDriveStiffness(float stiffness) {
 void physecs::ServoJoint::setDriveDamping(float damping) {
     data.driveDamping = damping;
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(ServoJoint);
+}

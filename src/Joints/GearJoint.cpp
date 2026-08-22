@@ -67,3 +67,7 @@ void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceDa
 void physecs::GearJoint::setGearRatio(float gearRatio) {
     data.gearRatio = gearRatio;
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(GearJoint);
+}

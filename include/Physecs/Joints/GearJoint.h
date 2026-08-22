@@ -23,6 +23,8 @@ namespace physecs {
         using Base = JointImpl<GearJoint, Layout, Cache, Data>;
     };
 
+    PHYSECS_DECLARE_JOINT_IMPL(GearJoint);
+
     struct PHYSECS_API GearJoint final : GearJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
         using GearJointDef::Base::Base;

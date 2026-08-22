@@ -32,3 +32,7 @@ void physecs::FixedJoint::makeConstraints(const JointWorldSpaceData& worldSpaceD
     .setAngular1(u12xu01)
     .setC(d12);
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(FixedJoint);
+}

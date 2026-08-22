@@ -33,6 +33,8 @@ namespace physecs {
         using Base = JointImpl<PrismaticJoint, Layout, Cache, Data>;
     };
 
+    PHYSECS_DECLARE_JOINT_IMPL(PrismaticJoint);
+
     struct PHYSECS_API PrismaticJoint final : PrismaticJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
 

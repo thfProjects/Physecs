@@ -10,3 +10,7 @@ void physecs::SphericalJoint::makeConstraints(const JointWorldSpaceData &worldSp
 
     createPointToPointConstraint(p0, p1, r0, r1, constraints);
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(SphericalJoint);
+}

@@ -132,3 +132,7 @@ void physecs::PrismaticJoint::setDriveStiffness(float driveStiffness) {
 void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
     data.driveDamping = driveDamping;
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(PrismaticJoint);
+}

@@ -48,3 +48,7 @@ void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
 void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
     data.driveMaxTorque = maxTorque;
 }
+
+namespace physecs {
+    PHYSECS_DECLARE_JOINT_IMPL(RevoluteJoint);
+}

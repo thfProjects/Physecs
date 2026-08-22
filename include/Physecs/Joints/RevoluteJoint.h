@@ -25,6 +25,8 @@ namespace physecs {
         using Base = JointImpl<RevoluteJoint, Layout, Cache, Data>;
     };
 
+    PHYSECS_DECLARE_JOINT_IMPL(RevoluteJoint);
+
     struct PHYSECS_API RevoluteJoint final : RevoluteJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
         using RevoluteJointDef::Base::Base;

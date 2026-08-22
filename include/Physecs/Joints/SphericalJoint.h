@@ -5,6 +5,8 @@ namespace physecs {
     struct SphericalJoint;
 
     struct SphericalJointDef {
+        struct Data {};
+
         struct Cache {
             float pointLambda[3] = {};
         };
@@ -12,8 +14,10 @@ namespace physecs {
         using Layout = ConstraintLayout<
             ConstraintBlock<NONE, 3, &Cache::pointLambda>>;
 
-        using Base = JointImpl<SphericalJoint, Layout, Cache>;
+        using Base = JointImpl<SphericalJoint, Layout, Cache, Data>;
     };
+
+    PHYSECS_DECLARE_JOINT_IMPL(SphericalJoint);
 
     struct PHYSECS_API SphericalJoint final : SphericalJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);

@@ -18,3 +18,7 @@ void physecs::UniversalJoint::makeConstraints(const JointWorldSpaceData &worldSp
     .setAngular1(u12xu02)
     .setC(d22);
 }
+
+namespace physecs {
+    PHYSECS_DEFINE_JOINT_IMPL(UniversalJoint);
+}

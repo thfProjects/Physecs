@@ -24,6 +24,8 @@ namespace physecs {
         using Base = JointImpl<ServoJoint, Layout, Cache, Data>;
     };
 
+    PHYSECS_DECLARE_JOINT_IMPL(ServoJoint);
+
     struct PHYSECS_API ServoJoint final : ServoJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
         using ServoJointDef::Base::Base;

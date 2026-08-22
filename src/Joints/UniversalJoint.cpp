@@ -18,17 +18,3 @@ void physecs::UniversalJoint::makeConstraints(const JointWorldSpaceData &worldSp
     .setAngular1(u12xu02)
     .setC(d22);
 }
-
-physecs::JointSolverDesc physecs::UniversalJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
-    constraintLayout.createConstraints<ANGULAR>(&impulseCache.angularLambda);
-    return {
-        nullptr,
-        makeConstraints
-    };
-}
-
-void physecs::UniversalJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
-    impulseCache.angularLambda = constraints.nextTotalLambda<ANGULAR>();
-}

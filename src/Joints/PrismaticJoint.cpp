@@ -5,7 +5,7 @@
 
 void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointData*>(additionalData);
+    auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointDef::Data*>(additionalData);
 
     glm::vec3 d = p1 - p0;
 
@@ -92,6 +92,23 @@ void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSp
     }
 }
 
+void physecs::PrismaticJoint::prepare(const entt::registry &registry) {
+    const auto& transform0 = registry.get<TransformComponent>(entity0);
+    const auto& transform1 = registry.get<TransformComponent>(entity1);
+
+    const glm::vec3 p0 = transform0.position + transform0.orientation * anchor0Pos;
+    const glm::vec3 p1 = transform1.position + transform1.orientation * anchor1Pos;
+
+    const glm::vec3 d = p1 - p0;
+
+    const glm::vec3 u00 = transform0.orientation * anchor0Or * glm::vec3(1, 0, 0);
+
+    const float dx = glm::dot(d, u00);
+
+    data.makeUpperLimit = dx > data.upperLimit;
+    data.makeLowerLimit = !data.makeUpperLimit && dx < data.lowerLimit;
+}
+
 void physecs::PrismaticJoint::setUpperLimit(float upperLimit) {
     data.upperLimit = upperLimit;
 }
@@ -114,53 +131,4 @@ void physecs::PrismaticJoint::setDriveStiffness(float driveStiffness) {
 
 void physecs::PrismaticJoint::setDriveDamping(float driveDamping) {
     data.driveDamping = driveDamping;
-}
-
-physecs::JointSolverDesc physecs::PrismaticJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    const auto& transform0 = registry.get<TransformComponent>(entity0);
-    const auto& transform1 = registry.get<TransformComponent>(entity1);
-
-    const glm::vec3 p0 = transform0.position + transform0.orientation * anchor0Pos;
-    const glm::vec3 p1 = transform1.position + transform1.orientation * anchor1Pos;
-
-    const glm::vec3 d = p1 - p0;
-
-    const glm::vec3 u00 = transform0.orientation * anchor0Or * glm::vec3(1, 0, 0);
-
-    const float dx = glm::dot(d, u00);
-
-    constraintLayout.createConstraints<NONE, 2>(impulseCache.translationLambda);
-    constraintLayout.createConstraints<ANGULAR, 3>(impulseCache.angularLambda);
-
-    if (dx > data.upperLimit) {
-        data.makeUpperLimit = true;
-        data.makeLowerLimit = false;
-        constraintLayout.createConstraints<LIMITED>(&impulseCache.upperLimitLambda);
-    }
-    else if (dx < data.lowerLimit) {
-        data.makeUpperLimit = false;
-        data.makeLowerLimit = true;
-        constraintLayout.createConstraints<LIMITED>(&impulseCache.lowerLimitLambda);
-    }
-    else {
-        data.makeUpperLimit = false;
-        data.makeLowerLimit = false;
-    }
-
-    if (data.driveEnabled) {
-        constraintLayout.createConstraints<SOFT>();
-    }
-
-    return {
-        &data,
-        makeConstraints
-    };
-}
-
-void physecs::PrismaticJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    for (float& lambda : impulseCache.translationLambda) lambda = constraints.nextTotalLambda<NONE>();
-    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
-    impulseCache.upperLimitLambda = data.makeUpperLimit ? constraints.nextTotalLambda<LIMITED>() : 0.f;
-    data.makeLowerLimit = data.makeLowerLimit ? constraints.nextTotalLambda<LIMITED>() : 0.f;
-    if (data.driveEnabled) constraints.nextTotalLambda<SOFT>();
 }

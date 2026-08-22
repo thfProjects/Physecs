@@ -9,7 +9,7 @@ static float angleDiff(float angle0, float angle1) {
 
 void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointData*>(additionalData);
+    auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointDef::Data*>(additionalData);
 
     constexpr float epsilon = 1e-4f;
 
@@ -66,16 +66,4 @@ void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceDa
 
 void physecs::GearJoint::setGearRatio(float gearRatio) {
     data.gearRatio = gearRatio;
-}
-
-physecs::JointSolverDesc physecs::GearJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE>(&impulseCache.lambda);
-    return {
-        &data,
-        makeConstraints
-    };
-}
-
-void physecs::GearJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    impulseCache.lambda = constraints.nextTotalLambda<NONE>();
 }

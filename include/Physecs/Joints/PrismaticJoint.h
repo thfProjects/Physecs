@@ -2,10 +2,10 @@
 #include "Joint.h"
 
 namespace physecs {
+    struct PrismaticJoint;
 
-    class PHYSECS_API PrismaticJoint final: public Joint {
-
-        struct PrismaticJointData {
+    struct PrismaticJointDef {
+        struct Data {
             float upperLimit = 1;
             float lowerLimit = 0;
             bool makeUpperLimit = false;
@@ -16,26 +16,35 @@ namespace physecs {
             float driveDamping = 1;
         };
 
-        struct ImpulseCache {
+        struct Cache {
             float translationLambda[2] = {};
             float angularLambda[3] = {};
             float upperLimitLambda = 0;
             float lowerLimitLambda = 0;
         };
 
-        PrismaticJointData data;
-        ImpulseCache impulseCache;
+        using Layout = ConstraintLayout<
+            ConstraintBlock<NONE, 2, &Cache::translationLambda>,
+            ConstraintBlock<ANGULAR, 3, &Cache::angularLambda>,
+            ConstraintBlock<LIMITED, 1, &Cache::upperLimitLambda, &Data::makeUpperLimit>,
+            ConstraintBlock<LIMITED, 1, &Cache::lowerLimitLambda, &Data::makeLowerLimit>,
+            ConstraintBlock<SOFT, 1, nullptr, &Data::driveEnabled>>;
 
+        using Base = JointImpl<PrismaticJoint, Layout, Cache, Data>;
+    };
+
+    struct PHYSECS_API PrismaticJoint final : PrismaticJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
-    public:
+
+        void prepare(const entt::registry& registry);
+
+        using PrismaticJointDef::Base::Base;
+
         void setUpperLimit(float upperLimit);
         void setLowerLimit(float lowerLimit);
         void setDriveEnabled(bool driveEnabled);
         void setTargetPosition(float targetPosition);
         void setDriveStiffness(float driveStiffness);
         void setDriveDamping(float driveDamping);
-        PrismaticJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
-        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
-        void storeAccumulatedImpulses(Constraint1DReader& constraints) override;
     };
 }

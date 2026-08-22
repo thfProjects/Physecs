@@ -2,19 +2,23 @@
 #include "Joint.h"
 
 namespace physecs {
+    struct UniversalJoint;
 
-    class PHYSECS_API UniversalJoint final : public Joint {
-        struct ImpulseCache {
+    struct UniversalJointDef {
+        struct Cache {
             float pointLambda[3] = {};
             float angularLambda = 0;
         };
 
-        ImpulseCache impulseCache;
+        using Layout = ConstraintLayout<
+            ConstraintBlock<NONE, 3, &Cache::pointLambda>,
+            ConstraintBlock<ANGULAR, 1, &Cache::angularLambda>>;
 
+        using Base = JointImpl<UniversalJoint, Layout, Cache>;
+    };
+
+    struct PHYSECS_API UniversalJoint final : UniversalJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
-    public:
-        UniversalJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
-        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
-        void storeAccumulatedImpulses(Constraint1DReader& constraints) override;
+        using UniversalJointDef::Base::Base;
     };
 }

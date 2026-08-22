@@ -10,15 +10,3 @@ void physecs::SphericalJoint::makeConstraints(const JointWorldSpaceData &worldSp
 
     createPointToPointConstraint(p0, p1, r0, r1, constraints);
 }
-
-physecs::JointSolverDesc physecs::SphericalJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
-    return {
-        nullptr,
-        makeConstraints
-    };
-}
-
-void physecs::SphericalJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
-}

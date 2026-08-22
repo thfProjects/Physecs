@@ -8,7 +8,7 @@
 
 void physecs::ServoJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [targetAngle, driveStiffness, driveDamping] = *static_cast<ServoJointData*>(additionalData);
+    auto& [targetAngle, driveStiffness, driveDamping] = *static_cast<ServoJointDef::Data*>(additionalData);
 
     createPointToPointConstraint(p0, p1, r0, r1, constraints);
 
@@ -46,20 +46,4 @@ void physecs::ServoJoint::setDriveStiffness(float stiffness) {
 
 void physecs::ServoJoint::setDriveDamping(float damping) {
     data.driveDamping = damping;
-}
-
-physecs::JointSolverDesc physecs::ServoJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
-    constraintLayout.createConstraints<ANGULAR, 2>(impulseCache.angularLambda);
-    constraintLayout.createConstraints<ANGULAR | SOFT>();
-    return {
-        &data,
-        makeConstraints
-    };
-}
-
-void physecs::ServoJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
-    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
-    constraints.nextTotalLambda<ANGULAR | SOFT>();
 }

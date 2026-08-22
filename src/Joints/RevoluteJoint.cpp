@@ -7,7 +7,7 @@
 
 void physecs::RevoluteJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DWriter& constraints) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
-    auto& [driveEnabled, driveVelocity, driveMaxTorque] = *static_cast<RevoluteJointData*>(additionalData);
+    auto& [driveEnabled, driveVelocity, driveMaxTorque] = *static_cast<RevoluteJointDef::Data*>(additionalData);
 
     createPointToPointConstraint(p0, p1, r0, r1, constraints);
 
@@ -47,20 +47,4 @@ void physecs::RevoluteJoint::setDriveVelocity(float velocity) {
 
 void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
     data.driveMaxTorque = maxTorque;
-}
-
-physecs::JointSolverDesc physecs::RevoluteJoint::getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) {
-    constraintLayout.createConstraints<NONE, 3>(impulseCache.pointLambda);
-    constraintLayout.createConstraints<ANGULAR, 2>(impulseCache.angularLambda);
-    if (data.driveEnabled) constraintLayout.createConstraints<ANGULAR | LIMITED>(&impulseCache.driveLambda);
-    return {
-        &data,
-        makeConstraints
-    };
-}
-
-void physecs::RevoluteJoint::storeAccumulatedImpulses(Constraint1DReader& constraints) {
-    for (float& lambda : impulseCache.pointLambda) lambda = constraints.nextTotalLambda<NONE>();
-    for (float& lambda : impulseCache.angularLambda) lambda = constraints.nextTotalLambda<ANGULAR>();
-    impulseCache.driveLambda = data.driveEnabled ? constraints.nextTotalLambda<ANGULAR | LIMITED>() : 0.f;
 }

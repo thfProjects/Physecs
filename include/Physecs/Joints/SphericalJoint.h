@@ -2,18 +2,21 @@
 #include "Joint.h"
 
 namespace physecs {
+    struct SphericalJoint;
 
-    class PHYSECS_API SphericalJoint final : public Joint {
-        struct ImpulseCache {
+    struct SphericalJointDef {
+        struct Cache {
             float pointLambda[3] = {};
         };
 
-        ImpulseCache impulseCache;
+        using Layout = ConstraintLayout<
+            ConstraintBlock<NONE, 3, &Cache::pointLambda>>;
 
+        using Base = JointImpl<SphericalJoint, Layout, Cache>;
+    };
+
+    struct PHYSECS_API SphericalJoint final : SphericalJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
-    public:
-        SphericalJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
-        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
-        void storeAccumulatedImpulses(Constraint1DReader& constraints) override;
+        using SphericalJointDef::Base::Base;
     };
 }

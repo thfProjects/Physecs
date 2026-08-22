@@ -4,15 +4,9 @@
 #include <entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include "Components.h"
-
-struct TransformComponent;
+#include <Constraint1DContainer.h>
 
 namespace physecs {
-
-    class Constraint1DWriter;
-    class Constraint1DReader;
-    class Constraint1DLayout;
 
     struct JointWorldSpaceData {
         glm::vec3 p0;
@@ -51,8 +45,15 @@ namespace physecs {
         glm::vec3 anchor1Pos;
         glm::quat anchor1Or;
 
-        Joint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : entity0(entity0), entity1(entity1), anchor0Pos(anchor0Pos), anchor0Or(anchor0Or), anchor1Pos(anchor1Pos), anchor1Or(anchor1Or) {}
     public:
+        Joint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) :
+        entity0(entity0),
+        entity1(entity1),
+        anchor0Pos(anchor0Pos),
+        anchor0Or(anchor0Or),
+        anchor1Pos(anchor1Pos),
+        anchor1Or(anchor1Or) {}
+
         virtual JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) = 0;
         virtual void storeAccumulatedImpulses(Constraint1DReader& constraints) = 0;
 
@@ -67,4 +68,68 @@ namespace physecs {
 
         virtual ~Joint() = default;
     };
+
+    struct EmptyData {};
+    struct EmptyCache {};
+
+    template<int Flags, int Count = 1, auto Lambdas = nullptr, auto Gate = nullptr>
+    struct ConstraintBlock {
+        static constexpr int  flags   = Flags;
+        static constexpr int  count   = Count;
+        static constexpr auto lambdas = Lambdas;
+        static constexpr auto gate    = Gate;
+    };
+
+    template<typename... Blocks>
+    struct ConstraintLayout {};
+
+    template<typename Impl, typename Layout, typename Cache = EmptyCache, typename Data = EmptyData>
+    class JointImpl : public Joint {
+    protected:
+        [[no_unique_address]] Cache cache;
+        [[no_unique_address]] Data data;
+
+        void prepare(const entt::registry&) {}
+
+    private:
+        template<typename... Blocks, typename F>
+        constexpr static void forEachBlock(ConstraintLayout<Blocks...>, F&& f) { (f.template operator()<Blocks>(), ...); }
+
+        template<typename Block>
+        constexpr float* getLambdas() {
+            if constexpr (Block::lambdas == nullptr) return nullptr;
+            else if constexpr (std::is_array_v<std::remove_reference_t<decltype(cache.*Block::lambdas)>>) {
+                return cache.*Block::lambdas;
+            }
+            else return &(cache.*Block::lambdas);
+        }
+
+    public:
+        using Joint::Joint;
+        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout &constraintLayout) override;
+        void storeAccumulatedImpulses(Constraint1DReader &constraints) override;
+    };
+
+    template<typename Impl, typename Layout, typename Cache, typename Data>
+    JointSolverDesc JointImpl<Impl, Layout, Cache, Data>::getSolverDesc(entt::registry &registry, Constraint1DLayout &constraintLayout) {
+        static_cast<Impl*>(this)->prepare(registry);
+        forEachBlock(Layout{}, [&]<typename Block>{
+            if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
+            constraintLayout.createConstraints<Block::flags, Block::count>(getLambdas<Block>());
+        });
+        return JointSolverDesc{ &data, Impl::makeConstraints };
+    }
+
+    template<typename Impl, typename Layout, typename Cache, typename Data>
+    void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1DReader &constraints) {
+        forEachBlock(Layout{}, [&]<typename Block>{
+            if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
+            for (int i = 0; i < Block::count; ++i) {
+                const float lambda = constraints.nextTotalLambda<Block::flags>();
+                if constexpr (Block::lambdas != nullptr) {
+                    getLambdas<Block>()[i] = lambda;
+                }
+            }
+        });
+    }
 }

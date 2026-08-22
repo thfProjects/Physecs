@@ -2,9 +2,10 @@
 #include "Joint.h"
 
 namespace physecs {
-    class PHYSECS_API GearJoint final : public Joint {
+    struct GearJoint;
 
-        struct GearJointData {
+    struct GearJointDef {
+        struct Data {
             float gearRatio = 1;
             float persistentAngle0 = 0;
             float persistentAngle1 = 0;
@@ -12,18 +13,20 @@ namespace physecs {
             bool isInitialized = false;
         };
 
-        struct ImpulseCache {
+        struct Cache {
             float lambda = 0;
         };
 
-        GearJointData data;
-        ImpulseCache impulseCache;
+        using Layout = ConstraintLayout<
+            ConstraintBlock<NONE, 1, &Cache::lambda>>;
 
+        using Base = JointImpl<GearJoint, Layout, Cache, Data>;
+    };
+
+    struct PHYSECS_API GearJoint final : GearJointDef::Base {
         static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
-    public:
+        using GearJointDef::Base::Base;
+
         void setGearRatio(float gearRatio);
-        GearJoint(entt::entity entity0, glm::vec3 anchor0Pos, glm::quat anchor0Or, entt::entity entity1, glm::vec3 anchor1Pos, glm::quat anchor1Or) : Joint(entity0, anchor0Pos, anchor0Or, entity1, anchor1Pos, anchor1Or) {}
-        JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout& constraintLayout) override;
-        void storeAccumulatedImpulses(Constraint1DReader& constraints) override;
     };
 }

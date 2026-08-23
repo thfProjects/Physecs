@@ -24,7 +24,7 @@ namespace physecs {
 
     struct TransformData {
         glm::vec3 deltaTranslation = glm::vec3(0);
-        glm::quat deltaRotation = glm::quat(1, 0, 0, 0);
+        glm::mat3 deltaRotation = glm::mat3(1);
         glm::vec3 comWorld = glm::vec3(0);
         glm::quat worldRotation = glm::quat(1, 0, 0, 0);
     };

@@ -398,7 +398,7 @@ void physecs::Scene::simulate(float timeStep) {
         velocityTemp[i].velocity = fromVec3(rigidDynamic.velocity);
         velocityTemp[i].angularVelocity = fromVec3(rigidDynamic.angularVelocity);
         massTemp[i] = { rigidDynamic.invMass, rot * rigidDynamic.invInertiaTensor * invRot };
-        transformTemp[i] = { glm::vec3(0), glm::quat(1, 0, 0, 0), comWorld, transform.orientation };
+        transformTemp[i] = { glm::vec3(0), glm::mat3(1), comWorld, transform.orientation };
     }
 
     float h = timeStep / numSubSteps;
@@ -467,17 +467,14 @@ void physecs::Scene::simulate(float timeStep) {
         for (auto& [_, jointSolverDataBuffer, jointConstraints] : jointGraph.colors) {
             Constraint1DWriter constraintWriter(jointConstraints);
             for (auto& jointSolverData : jointSolverDataBuffer) {
-                glm::mat3 deltaRot0 = glm::mat3(transformTemp[jointSolverData.b0].deltaRotation);
-                glm::mat3 deltaRot1 = glm::mat3(transformTemp[jointSolverData.b1].deltaRotation);
-
-                jointSolverData.r0 = deltaRot0 * jointSolverData.r0;
-                jointSolverData.r1 = deltaRot1 * jointSolverData.r1;
+                jointSolverData.r0 = transformTemp[jointSolverData.b0].deltaRotation * jointSolverData.r0;
+                jointSolverData.r1 = transformTemp[jointSolverData.b1].deltaRotation * jointSolverData.r1;
 
                 glm::vec3 p0 = transformTemp[jointSolverData.b0].comWorld + jointSolverData.r0;
                 glm::vec3 p1 = transformTemp[jointSolverData.b1].comWorld + jointSolverData.r1;
 
-                jointSolverData.u0 = deltaRot0 * jointSolverData.u0;
-                jointSolverData.u1 = deltaRot1 * jointSolverData.u1;
+                jointSolverData.u0 = transformTemp[jointSolverData.b0].deltaRotation * jointSolverData.u0;
+                jointSolverData.u1 = transformTemp[jointSolverData.b1].deltaRotation * jointSolverData.u1;
 
                 jointSolverData.makeConstraintsFunc({ p0, p1, jointSolverData.r0, jointSolverData.r1, jointSolverData.u0, jointSolverData.u1 }, jointSolverData.additionalData, constraintWriter);
             }
@@ -490,7 +487,7 @@ void physecs::Scene::simulate(float timeStep) {
             velocityTemp[i].velocity += h * glm::vec3(0, -g, 0);
 
             // update world space inertia tensor
-            glm::mat3 rot = glm::toMat3(transformTemp[i].deltaRotation);
+            glm::mat3& rot = transformTemp[i].deltaRotation;
             glm::mat3 invRot = glm::transpose(rot);
 
             glm::mat3& invInertiaTensorWorld = massTemp[i].invInertiaTensor;
@@ -534,9 +531,10 @@ void physecs::Scene::simulate(float timeStep) {
         for (int i = 0; i < numDynamicBodies; ++i) {
             float pseudoVelocityScale = pseudoVelocityTemp[i].constraintCount ? 1.f / pseudoVelocityTemp[i].constraintCount : 1.f;
 
-            transformTemp[i].deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * (h * asVec3(velocityTemp[i].angularVelocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoAngularVelocity))));
+            glm::quat deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * (h * asVec3(velocityTemp[i].angularVelocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoAngularVelocity))));
+            transformTemp[i].deltaRotation = glm::toMat3(deltaRotation);
             transformTemp[i].comWorld += h * asVec3(velocityTemp[i].velocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoVelocity);
-            transformTemp[i].worldRotation = transformTemp[i].deltaRotation * transformTemp[i].worldRotation;
+            transformTemp[i].worldRotation = deltaRotation * transformTemp[i].worldRotation;
         }
         PhysecsZoneEnd(ctx4);
 

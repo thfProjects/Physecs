@@ -8,6 +8,7 @@ project(Physecs)
 include(FetchContent)
 
 option(BUILD_DEMO "Build demo")
+option(BUILD_TESTS "Build tests")
 option(PROFILE "Profile")
 option(DEBUG_CONTACT_POINTS "Debug contact points")
 
@@ -55,11 +56,7 @@ if (PROFILE)
 
 	target_link_libraries("${PHYSECS_LIB}" PUBLIC TracyClient)
 
-	add_definitions(
-		-DTRACY_ENABLE
-		-DTRACY_NO_SAMPLING
-		-DPHYSECS_PROFILE
-	)
+	target_compile_definitions("${PHYSECS_LIB}" PRIVATE TRACY_ENABLE TRACY_NO_SAMPLING PHYSECS_PROFILE)
 endif ()
 
 if (BUILD_DEMO)
@@ -107,4 +104,42 @@ if (BUILD_DEMO)
 		${CMAKE_CURRENT_SOURCE_DIR}/res
 		${CMAKE_CURRENT_BINARY_DIR}
 	)
+endif ()
+
+if (BUILD_TESTS)
+	enable_testing()
+
+	set(PHYSECS_TEST_LIB PhysecsStatic)
+
+	add_library("${PHYSECS_TEST_LIB}" STATIC)
+
+	set_property(TARGET "${PHYSECS_TEST_LIB}" PROPERTY CXX_STANDARD 20)
+
+	set_property(TARGET "${PHYSECS_TEST_LIB}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+	target_sources("${PHYSECS_TEST_LIB}" PRIVATE ${LIB_SOURCES})
+
+	target_include_directories("${PHYSECS_TEST_LIB}" PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/src"
+		"${CMAKE_CURRENT_SOURCE_DIR}/include"
+		"${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs"
+		"${CMAKE_CURRENT_SOURCE_DIR}/include/Physecs/Joints"
+		"${CMAKE_CURRENT_SOURCE_DIR}/vendor/glm 0.9.9.8"
+		"${CMAKE_CURRENT_SOURCE_DIR}/vendor/entt-3.12.2/single_include/entt")
+
+	file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+
+	foreach (TEST_SOURCE ${TEST_SOURCES})
+		get_filename_component(TEST_NAME "${TEST_SOURCE}" NAME_WE)
+
+		add_executable("${TEST_NAME}" "${TEST_SOURCE}")
+
+		set_property(TARGET "${TEST_NAME}" PROPERTY CXX_STANDARD 20)
+
+		set_property(TARGET "${TEST_NAME}" PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+		target_link_libraries("${TEST_NAME}" PRIVATE "${PHYSECS_TEST_LIB}")
+
+		add_test(NAME "${TEST_NAME}" COMMAND "${TEST_NAME}")
+	endforeach ()
 endif ()

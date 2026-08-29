@@ -19,4 +19,6 @@ namespace physecs {
             invDet * glm::dot(A[0], glm::cross(A[1], b))
         );
     }
+
+    void diagonalizeSymmetric3x3(glm::mat3 m, glm::vec3& outDiagonal, glm::mat3& outRotation);
 }

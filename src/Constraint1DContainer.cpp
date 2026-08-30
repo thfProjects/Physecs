@@ -23,9 +23,9 @@ namespace {
     }
 }
 
-void physecs::Constraint1DContainer::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
+void physecs::Constraint1DContainer::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
     forEachConstraint(constraintCollection, [=](auto& constraint) {
-        constraint.preSolve(masses, velocities, pseudoVelocities);
+        constraint.preSolve(velocities, pseudoVelocities);
     });
 }
 

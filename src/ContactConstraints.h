@@ -4,7 +4,6 @@
 
 namespace physecs {
 
-    struct MassData;
     struct VelocityData;
     struct ContactManifoldData;
 
@@ -16,8 +15,6 @@ namespace physecs {
         float targetVelocity;
         float c;
         float totalLambda;
-        glm::vec3 r0xnt;
-        glm::vec3 r1xnt;
         float invEffMass;
         float distToFrictionAnchor;
     };
@@ -25,17 +22,14 @@ namespace physecs {
     struct FrictionConstraints {
         glm::vec3 r0;
         glm::vec3 r1;
-        glm::vec3 t;
+        glm::vec3 t0;
+        glm::vec3 t1;
         glm::vec3 r0xt;
         glm::vec3 r1xt;
         float totalLambda;
         float totalLambdaTwist;
-        glm::vec3 r0xtt;
-        glm::vec3 r1xtt;
         glm::vec3 n0;
         glm::vec3 n1;
-        glm::vec3 n0t;
-        glm::vec3 n1t;
         float invEffMass;
         float invEffMassTwist;
     };
@@ -44,9 +38,9 @@ namespace physecs {
         ContactManifoldData* contactManifoldData;
         BodyId b0;
         BodyId b1;
-        float invMass0;
-        float invMass1;
         glm::vec3 n;
+        glm::vec3 n0;
+        glm::vec3 n1;
         float friction;
         bool isSoft;
         float stiffness;
@@ -55,7 +49,7 @@ namespace physecs {
         ContactPointConstraint contactPointConstraints[4];
         FrictionConstraints frictionConstraints;
 
-        void preSolve(const MassData* masses, VelocityData* velocities);
+        void preSolve(VelocityData* velocities);
         void solve(VelocityData* velocities, bool useBias, float timeStep = 0);
     };
 }

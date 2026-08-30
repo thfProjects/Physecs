@@ -2,21 +2,10 @@
 #include "SolverData.h"
 
 template<int flags>
-void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
-    const float invMass0 = masses[b0].invInertiaTensorAndMass.m128_f32[3];
-    const glm::vec3& invInertiaTensor0 = asVec3(masses[b0].invInertiaTensorAndMass);
-
-    const float invMass1 = masses[b1].invInertiaTensorAndMass.m128_f32[3];
-    const glm::vec3& invInertiaTensor1 = asVec3(masses[b1].invInertiaTensorAndMass);
-
-    angular0t = invInertiaTensor0 * angular0;
-    angular1t = invInertiaTensor1 * angular1;
-
-    invEffMass = glm::dot(angular0, angular0t) + glm::dot(angular1, angular1t);
+void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
+    invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
     if constexpr (!(flags & ANGULAR)) {
-        invEffMass += glm::dot(linear, linear) * (invMass0 + invMass1);
-        linear0t = invMass0 * linear;
-        linear1t = invMass1 * linear;
+        invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
     }
 
     if constexpr (flags & SOFT) return;
@@ -29,12 +18,12 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData
         totalLambda = totalLambda * 0.5f;
 
         if constexpr (!(flags & ANGULAR))
-            velocities[b0].velocity += totalLambda * linear0t;
-        velocities[b0].angularVelocity += totalLambda * angular0t;
+            velocities[b0].velocity += totalLambda * linear0;
+        velocities[b0].angularVelocity += totalLambda * angular0;
 
         if constexpr (!(flags & ANGULAR))
-            velocities[b1].velocity -= totalLambda * linear1t;
-        velocities[b1].angularVelocity -= totalLambda * angular1t;
+            velocities[b1].velocity -= totalLambda * linear1;
+        velocities[b1].angularVelocity -= totalLambda * angular1;
     }
 
     if (!c || !invEffMass) return;
@@ -44,13 +33,13 @@ void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData
         lambda = glm::clamp(lambda, min, max);
 
     if constexpr (!(flags & ANGULAR))
-        pseudoVelocities[b0].pseudoVelocity += lambda * linear0t;
-    pseudoVelocities[b0].pseudoAngularVelocity += lambda * angular0t;
+        pseudoVelocities[b0].pseudoVelocity += lambda * linear0;
+    pseudoVelocities[b0].pseudoAngularVelocity += lambda * angular0;
     ++pseudoVelocities[b0].constraintCount;
 
     if constexpr (!(flags & ANGULAR))
-        pseudoVelocities[b1].pseudoVelocity -= lambda * linear1t;
-    pseudoVelocities[b1].pseudoAngularVelocity -= lambda * angular1t;
+        pseudoVelocities[b1].pseudoVelocity -= lambda * linear1;
+    pseudoVelocities[b1].pseudoAngularVelocity -= lambda * angular1;
     ++pseudoVelocities[b1].constraintCount;
 }
 
@@ -70,7 +59,7 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
 
     float relativeVelocity = glm::dot(angular1, angularVelocity1) - glm::dot(angular0, angularVelocity0);
     if constexpr (!(flags & ANGULAR)) {
-        relativeVelocity += glm::dot(linear, velocity1) - glm::dot(linear, velocity0);
+        relativeVelocity += glm::dot(linear1, velocity1) - glm::dot(linear0, velocity0);
     }
 
     float lambda;
@@ -93,10 +82,10 @@ void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeSte
     }
 
     if constexpr (!(flags & ANGULAR))
-        velocities[b0].velocity += lambda * linear0t;
-    velocities[b0].angularVelocity += lambda * angular0t;
+        velocities[b0].velocity += lambda * linear0;
+    velocities[b0].angularVelocity += lambda * angular0;
 
     if constexpr (!(flags & ANGULAR))
-        velocities[b1].velocity -= lambda * linear1t;
-    velocities[b1].angularVelocity -= lambda * angular1t;
+        velocities[b1].velocity -= lambda * linear1;
+    velocities[b1].angularVelocity -= lambda * angular1;
 }

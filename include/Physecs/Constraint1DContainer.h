@@ -11,6 +11,8 @@ namespace physecs {
     struct Constraint1DWriterContext {
         glm::mat3* r0 = nullptr;
         glm::mat3* r1 = nullptr;
+        MassData* massData0 = nullptr;
+        MassData* massData1 = nullptr;
     };
 
     template<int flags>
@@ -27,15 +29,21 @@ namespace physecs {
         Constraint1DView(Constraint1D<flags>& sequential, Constraint1DWriterContext& context) : sequential(&sequential), context(context), offset(-1) {}
 
         __forceinline Constraint1DView& setLinear(const glm::vec3& linear) {
-            if (offset < 0)
-                sequential->linear = linear;
-            else
-                color->linear.set(linear, offset);
+            glm::vec3 linear0 = linear * context.massData0->sqrtInvMass;
+            glm::vec3 linear1 = linear * context.massData1->sqrtInvMass;
+            if (offset < 0) {
+                sequential->linear0 = linear0;
+                sequential->linear1 = linear1;
+            }
+            else {
+                color->linear0.set(linear0, offset);
+                color->linear1.set(linear1, offset);
+            }
             return *this;
         }
 
         __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
-            const glm::vec3 angular = multiplyTranspose(*context.r0, angular0);
+            const glm::vec3 angular = multiplyTranspose(*context.r0, angular0) * context.massData0->sqrtInvInertia;
             if (offset < 0)
                 sequential->angular0 = angular;
             else
@@ -44,7 +52,7 @@ namespace physecs {
         }
 
         __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
-            const glm::vec3 angular = multiplyTranspose(*context.r1, angular1);
+            const glm::vec3 angular = multiplyTranspose(*context.r1, angular1) * context.massData1->sqrtInvInertia;
             if (offset < 0)
                 sequential->angular1 = angular;
             else
@@ -134,7 +142,7 @@ namespace physecs {
         friend class Constraint1DReader;
 
     public:
-        void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
+        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
         void solve(VelocityData* velocities, float timeStep, bool useBias = false);
         void clear();
 

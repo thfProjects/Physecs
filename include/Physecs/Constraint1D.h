@@ -6,7 +6,6 @@ namespace physecs {
 
     struct VelocityData;
     struct PseudoVelocityData;
-    struct MassData;
 
     enum ConstraintFlags {
         NONE = 0,
@@ -19,7 +18,8 @@ namespace physecs {
     struct Constraint1D {
         BodyId b0 = INVALID_BODY_ID;
         BodyId b1 = INVALID_BODY_ID;
-        glm::vec3 linear = glm::vec3(0);
+        glm::vec3 linear0 = glm::vec3(0);
+        glm::vec3 linear1 = glm::vec3(0);
         glm::vec3 angular0 = glm::vec3(0);
         glm::vec3 angular1 = glm::vec3(0);
         float targetVelocity = 0;
@@ -28,15 +28,11 @@ namespace physecs {
         float max = std::numeric_limits<float>::max();
         float stiffness = 0;
         float damping = 0;
-        glm::vec3 linear0t = glm::vec3(0);
-        glm::vec3 linear1t = glm::vec3(0);
-        glm::vec3 angular0t = glm::vec3(0);
-        glm::vec3 angular1t = glm::vec3(0);
         float invEffMass = 0;
         float totalLambda = 0;
 
         Constraint1D(int b0, int b1, float initLambda) : b0(b0), b1(b1), totalLambda(initLambda) {};
-        void preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
+        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
         void solve(VelocityData* velocities, float timeStep, bool useBias);
     };
 }

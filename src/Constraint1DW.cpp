@@ -38,7 +38,7 @@ void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
 }
 
 template<int flags>
-void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
+void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
     Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     if constexpr (!(flags & SOFT)) {
@@ -57,29 +57,9 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
         pseudoAngularVelocity1 = gatherVec3W<&PseudoVelocityData::pseudoAngularVelocity>(pseudoVelocities, bodies1);
     }
 
-    FloatW invMass0 = _mm_setr_ps(
-        masses[bodies0[0]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies0[1]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies0[2]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies0[3]].invInertiaTensorAndMass.m128_f32[3]);
-
-    FloatW invMass1 = _mm_setr_ps(
-        masses[bodies1[0]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies1[1]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies1[2]].invInertiaTensorAndMass.m128_f32[3],
-        masses[bodies1[3]].invInertiaTensorAndMass.m128_f32[3]);
-
-    Vec3W invInertiaTensor0 = gatherVec3W<&MassData::invInertiaTensorAndMass>(masses, bodies0);
-    Vec3W invInertiaTensor1 = gatherVec3W<&MassData::invInertiaTensorAndMass>(masses, bodies1);
-
-    angular0t = invInertiaTensor0 * angular0;
-    angular1t = invInertiaTensor1 * angular1;
-
-    invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
+    invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
     if constexpr (!(flags & ANGULAR)) {
-        invEffMass += dotW(linear, linear) * (invMass0 + invMass1);
-        linear0t = invMass0 * linear;
-        linear1t = invMass1 * linear;
+        invEffMass += dotW(linear0, linear0) + dotW(linear1, linear1);
     }
 
     if constexpr (flags & SOFT) return;
@@ -94,12 +74,12 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
 
     if (!isZero(warmStartMask)) {
         if constexpr (!(flags & ANGULAR)) {
-            velocity0 += totalLambda * linear0t;
-            velocity1 -= totalLambda * linear1t;
+            velocity0 += totalLambda * linear0;
+            velocity1 -= totalLambda * linear1;
         }
 
-        angularVelocity0 += totalLambda * angular0t;
-        angularVelocity1 -= totalLambda * angular1t;
+        angularVelocity0 += totalLambda * angular0;
+        angularVelocity1 -= totalLambda * angular1;
     }
 
     if constexpr (!(flags & ANGULAR)) {
@@ -124,12 +104,12 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, pseudoVelocityMask);
 
         if constexpr (!(flags & ANGULAR)) {
-            pseudoVelocity0 += lambda * linear0t;
-            pseudoVelocity1 -= lambda * linear1t;
+            pseudoVelocity0 += lambda * linear0;
+            pseudoVelocity1 -= lambda * linear1;
         }
 
-        pseudoAngularVelocity0 += lambda * angular0t;
-        pseudoAngularVelocity1 -= lambda * angular1t;
+        pseudoAngularVelocity0 += lambda * angular0;
+        pseudoAngularVelocity1 -= lambda * angular1;
     }
 
     if constexpr (!(flags & ANGULAR)) {
@@ -165,7 +145,7 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
 
     auto relativeVelocityW = dotW(angular1, angularVelocity1) - dotW(angular0, angularVelocity0);
     if constexpr (!(flags & ANGULAR)) {
-        relativeVelocityW += dotW(linear, velocity1) - dotW(linear, velocity0);
+        relativeVelocityW += dotW(linear1, velocity1) - dotW(linear0, velocity0);
     }
 
     const auto one = _mm_set1_ps(1.f);
@@ -199,12 +179,12 @@ void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeSt
     }
 
      if constexpr (!(flags & ANGULAR)) {
-        velocity0 += lambda * linear0t;
-        velocity1 -= lambda * linear1t;
+        velocity0 += lambda * linear0;
+        velocity1 -= lambda * linear1;
     }
 
-    angularVelocity0 += lambda * angular0t;
-    angularVelocity1 -= lambda * angular1t;
+    angularVelocity0 += lambda * angular0;
+    angularVelocity1 -= lambda * angular1;
 
     if constexpr (!(flags & ANGULAR)) {
         scatterVec3W<&VelocityData::velocity>(velocity0, velocities, bodies0);

@@ -18,7 +18,8 @@ namespace physecs {
     };
 
     struct MassData {
-        FloatW invInertiaTensorAndMass = _mm_setzero_ps();
+        glm::vec3 sqrtInvInertia;
+        float sqrtInvMass;
     };
 
     struct TransformData {

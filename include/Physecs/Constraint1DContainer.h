@@ -3,9 +3,15 @@
 #include <Constraint1D.h>
 #include <Constraint1DW.h>
 #include <entt.hpp>
+#include <MathUtil.h>
 #include <variant>
 
 namespace physecs {
+
+    struct Constraint1DWriterContext {
+        glm::mat3* r0 = nullptr;
+        glm::mat3* r1 = nullptr;
+    };
 
     template<int flags>
     class Constraint1DView {
@@ -14,10 +20,11 @@ namespace physecs {
             Constraint1D<flags>* sequential;
         };
         int offset;
+        Constraint1DWriterContext& context;
 
     public:
-        Constraint1DView(Constraint1DW<flags>& color, int offset) : color(&color), offset(offset) {}
-        Constraint1DView(Constraint1D<flags>& sequential) : sequential(&sequential), offset(-1) {}
+        Constraint1DView(Constraint1DW<flags>& color, Constraint1DWriterContext& context, int offset) : color(&color), context(context), offset(offset) {}
+        Constraint1DView(Constraint1D<flags>& sequential, Constraint1DWriterContext& context) : sequential(&sequential), context(context), offset(-1) {}
 
         __forceinline Constraint1DView& setLinear(const glm::vec3& linear) {
             if (offset < 0)
@@ -28,18 +35,20 @@ namespace physecs {
         }
 
         __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
+            const glm::vec3 angular = multiplyTranspose(*context.r0, angular0);
             if (offset < 0)
-                sequential->angular0 = angular0;
+                sequential->angular0 = angular;
             else
-                color->angular0.set(angular0, offset);
+                color->angular0.set(angular, offset);
             return *this;
         }
 
         __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
+            const glm::vec3 angular = multiplyTranspose(*context.r1, angular1);
             if (offset < 0)
-                sequential->angular1 = angular1;
+                sequential->angular1 = angular;
             else
-                color->angular1.set(angular1, offset);
+                color->angular1.set(angular, offset);
             return *this;
         }
 
@@ -221,6 +230,7 @@ namespace physecs {
     class Constraint1DWriter {
         Constraint1DContainer& container;
         int index = 0;
+        Constraint1DWriterContext context;
 
     public:
         Constraint1DWriter(Constraint1DContainer& container) : container(container) {}
@@ -231,13 +241,15 @@ namespace physecs {
             if (std::holds_alternative<Constraint1DContainer::SimdConstraints>(container.constraintCollection)) {
                 auto& constraintsCollection = std::get<Constraint1DContainer::SimdConstraints>(container.constraintCollection);
                 auto& constraintList = constraintsCollection.get<flags>();
-                return Constraint1DView<flags>(constraintList.constraints[i], o);
+                return Constraint1DView<flags>(constraintList.constraints[i], context, o);
             }
 
             auto& constraintsCollection = std::get<Constraint1DContainer::OverflowConstraints>(container.constraintCollection);
             auto& constraintList = constraintsCollection.get<flags>();
-            return Constraint1DView<flags>(constraintList.constraints[i]);
+            return Constraint1DView<flags>(constraintList.constraints[i], context);
         }
+
+        void setContext(Constraint1DWriterContext context) { this->context = context; }
     };
 }
 

@@ -189,16 +189,24 @@ namespace physecs {
         return Vec3W(a * b.x, a * b.y, a * b.z);
     }
 
-    inline void operator+= (Vec3W& a,Vec3W b) {
+    inline void operator+= (Vec3W& a, const Vec3W &b) {
         a.x += b.x;
         a.y += b.y;
         a.z += b.z;
     }
 
-    inline void operator-=(Vec3W& a,Vec3W b) {
+    inline void operator-= (Vec3W& a, const Vec3W &b) {
         a.x -= b.x;
         a.y -= b.y;
         a.z -= b.z;
+    }
+
+    inline Vec3W operator* (const Vec3W &a, const Vec3W &b) {
+        return {
+            a.x * b.x,
+            a.y * b.y,
+            a.z * b.z
+        };
     }
 
     inline void operator+= (QuatW& p, const QuatW& q) {
@@ -275,7 +283,15 @@ namespace physecs {
         return reinterpret_cast<glm::vec3&>(a);
     }
 
+    inline const glm::vec3& asVec3(const __m128& a) {
+        return reinterpret_cast<const glm::vec3&>(a);
+    }
+
     inline __m128 fromVec3(glm::vec3 a) {
         return _mm_setr_ps(a.x, a.y, a.z, 0.f);
+    }
+
+    inline __m128 fromPacked(glm::vec3 v, float s) {
+        return _mm_setr_ps(v.x, v.y, v.z, s);
     }
 }

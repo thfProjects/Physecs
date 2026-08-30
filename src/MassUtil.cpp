@@ -2,6 +2,7 @@
 #include <glm/gtx/matrix_operation.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <array>
+#include <MathUtil.h>
 
 glm::mat3 physecs::getInertiaSphere(float mass, float radius) {
     return glm::diagonal3x3(glm::vec3(2.f * mass * radius * radius / 5.f));
@@ -70,8 +71,8 @@ glm::mat3 physecs::getInertiaTetrahedron(float mass, const std::array<glm::vec3,
     return mass * I;
 }
 
-void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &collisionComponent, float mass, glm::vec3 &com, glm::mat3 &invInertiaTensor) {
-    com = glm::vec3(0);
+physecs::MassProps physecs::computeMassProps(const physecs::RigidBodyCollisionComponent& collisionComponent, float mass) {
+    glm::vec3 com = glm::vec3(0);
     float totalVolume = 0;
     for (auto collider : collisionComponent.colliders) {
         if (collider.isTrigger) continue;
@@ -104,11 +105,11 @@ void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &c
                 center /= convex.mesh->vertices.size();
 
                 for (auto& face : convex.mesh->faces) {
-                    glm::vec3 v0 = convex.scale * convex.mesh->vertices[face.indices[0]];
+                    glm::vec3 v0 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[0]]);
                     for (int i = 1; i < face.indices.size() - 1; i++) {
                         //calculate volume and centroid of tetrahedron
-                        glm::vec3 v1 = convex.scale * convex.mesh->vertices[face.indices[i]];
-                        glm::vec3 v2 = convex.scale * convex.mesh->vertices[face.indices[i + 1]];
+                        glm::vec3 v1 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[i]]);
+                        glm::vec3 v2 = collider.orientation * (convex.scale * convex.mesh->vertices[face.indices[i + 1]]);
 
                         float volume = glm::abs(glm::dot(glm::cross(v0 - center, v1 - center), v2 - center)) / 6.f;
                         glm::vec3 centroid = (center + v0 + v1 + v2) / 4.f;
@@ -180,14 +181,22 @@ void physecs::computeCOMAndInvInertiaTensor(const RigidBodyCollisionComponent &c
         }
     }
 
-    invInertiaTensor = glm::inverse(inertiaTensor);
+    glm::vec3 inertiaDiag;
+    glm::mat3 inertiaRot;
+    diagonalizeSymmetric3x3(inertiaTensor, inertiaDiag, inertiaRot);
+
+    glm::quat principalAxes = glm::toQuat(inertiaRot);
+    glm::vec3 invInertiaDiag = 1.f / inertiaDiag;
+    float invMass = 1.f / mass;
+
+    return {
+        invMass,
+        com,
+        invInertiaDiag,
+        principalAxes
+    };
 }
 
 void physecs::setMassProps(RigidBodyDynamicComponent &dynamicComponent, const RigidBodyCollisionComponent &collisionComponent, float mass) {
-    dynamicComponent.invMass = 1.f / mass;
-    glm::vec3 com;
-    glm::mat3 invInertiaTensor;
-    computeCOMAndInvInertiaTensor(collisionComponent, mass, com, invInertiaTensor);
-    dynamicComponent.com = com;
-    dynamicComponent.invInertiaTensor = invInertiaTensor;
+    dynamicComponent.massProps = computeMassProps(collisionComponent, mass);
 }

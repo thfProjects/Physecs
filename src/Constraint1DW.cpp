@@ -57,50 +57,23 @@ void physecs::Constraint1DW<flags>::preSolve(const MassData* masses, VelocityDat
         pseudoAngularVelocity1 = gatherVec3W<&PseudoVelocityData::pseudoAngularVelocity>(pseudoVelocities, bodies1);
     }
 
-    FloatW invMass0 = _mm_setzero_ps(), invMass1 = _mm_setzero_ps();
-    for (int i = 0; i < 4; ++i) {
-        const BodyId b0 = bodies0[i];
-        const BodyId b1 = bodies1[i];
+    FloatW invMass0 = _mm_setr_ps(
+        masses[bodies0[0]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies0[1]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies0[2]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies0[3]].invInertiaTensorAndMass.m128_f32[3]);
 
-        if constexpr (!(flags & ANGULAR)) {
-            invMass0.m128_f32[i] = masses[b0].invMass;
-            invMass1.m128_f32[i] = masses[b1].invMass;
-        }
+    FloatW invMass1 = _mm_setr_ps(
+        masses[bodies1[0]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies1[1]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies1[2]].invInertiaTensorAndMass.m128_f32[3],
+        masses[bodies1[3]].invInertiaTensorAndMass.m128_f32[3]);
 
-        FloatW invI0[3];
-        {
-            auto& invI = masses[b0].invInertiaTensor;
-            invI0[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
-            invI0[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
-            invI0[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
-        }
+    Vec3W invInertiaTensor0 = gatherVec3W<&MassData::invInertiaTensorAndMass>(masses, bodies0);
+    Vec3W invInertiaTensor1 = gatherVec3W<&MassData::invInertiaTensorAndMass>(masses, bodies1);
 
-        FloatW invI1[3];
-        {
-            auto& invI = masses[b1].invInertiaTensor;
-            invI1[0] = _mm_setr_ps(invI[0][0], invI[0][1], invI[0][2], 0);
-            invI1[1] = _mm_setr_ps(invI[1][0], invI[1][1], invI[1][2], 0);
-            invI1[2] = _mm_setr_ps(invI[2][0], invI[2][1], invI[2][2], 0);
-        }
-
-        const FloatW angular0x = _mm_set1_ps(angular0.x.m128_f32[i]);
-        const FloatW angular0y = _mm_set1_ps(angular0.y.m128_f32[i]);
-        const FloatW angular0z = _mm_set1_ps(angular0.z.m128_f32[i]);
-        const FloatW angular0ti = angular0x * invI0[0] + angular0y * invI0[1] + angular0z * invI0[2];
-
-        angular0t.x.m128_f32[i] = angular0ti.m128_f32[0];
-        angular0t.y.m128_f32[i] = angular0ti.m128_f32[1];
-        angular0t.z.m128_f32[i] = angular0ti.m128_f32[2];
-
-        const FloatW angular1x = _mm_set1_ps(angular1.x.m128_f32[i]);
-        const FloatW angular1y = _mm_set1_ps(angular1.y.m128_f32[i]);
-        const FloatW angular1z = _mm_set1_ps(angular1.z.m128_f32[i]);
-        const FloatW angular1ti = angular1x * invI1[0] + angular1y * invI1[1] + angular1z * invI1[2];
-
-        angular1t.x.m128_f32[i] = angular1ti.m128_f32[0];
-        angular1t.y.m128_f32[i] = angular1ti.m128_f32[1];
-        angular1t.z.m128_f32[i] = angular1ti.m128_f32[2];
-    }
+    angular0t = invInertiaTensor0 * angular0;
+    angular1t = invInertiaTensor1 * angular1;
 
     invEffMass = dotW(angular0, angular0t) + dotW(angular1, angular1t);
     if constexpr (!(flags & ANGULAR)) {

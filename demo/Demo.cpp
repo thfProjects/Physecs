@@ -35,10 +35,8 @@ entt::entity Demo::spawnBox(glm::vec3 position) {
     boxGeometry.box = { glm::vec3(1, 1, 1) };
     physecs::Collider boxCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), boxGeometry, { 0.4, 0.2 }, false, true, 0 };
     auto col = registry.emplace<physecs::RigidBodyCollisionComponent>(box, std::vector{ boxCollider });
-    glm::vec3 com;
-    glm::mat3 invInertiaTensor;
-    physecs::computeCOMAndInvInertiaTensor(col, 1.f, com, invInertiaTensor);
-    registry.emplace<physecs::RigidBodyDynamicComponent>(box, false, glm::vec3(0), glm::vec3(0), 1.f, com, invInertiaTensor);
+    auto massProps = physecs::computeMassProps(col, 1.f);
+    registry.emplace<physecs::RigidBodyDynamicComponent>(box, false, glm::vec3(0), glm::vec3(0), massProps);
     return box;
 }
 
@@ -51,10 +49,8 @@ entt::entity Demo::spawnCapsule(glm::vec3 position) {
     capsuleGeometry.capsule = { 1, 0.5f };
     physecs::Collider capsuleCollider = { glm::vec3(0), glm::quat(1, 0, 0, 0), capsuleGeometry, { 0.4, 0.4 }, false, true, 0 };
     auto col = registry.emplace<physecs::RigidBodyCollisionComponent>(capsule, std::vector{ capsuleCollider });
-    glm::vec3 com;
-    glm::mat3 invInertiaTensor;
-    physecs::computeCOMAndInvInertiaTensor(col, 1.f, com, invInertiaTensor);
-    registry.emplace<physecs::RigidBodyDynamicComponent>(capsule, false, glm::vec3(0), glm::vec3(0), 1.f, com, invInertiaTensor);
+    auto massProps = physecs::computeMassProps(col, 1.f);
+    registry.emplace<physecs::RigidBodyDynamicComponent>(capsule, false, glm::vec3(0), glm::vec3(0), massProps);
     return capsule;
 }
 

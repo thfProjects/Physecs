@@ -32,6 +32,8 @@ namespace physecs {
         float totalLambdaTwist;
         glm::vec3 r0xtt;
         glm::vec3 r1xtt;
+        glm::vec3 n0;
+        glm::vec3 n1;
         glm::vec3 n0t;
         glm::vec3 n1t;
         float invEffMass;

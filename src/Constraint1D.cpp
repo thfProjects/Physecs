@@ -3,11 +3,11 @@
 
 template<int flags>
 void physecs::Constraint1D<flags>::preSolve(const MassData* masses, VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
-    const float invMass0 = masses[b0].invMass;
-    const glm::mat3& invInertiaTensor0 = masses[b0].invInertiaTensor;
+    const float invMass0 = masses[b0].invInertiaTensorAndMass.m128_f32[3];
+    const glm::vec3& invInertiaTensor0 = asVec3(masses[b0].invInertiaTensorAndMass);
 
-    const float invMass1 = masses[b1].invMass;
-    const glm::mat3& invInertiaTensor1 = masses[b1].invInertiaTensor;
+    const float invMass1 = masses[b1].invInertiaTensorAndMass.m128_f32[3];
+    const glm::vec3& invInertiaTensor1 = asVec3(masses[b1].invInertiaTensorAndMass);
 
     angular0t = invInertiaTensor0 * angular0;
     angular1t = invInertiaTensor1 * angular1;

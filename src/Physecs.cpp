@@ -495,13 +495,14 @@ void physecs::Scene::simulate(float timeStep) {
                     transformTemp[jointSolverData.b1].worldRotation * jointSolverData.u1,
                 };
 
-                constraintWriter.setContext({
+                Constraint1DWriterContext context = {
                     &transformTemp[jointSolverData.b0].worldRotation,
                     &transformTemp[jointSolverData.b1].worldRotation,
                     &massTemp[jointSolverData.b0],
-                    &massTemp[jointSolverData.b1] });
+                    &massTemp[jointSolverData.b1]
+                };
 
-                jointSolverData.makeConstraintsFunc(wsData, jointSolverData.additionalData, constraintWriter);
+                jointSolverData.makeConstraintsFunc(wsData, jointSolverData.additionalData, context, constraintWriter);
             }
         }
         PhysecsZoneEnd(ctx2);

@@ -16,9 +16,10 @@ namespace physecs {
             float angularLambda[2] = {};
         };
 
+        // angular blocks come first so orthogonalization never gives them a linear part
         using Layout = ConstraintLayout<
-            ConstraintBlock<NONE, 3, &Cache::pointLambda>,
             ConstraintBlock<ANGULAR, 2, &Cache::angularLambda>,
+            ConstraintBlock<NONE, 3, &Cache::pointLambda>,
             ConstraintBlock<ANGULAR | SOFT>>;
 
         using Base = JointImpl<ServoJoint, Layout, Cache, Data>;
@@ -27,7 +28,7 @@ namespace physecs {
     PHYSECS_DECLARE_JOINT_IMPL(ServoJoint);
 
     struct PHYSECS_API ServoJoint final : ServoJointDef::Base {
-        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows);
         using ServoJointDef::Base::Base;
 
         void setTargetAngle(float angle);

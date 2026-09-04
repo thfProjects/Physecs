@@ -5,10 +5,10 @@
 #include "Constraint1D.h"
 #include "Constraint1DContainer.h"
 
-void physecs::SphericalJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DWriter& constraints) {
+void physecs::SphericalJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DDescriptor* constraintRows) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
 
-    createPointToPointConstraint(p0, p1, r0, r1, constraints);
+    createPointToPointConstraint(p0, p1, r0, r1, constraintRows);
 }
 
 namespace physecs {

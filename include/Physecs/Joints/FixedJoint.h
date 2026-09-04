@@ -12,9 +12,10 @@ namespace physecs {
             float angularLambda[3] = {};
         };
 
+        // angular blocks come first so orthogonalization never gives them a linear part
         using Layout = ConstraintLayout<
-            ConstraintBlock<NONE, 3, &Cache::pointLambda>,
-            ConstraintBlock<ANGULAR, 3, &Cache::angularLambda>>;
+            ConstraintBlock<ANGULAR, 3, &Cache::angularLambda>,
+            ConstraintBlock<NONE, 3, &Cache::pointLambda>>;
 
         using Base = JointImpl<FixedJoint, Layout, Cache, Data>;
     };
@@ -22,7 +23,7 @@ namespace physecs {
     PHYSECS_DECLARE_JOINT_IMPL(FixedJoint);
 
     struct PHYSECS_API FixedJoint final : FixedJointDef::Base {
-        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows);
         using FixedJointDef::Base::Base;
     };
 }

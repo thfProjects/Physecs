@@ -26,7 +26,7 @@ namespace physecs {
     PHYSECS_DECLARE_JOINT_IMPL(GearJoint);
 
     struct PHYSECS_API GearJoint final : GearJointDef::Base {
-        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows);
         using GearJointDef::Base::Base;
 
         void setGearRatio(float gearRatio);

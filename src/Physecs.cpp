@@ -408,11 +408,14 @@ void physecs::Scene::simulate(float timeStep) {
         glm::quat comToWorld = transform.orientation * rigidDynamic.massProps.principalAxes;
         glm::vec3 sqrtInvInertia = glm::sqrt(rigidDynamic.massProps.invInertiaDiag);
         float sqrtInvMass = glm::sqrt(rigidDynamic.massProps.invMass);
+        glm::mat3 worldRotation = glm::toMat3(comToWorld);
+        Mat3V invWorldRotation = Mat3V(worldRotation);
+        invWorldRotation.transpose();
 
         velocityTemp[i].velocity = fromVec3(rigidDynamic.velocity / sqrtInvMass);
         velocityTemp[i].angularVelocity = fromVec3((glm::conjugate(comToWorld) * rigidDynamic.angularVelocity) / sqrtInvInertia);
         massTemp[i] = { sqrtInvInertia, sqrtInvMass };
-        transformTemp[i] = { comWorld, glm::toMat3(comToWorld) };
+        transformTemp[i] = { comWorld, worldRotation, invWorldRotation };
     }
 
     float h = timeStep / numSubSteps;
@@ -495,13 +498,14 @@ void physecs::Scene::simulate(float timeStep) {
                     transformTemp[jointSolverData.b1].worldRotation * jointSolverData.u1,
                 };
 
-                constraintWriter.setContext({
-                    &transformTemp[jointSolverData.b0].worldRotation,
-                    &transformTemp[jointSolverData.b1].worldRotation,
+                Constraint1DWriterContext context = {
+                    &transformTemp[jointSolverData.b0].invWorldRotation,
+                    &transformTemp[jointSolverData.b1].invWorldRotation,
                     &massTemp[jointSolverData.b0],
-                    &massTemp[jointSolverData.b1] });
+                    &massTemp[jointSolverData.b1]
+                };
 
-                jointSolverData.makeConstraintsFunc(wsData, jointSolverData.additionalData, constraintWriter);
+                jointSolverData.makeConstraintsFunc(wsData, jointSolverData.additionalData, context, constraintWriter);
             }
         }
         PhysecsZoneEnd(ctx2);
@@ -558,6 +562,8 @@ void physecs::Scene::simulate(float timeStep) {
             glm::quat deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * massTemp[i].sqrtInvInertia * (h * asVec3(velocityTemp[i].angularVelocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoAngularVelocity))));
             transformTemp[i].comWorld += massTemp[i].sqrtInvMass * (h * asVec3(velocityTemp[i].velocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoVelocity));
             transformTemp[i].worldRotation = transformTemp[i].worldRotation * glm::toMat3(deltaRotation);
+            transformTemp[i].invWorldRotation = Mat3V(transformTemp[i].worldRotation);
+            transformTemp[i].invWorldRotation.transpose();
         }
         PhysecsZoneEnd(ctx4);
 

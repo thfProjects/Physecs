@@ -23,9 +23,10 @@ namespace physecs {
             float lowerLimitLambda = 0;
         };
 
+        // angular blocks come first so orthogonalization never gives them a linear part
         using Layout = ConstraintLayout<
-            ConstraintBlock<NONE, 2, &Cache::translationLambda>,
             ConstraintBlock<ANGULAR, 3, &Cache::angularLambda>,
+            ConstraintBlock<NONE, 2, &Cache::translationLambda>,
             ConstraintBlock<LIMITED, 1, &Cache::upperLimitLambda, &Data::makeUpperLimit>,
             ConstraintBlock<LIMITED, 1, &Cache::lowerLimitLambda, &Data::makeLowerLimit>,
             ConstraintBlock<SOFT, 1, nullptr, &Data::driveEnabled>>;
@@ -36,7 +37,7 @@ namespace physecs {
     PHYSECS_DECLARE_JOINT_IMPL(PrismaticJoint);
 
     struct PHYSECS_API PrismaticJoint final : PrismaticJointDef::Base {
-        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows);
 
         void prepare(const entt::registry& registry);
 

@@ -1,5 +1,5 @@
 #include "Constraint1DW.h"
-#include <Constraint1D.h>
+#include "Constraint1DFlags.h"
 
 namespace physecs {
 

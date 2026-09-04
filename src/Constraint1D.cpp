@@ -1,5 +1,6 @@
 #include "Constraint1D.h"
 #include "SolverData.h"
+#include "Constraint1DFlags.h"
 
 template<int flags>
 void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {

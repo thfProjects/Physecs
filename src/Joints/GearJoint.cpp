@@ -1,13 +1,12 @@
 #include "GearJoint.h"
-#include "Constraint1D.h"
-#include "Constraint1DContainer.h"
+#include "Joint.inl"
 
 static float angleDiff(float angle0, float angle1) {
     const float diff = fmodf(angle1 - angle0 + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
     return diff < -glm::pi<float>() ? diff + glm::two_pi<float>() : diff;
 }
 
-void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints) {
+void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
     auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointDef::Data*>(additionalData);
 
@@ -15,11 +14,7 @@ void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceDa
 
     auto inert = [&] {
         isInitialized = false;
-        constraints.next<>()
-        .setLinear(glm::vec3(0))
-        .setAngular0(glm::vec3(0))
-        .setAngular1(glm::vec3(0))
-        .setC(0);
+        constraintRows[0] = Constraint1DDescriptor{};
     };
 
     glm::vec3 d = p1 - p0;
@@ -57,11 +52,11 @@ void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceDa
 
     slip += travelThisFrame1 * rho1 - travelThisFrame0 * rho0;
 
-    constraints.next<>()
-    .setLinear(t)
-    .setAngular0(glm::cross(r0 + arm0, t))
-    .setAngular1(glm::cross(r1 + arm1, t))
-    .setC(slip);
+    constraintRows[0].linear0 = t;
+    constraintRows[0].linear1 = t;
+    constraintRows[0].angular0 = glm::cross(r0 + arm0, t);
+    constraintRows[0].angular1 = glm::cross(r1 + arm1, t);
+    constraintRows[0].geometricError = slip;
 }
 
 void physecs::GearJoint::setGearRatio(float gearRatio) {

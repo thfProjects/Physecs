@@ -4,9 +4,16 @@
 #include <entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <Constraint1DContainer.h>
+#include <Constraint1DFlags.h>
+#include <SIMD.h>
 
 namespace physecs {
+
+    struct MassData;
+    struct Constraint1DWriter;
+    struct Constraint1DLayout;
+    struct Constraint1DReader;
+    struct Constraint1DDescriptor;
 
     struct JointWorldSpaceData {
         glm::vec3 p0;
@@ -17,7 +24,14 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    typedef void (*MakeConstraintsFunc)(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+    struct Constraint1DWriterContext {
+        Mat3V* invR0 = nullptr;
+        Mat3V* invR1 = nullptr;
+        MassData* massData0 = nullptr;
+        MassData* massData1 = nullptr;
+    };
+
+    typedef void (*MakeConstraintsFunc)(const JointWorldSpaceData& worldSpaceData, void* additionalData, const Constraint1DWriterContext& context, Constraint1DWriter& constraints);
 
     struct JointSolverData {
         int b0;
@@ -75,71 +89,46 @@ namespace physecs {
         static constexpr int  count   = Count;
         static constexpr auto lambdas = Lambdas;
         static constexpr auto gate    = Gate;
+
+        static constexpr bool isHardEquality = !(Flags & SOFT || Flags & LIMITED);
+        static constexpr bool isHardEqualityAngular = isHardEquality && (Flags & ANGULAR);
     };
 
     template<typename... Blocks>
-    struct ConstraintLayout {};
+    struct ConstraintLayout {
+        static constexpr int count = (0 + ... + Blocks::count);
+        static constexpr int hardEqualityCount = (0 + ... + (Blocks::isHardEquality ? Blocks::count : 0));
+        static constexpr int hardEqualityAngularCount = (0 + ... + (Blocks::isHardEqualityAngular ? Blocks::count : 0));
+    };
 
     template<typename Impl, typename Layout, typename Cache, typename Data>
     class JointImpl : public Joint {
     protected:
+
         [[no_unique_address]] Cache cache;
         [[no_unique_address]] Data data;
 
         void prepare(const entt::registry&) {}
 
     private:
-        template<typename Block>
-        __forceinline float* getLambdas() {
-            if constexpr (Block::lambdas == nullptr) return nullptr;
-            else if constexpr (std::is_array_v<std::remove_reference_t<decltype(cache.*Block::lambdas)>>) {
-                return cache.*Block::lambdas;
-            }
-            else return &(cache.*Block::lambdas);
-        }
+        static void makeFinalConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, const Constraint1DWriterContext& context, Constraint1DWriter& constraints);
 
         template<typename Block>
-        __forceinline void createConstraints(Constraint1DLayout& constraintLayout) {
-            if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
-            constraintLayout.createConstraints<Block::flags, Block::count>(getLambdas<Block>());
-        }
-
+        float* getAccumulatedImpulses();
+        template<typename Block>
+        void createConstraints(Constraint1DLayout& constraintLayout);
         template<typename... Blocks>
-        __forceinline void createConstraints(ConstraintLayout<Blocks...>, Constraint1DLayout& constraintLayout) {
-            (createConstraints<Blocks>(constraintLayout), ...);
-        }
-
+        void createConstraints(ConstraintLayout<Blocks...>, Constraint1DLayout& constraintLayout);
         template<typename Block>
-        __forceinline void storeAccumulatedImpulses(Constraint1DReader& constraints) {
-            if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
-            for (int i = 0; i < Block::count; ++i) {
-                const float lambda = constraints.nextTotalLambda<Block::flags>();
-                if constexpr (Block::lambdas != nullptr) getLambdas<Block>()[i] = lambda;
-            }
-        }
-
+        void storeAccumulatedImpulses(Constraint1DReader& constraints);
         template<typename... Blocks>
-        __forceinline void storeAccumulatedImpulses(ConstraintLayout<Blocks...>, Constraint1DReader& constraints) {
-            (storeAccumulatedImpulses<Blocks>(constraints), ...);
-        }
+        void storeAccumulatedImpulses(ConstraintLayout<Blocks...>, Constraint1DReader& constraints);
 
     public:
         using Joint::Joint;
         JointSolverDesc getSolverDesc(entt::registry &registry, Constraint1DLayout &constraintLayout) override;
         void storeAccumulatedImpulses(Constraint1DReader &constraints) override;
     };
-
-    template<typename Impl, typename Layout, typename Cache, typename Data>
-    JointSolverDesc JointImpl<Impl, Layout, Cache, Data>::getSolverDesc(entt::registry &registry, Constraint1DLayout &constraintLayout) {
-        static_cast<Impl*>(this)->prepare(registry);
-        createConstraints(Layout{}, constraintLayout);
-        return JointSolverDesc{ &data, Impl::makeConstraints };
-    }
-
-    template<typename Impl, typename Layout, typename Cache, typename Data>
-    void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1DReader &constraints) {
-        storeAccumulatedImpulses(Layout{}, constraints);
-    }
 
 #define PHYSECS_DECLARE_JOINT_IMPL(joint) \
     extern template class JointImpl<joint, joint##Def::Layout, joint##Def::Cache, joint##Def::Data>

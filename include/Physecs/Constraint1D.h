@@ -7,13 +7,6 @@ namespace physecs {
     struct VelocityData;
     struct PseudoVelocityData;
 
-    enum ConstraintFlags {
-        NONE = 0,
-        SOFT = 1,
-        ANGULAR = 1 << 1,
-        LIMITED = 1 << 2
-    };
-
     template<int flags>
     struct Constraint1D {
         BodyId b0 = INVALID_BODY_ID;

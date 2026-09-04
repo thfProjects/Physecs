@@ -20,7 +20,7 @@ namespace physecs {
     PHYSECS_DECLARE_JOINT_IMPL(SphericalJoint);
 
     struct PHYSECS_API SphericalJoint final : SphericalJointDef::Base {
-        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DWriter& constraints);
+        static void makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows);
         using SphericalJointDef::Base::Base;
     };
 }

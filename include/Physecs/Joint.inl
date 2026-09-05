@@ -85,34 +85,49 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::writeConstraints(Constr
     (writeConstraints<Blocks>(data, rows, row, constraints), ...);
 }
 
-template<int numAngularRows>
-float computeInvEffMassEntry(const Constraint1DDescriptor* constraintRows, int i, int j) {
+template<int numAngularRows, int i, int j>
+__forceinline float computeInvEffMassEntry(const Constraint1DDescriptor* constraintRows) {
     auto products = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0))
         + _mm_load_ps(glm::value_ptr(constraintRows[i].angular1)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
-    if (i >= numAngularRows && j >= numAngularRows) {
+    if constexpr (i >= numAngularRows && j >= numAngularRows) {
         products += _mm_load_ps(glm::value_ptr(constraintRows[i].linear0)) * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0))
             + _mm_load_ps(glm::value_ptr(constraintRows[i].linear1)) * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
     }
     return sumXYZ(products);
 }
 
+template<typename F, int... Is>
+__forceinline void repeatImpl(F&& f, std::integer_sequence<int, Is...>) {
+    (f(std::integral_constant<int, Is>{}), ...);
+}
+
+template<int count, typename F>
+__forceinline void repeat(F&& f) {
+    repeatImpl(std::forward<F>(f), std::make_integer_sequence<int, count>{});
+}
+
 template<int numRows, int numAngularRows>
 void LDLtFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* D) {
     // LDLt factorization of JM^-1J^T
-    for (int i = 0; i < numRows; ++i) {
-        D[i] = computeInvEffMassEntry<numAngularRows>(constraintRows, i, i);
-        for (int j = 0; j < i; ++j) {
-            D[i] -= L[j][i] * L[j][i] * D[j];
-        }
-        const float effMass = 1.f / (D[i] + 1e-8f);
-        for (int j = i + 1; j < numRows; ++j) {
-            L[i][j] = computeInvEffMassEntry<numAngularRows>(constraintRows, j, i);
-            for (int k = 0; k < i; ++k) {
-                L[i][j] -= D[k] * L[k][i] * L[k][j];
-            }
-            L[i][j] *= effMass;
-        }
-    }
+    repeat<numRows>([&](auto I) [[msvc::forceinline]] {
+        static constexpr int i = decltype(I)::value;
+        float d = computeInvEffMassEntry<numAngularRows, i, i>(constraintRows);
+        repeat<i>([&d, L, D](auto J) [[msvc::forceinline]] {
+            static constexpr int j = decltype(J)::value;
+            d -= L[j][i] * L[j][i] * D[j];
+        });
+        D[i] = d;
+        const float effMass = 1.f / (d + 1e-8f);
+        repeat<numRows-i-1>([effMass, constraintRows, L, D](auto J) [[msvc::forceinline]] {
+            static constexpr int j = i + 1 + decltype(J)::value;
+            float l = computeInvEffMassEntry<numAngularRows, j, i>(constraintRows);
+            repeat<i>([&l, L, D](auto K) [[msvc::forceinline]] {
+                static constexpr int k = decltype(K)::value;
+                l -= D[k] * L[k][i] * L[k][j];
+            });
+            L[i][j] = l * effMass;
+        });
+    });
 }
 
 template<int numRows, int numAngularRows>

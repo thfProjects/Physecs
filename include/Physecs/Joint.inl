@@ -87,13 +87,13 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::writeConstraints(Constr
 
 template<int numAngularRows>
 float computeInvEffMassEntry(const Constraint1DDescriptor* constraintRows, int i, int j) {
-    float entry = glm::dot(constraintRows[i].angular0, constraintRows[j].angular0)
-        + glm::dot(constraintRows[i].angular1, constraintRows[j].angular1);
+    auto products = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0))
+        + _mm_load_ps(glm::value_ptr(constraintRows[i].angular1)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
     if (i >= numAngularRows && j >= numAngularRows) {
-        entry += glm::dot(constraintRows[i].linear0, constraintRows[j].linear0)
-            + glm::dot(constraintRows[i].linear1, constraintRows[j].linear1);
+        products += _mm_load_ps(glm::value_ptr(constraintRows[i].linear0)) * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0))
+            + _mm_load_ps(glm::value_ptr(constraintRows[i].linear1)) * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
     }
-    return entry;
+    return sumXYZ(products);
 }
 
 template<int numRows, int numAngularRows>
@@ -120,15 +120,52 @@ void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
     // solve LJ' = J by forward substitution
     // J'M^-1J'^T will be a diagonal matrix, making gauss seidel for these constraints be identical to a block solve
     for (int i = 0; i < numRows; ++i) {
+        auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0));
+        auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1));
+        auto angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
+        auto angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
         for (int j = 0; j < i; ++j) {
+            auto Lji = _mm_set1_ps(L[j][i]);
             if (j >= numAngularRows) {
-                constraintRows[i].linear0 -= L[j][i] * constraintRows[j].linear0;
-                constraintRows[i].linear1 -= L[j][i] * constraintRows[j].linear1;
+                linear0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0));
+                linear1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
             }
-            constraintRows[i].angular0 -= L[j][i] * constraintRows[j].angular0;
-            constraintRows[i].angular1 -= L[j][i] * constraintRows[j].angular1;
-            constraintRows[i].geometricError -= L[j][i] * constraintRows[j].geometricError;
+            angular0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0));
+            angular1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
         }
+        _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
+        _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
+        _mm_store_ps(glm::value_ptr(constraintRows[i].angular0), angular0);
+        _mm_store_ps(glm::value_ptr(constraintRows[i].angular1), angular1);
+    }
+}
+
+template<int numRows>
+void applyTransformAndMassScale(Constraint1DDescriptor* constraintRows, const Constraint1DWriterContext& context) {
+    Mat3V invR0 = Mat3V(*context.r0);
+    invR0.transpose();
+
+    Mat3V invR1 = Mat3V(*context.r1);
+    invR1.transpose();
+
+    const FloatW sqrtInvMass0 = _mm_setr_ps(context.massData0->sqrtInvMass, context.massData0->sqrtInvMass, context.massData0->sqrtInvMass, 1.f);
+    const FloatW sqrtInvMass1 = _mm_setr_ps(context.massData1->sqrtInvMass, context.massData1->sqrtInvMass, context.massData1->sqrtInvMass, 1.f);
+
+    const FloatW sqrtInvInertia0 = _mm_load_ps(glm::value_ptr(context.massData0->sqrtInvInertia));
+    const FloatW sqrtInvInertia1 = _mm_load_ps(glm::value_ptr(context.massData1->sqrtInvInertia));
+
+    for (int i = 0; i < numRows; ++i) {
+        const auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0)) * sqrtInvMass0;
+        _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
+
+        const auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1)) * sqrtInvMass1;
+        _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
+
+        const auto angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
+        _mm_store_ps(glm::value_ptr(constraintRows[i].angular0), _mm_blend_ps((invR0 * angular0) * sqrtInvInertia0, angular0, 0x8));
+
+        const auto angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
+        _mm_store_ps(glm::value_ptr(constraintRows[i].angular1), _mm_blend_ps((invR1 * angular1) * sqrtInvInertia1, angular1, 0x8));
     }
 }
 
@@ -137,13 +174,7 @@ void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorld
     Constraint1DDescriptor constraintRows[Layout::count];
     Impl::makeConstraints(worldSpaceData, additionalData, constraintRows);
 
-    // apply transform and mass scale
-    for (int i = 0; i < Layout::count; ++i) {
-        constraintRows[i].linear0 *= context.massData0->sqrtInvMass;
-        constraintRows[i].linear1 *= context.massData1->sqrtInvMass;
-        constraintRows[i].angular0 = multiplyTranspose(*context.r0, constraintRows[i].angular0) * context.massData0->sqrtInvInertia;
-        constraintRows[i].angular1 = multiplyTranspose(*context.r1, constraintRows[i].angular1) * context.massData1->sqrtInvInertia;
-    }
+    applyTransformAndMassScale<Layout::count>(constraintRows, context);
 
     constexpr int n = Layout::hardEqualityCount;
     if constexpr (n > 1) {

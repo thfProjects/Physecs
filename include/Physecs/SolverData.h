@@ -18,7 +18,7 @@ namespace physecs {
     };
 
     struct MassData {
-        glm::vec3 sqrtInvInertia;
+        alignas(16) glm::vec3 sqrtInvInertia;
         float sqrtInvMass;
     };
 

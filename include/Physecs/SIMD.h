@@ -294,4 +294,32 @@ namespace physecs {
     inline __m128 fromPacked(glm::vec3 v, float s) {
         return _mm_setr_ps(v.x, v.y, v.z, s);
     }
+
+    inline float sumXYZ(const __m128& v) {
+        __m128 sum = _mm_add_ss(v, _mm_shuffle_ps(v, v, _MM_SHUFFLE(3, 3, 3, 1)));
+        sum = _mm_add_ss(sum, _mm_shuffle_ps(v, v, _MM_SHUFFLE(3, 3, 3, 2)));
+        return _mm_cvtss_f32(sum);
+    }
+
+    struct Mat3V {
+        FloatW cols[3];
+
+        explicit Mat3V(const glm::mat3& m) {
+            this->cols[0] = _mm_loadu_ps(glm::value_ptr(m[0]));;
+            this->cols[1] = _mm_loadu_ps(glm::value_ptr(m[1]));;
+            this->cols[2] = fromVec3(m[2]); // the last column has no fourth float to read;
+        }
+
+        void transpose() {
+            FloatW c3 = _mm_setzero_ps();
+            _MM_TRANSPOSE4_PS(cols[0], cols[1], cols[2], c3);
+        }
+    };
+
+    inline FloatW operator*(const Mat3V& m, const FloatW& v) {
+        FloatW result = _mm_shuffle_ps(v, v, _MM_SHUFFLE(0, 0, 0, 0)) * m.cols[0];
+        result += _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1)) * m.cols[1];
+        result += _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2)) * m.cols[2];
+        return result;
+    }
 }

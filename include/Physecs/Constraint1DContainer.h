@@ -9,8 +9,6 @@
 
 namespace physecs {
 
-
-
     template<int flags>
     class Constraint1DView {
         union {

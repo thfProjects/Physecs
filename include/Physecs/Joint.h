@@ -22,15 +22,15 @@ namespace physecs {
         glm::mat3 u1;
     };
 
-    struct Constraint1DDescriptor {
+    struct alignas(16) Constraint1DDescriptor {
         glm::vec3 linear0 = glm::vec3(0.f);
+        float stiffness = 0.f;
         glm::vec3 linear1 = glm::vec3(0.f);
+        float damping = 0.f;
         glm::vec3 angular0 = glm::vec3(0.f);
+        float targetVelocity = 0.f;
         glm::vec3 angular1 = glm::vec3(0.f);
         float geometricError = 0.f;
-        float targetVelocity = 0.f;
-        float stiffness = 0.f;
-        float damping = 0.f;
         float minForce = std::numeric_limits<float>::lowest();
         float maxForce = std::numeric_limits<float>::max();
     };

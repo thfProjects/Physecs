@@ -5,6 +5,7 @@
 #include <entt.hpp>
 #include <MathUtil.h>
 #include <variant>
+#include <Constraint1DFlags.h>
 
 namespace physecs {
 

@@ -1,6 +1,5 @@
 #include "GearJoint.h"
-#include "Constraint1D.h"
-#include "Constraint1DContainer.h"
+#include "Joint.inl"
 
 static float angleDiff(float angle0, float angle1) {
     const float diff = fmodf(angle1 - angle0 + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();

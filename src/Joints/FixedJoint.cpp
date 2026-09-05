@@ -1,6 +1,5 @@
 #include "FixedJoint.h"
-#include "Constraint1D.h"
-#include "Constraint1DContainer.h"
+#include "Joint.inl"
 #include "JointsUtil.h"
 
 void physecs::FixedJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* /*additionalData*/, Constraint1DDescriptor* constraintRows) {

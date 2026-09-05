@@ -1,10 +1,7 @@
 #include "ServoJoint.h"
-
 #include <JointsUtil.h>
-
-#include "Constraint1D.h"
+#include "Joint.inl"
 #include <glm/gtx/vector_angle.hpp>
-#include "Constraint1DContainer.h"
 
 void physecs::ServoJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DDescriptor* constraintRows) {
     auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;

@@ -132,7 +132,8 @@ if (BUILD_TESTS)
 	foreach (TEST_SOURCE ${TEST_SOURCES})
 		get_filename_component(TEST_NAME "${TEST_SOURCE}" NAME_WE)
 
-		add_executable("${TEST_NAME}" "${TEST_SOURCE}")
+		add_executable("${TEST_NAME}" "${TEST_SOURCE}"
+				include/Physecs/Joint.inl)
 
 		set_property(TARGET "${TEST_NAME}" PROPERTY CXX_STANDARD 20)
 

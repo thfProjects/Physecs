@@ -1,7 +1,6 @@
 #include "PrismaticJoint.h"
 #include <limits>
-#include "Constraint1D.h"
-#include "Constraint1DContainer.h"
+#include "Joint.inl"
 #include "Transform.h"
 
 void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DDescriptor* constraintRows) {

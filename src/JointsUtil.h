@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Joint.h"
+#include "Joint.inl"
 
 namespace physecs {
 

@@ -56,6 +56,23 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
     (storeAccumulatedImpulses<Blocks>(constraints), ...);
 }
 
+struct Constraint1DDescriptor {
+    alignas(16) glm::vec3 linear0;
+    union {
+        float stiffness;
+        float minForce;
+    };
+    alignas(16) glm::vec3 linear1;
+    union {
+        float damping;
+        float maxForce;
+    };
+    alignas(16) glm::vec3 angular0;
+    float targetVelocity;
+    alignas(16) glm::vec3 angular1;
+    float geometricError;
+};
+
 template<typename Block, typename Data>
 __forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
@@ -193,6 +210,16 @@ __forceinline void applyTransformAndMassScale(ConstraintLayout<Blocks...>, const
 template<typename Impl, typename Layout, typename Cache, typename Data>
 void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, const Constraint1DWriterContext& context, Constraint1DWriter& constraints) {
     Constraint1DDescriptor constraintRows[Layout::count];
+
+    const FloatW zero = _mm_setzero_ps();
+    for (int i = 0; i < Layout::count; ++i) {
+        Constraint1DDescriptor& constraintRow = constraintRows[i];
+        _mm_store_ps(glm::value_ptr(constraintRow.linear0), zero);
+        _mm_store_ps(glm::value_ptr(constraintRow.linear1), zero);
+        _mm_store_ps(glm::value_ptr(constraintRow.angular0), zero);
+        _mm_store_ps(glm::value_ptr(constraintRow.angular1), zero);
+    }
+
     Impl::makeConstraints(worldSpaceData, additionalData, constraintRows);
 
     const Data& data = *static_cast<const Data*>(additionalData);

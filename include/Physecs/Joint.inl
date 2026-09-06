@@ -122,7 +122,7 @@ __forceinline void repeat(F&& f) {
 }
 
 template<int numRows, int numAngularRows>
-void LDLtFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* D) {
+__forceinline void LDLtFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* D) {
     // LDLt factorization of JM^-1J^T
     repeat<numRows>([&](auto I) [[msvc::forceinline]] {
         static constexpr int i = decltype(I)::value;
@@ -146,28 +146,42 @@ void LDLtFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRo
 }
 
 template<int numRows, int numAngularRows>
-void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
+__forceinline void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
     // solve LJ' = J by forward substitution
     // J'M^-1J'^T will be a diagonal matrix, making gauss seidel for these constraints be identical to a block solve
-    for (int i = 0; i < numRows; ++i) {
-        auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0));
-        auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1));
+    repeat<numRows - 1>([&](auto I) [[msvc::forceinline]] {
+        static constexpr int i = 1 + decltype(I)::value;
+
         auto angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
         auto angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
-        for (int j = 0; j < i; ++j) {
+
+        repeat<std::min(i, numAngularRows)>([&angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
+            static constexpr int j = decltype(J)::value;
             auto Lji = _mm_set1_ps(L[j][i]);
-            if (j >= numAngularRows) {
-                linear0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0));
-                linear1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
-            }
             angular0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0));
             angular1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
+        });
+
+        if constexpr (i > numAngularRows) {
+            auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0));
+            auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1));
+
+            repeat<i - numAngularRows>([&linear0, &linear1, &angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
+                static constexpr int j = numAngularRows + decltype(J)::value;
+                auto Lji = _mm_set1_ps(L[j][i]);
+                linear0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0));
+                linear1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
+                angular0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0));
+                angular1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
+            });
+
+            _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
+            _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
         }
-        _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
-        _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
+
         _mm_store_ps(glm::value_ptr(constraintRows[i].angular0), angular0);
         _mm_store_ps(glm::value_ptr(constraintRows[i].angular1), angular1);
-    }
+    });
 }
 
 template<typename Block, typename Data>

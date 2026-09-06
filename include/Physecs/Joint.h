@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <Constraint1DFlags.h>
+#include <SIMD.h>
 
 namespace physecs {
 
@@ -36,8 +37,8 @@ namespace physecs {
     };
 
     struct Constraint1DWriterContext {
-        glm::mat3* r0 = nullptr;
-        glm::mat3* r1 = nullptr;
+        Mat3V* invR0 = nullptr;
+        Mat3V* invR1 = nullptr;
         MassData* massData0 = nullptr;
         MassData* massData1 = nullptr;
     };
@@ -122,10 +123,6 @@ namespace physecs {
         void prepare(const entt::registry&) {}
 
     private:
-        template<typename Block>
-        static void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints);
-        template<typename... Blocks>
-        static void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, Constraint1DWriter& constraints);
         static void makeFinalConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, const Constraint1DWriterContext& context, Constraint1DWriter& constraints);
 
         template<typename Block>

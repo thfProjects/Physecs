@@ -304,10 +304,17 @@ namespace physecs {
     struct Mat3V {
         FloatW cols[3];
 
+        Mat3V() {
+            cols[0] = _mm_setr_ps(1, 0, 0, 0);
+            cols[1] = _mm_setr_ps(0, 1, 0, 0);
+            cols[2] = _mm_setr_ps(0, 0, 1, 0);
+        };
+
         explicit Mat3V(const glm::mat3& m) {
-            this->cols[0] = _mm_loadu_ps(glm::value_ptr(m[0]));;
-            this->cols[1] = _mm_loadu_ps(glm::value_ptr(m[1]));;
-            this->cols[2] = fromVec3(m[2]); // the last column has no fourth float to read;
+            this->cols[0] = _mm_loadu_ps(glm::value_ptr(m[0]));
+            this->cols[1] = _mm_loadu_ps(glm::value_ptr(m[1]));
+            const FloatW t = _mm_loadu_ps(glm::value_ptr(m[1]) + 2);          // floats 5,6,7,8 — ends exactly at the mat3's end
+            this->cols[2] = _mm_shuffle_ps(t, t, _MM_SHUFFLE(3, 3, 2, 1));    // (f6, f7, f8, junk)
         }
 
         void transpose() {

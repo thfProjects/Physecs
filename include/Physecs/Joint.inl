@@ -56,9 +56,8 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
     (storeAccumulatedImpulses<Blocks>(constraints), ...);
 }
 
-template<typename Impl, typename Layout, typename Cache, typename Data>
-template<typename Block>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints) {
+template<typename Block, typename Data>
+__forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
         const Constraint1DDescriptor& constraintRow = rows[row++];
@@ -78,9 +77,8 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::writeConstraints(const 
     }
 }
 
-template<typename Impl, typename Layout, typename Cache, typename Data>
-template<typename... Blocks>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, Constraint1DWriter& constraints) {
+template<typename Data, typename... Blocks>
+__forceinline void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, Constraint1DWriter& constraints) {
     int row = 0;
     (writeConstraints<Blocks>(data, rows, row, constraints), ...);
 }
@@ -155,33 +153,41 @@ void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
     }
 }
 
-template<int numRows>
-void applyTransformAndMassScale(Constraint1DDescriptor* constraintRows, const Constraint1DWriterContext& context) {
-    Mat3V invR0 = Mat3V(*context.r0);
-    invR0.transpose();
+template<typename Block, typename Data>
+__forceinline void applyTransformAndMassScale(const Data& data, Constraint1DDescriptor* rows, int& row,
+    const Mat3V& invR0, const Mat3V& invR1, const FloatW& sqrtInvMass0, const FloatW& sqrtInvMass1, const FloatW& sqrtInvInertia0, const FloatW& sqrtInvInertia1)
+{
+    if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
+    for (int i = 0; i < Block::count; ++i) {
+        Constraint1DDescriptor& constraintRow = rows[row++];
 
-    Mat3V invR1 = Mat3V(*context.r1);
-    invR1.transpose();
+        if constexpr (!(Block::flags & ANGULAR)) {
+            _mm_store_ps(glm::value_ptr(constraintRow.linear0), _mm_load_ps(glm::value_ptr(constraintRow.linear0)) * sqrtInvMass0);
+            _mm_store_ps(glm::value_ptr(constraintRow.linear1), _mm_load_ps(glm::value_ptr(constraintRow.linear1)) * sqrtInvMass1);
+        }
 
-    const FloatW sqrtInvMass0 = _mm_setr_ps(context.massData0->sqrtInvMass, context.massData0->sqrtInvMass, context.massData0->sqrtInvMass, 1.f);
-    const FloatW sqrtInvMass1 = _mm_setr_ps(context.massData1->sqrtInvMass, context.massData1->sqrtInvMass, context.massData1->sqrtInvMass, 1.f);
+        // blend back in the w lanes since they carry geometric error and target velocity
+        const auto angular0 = _mm_load_ps(glm::value_ptr(constraintRow.angular0));
+        _mm_store_ps(glm::value_ptr(constraintRow.angular0), _mm_blend_ps((invR0 * angular0) * sqrtInvInertia0, angular0, 0x8));
+
+        const auto angular1 = _mm_load_ps(glm::value_ptr(constraintRow.angular1));
+        _mm_store_ps(glm::value_ptr(constraintRow.angular1), _mm_blend_ps((invR1 * angular1) * sqrtInvInertia1, angular1, 0x8));
+    }
+}
+
+template<typename Data, typename... Blocks>
+__forceinline void applyTransformAndMassScale(ConstraintLayout<Blocks...>, const Data& data, Constraint1DDescriptor* rows, const Constraint1DWriterContext& context) {
+    const FloatW one = _mm_set1_ps(1.f);
 
     const FloatW sqrtInvInertia0 = _mm_load_ps(glm::value_ptr(context.massData0->sqrtInvInertia));
     const FloatW sqrtInvInertia1 = _mm_load_ps(glm::value_ptr(context.massData1->sqrtInvInertia));
 
-    for (int i = 0; i < numRows; ++i) {
-        const auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0)) * sqrtInvMass0;
-        _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
+    // sqrtInvMass is in lane 4 of sqrtInvInertia, leave lane 4 on sqrtInvMass vector as 1 to avoid multiplying stiffness and damping
+    const FloatW sqrtInvMass0 = _mm_blend_ps(_mm_shuffle_ps(sqrtInvInertia0, sqrtInvInertia0, _MM_SHUFFLE(3,3,3,3)), one, 0x8);
+    const FloatW sqrtInvMass1 = _mm_blend_ps(_mm_shuffle_ps(sqrtInvInertia1, sqrtInvInertia1, _MM_SHUFFLE(3,3,3,3)), one, 0x8);
 
-        const auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1)) * sqrtInvMass1;
-        _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
-
-        const auto angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
-        _mm_store_ps(glm::value_ptr(constraintRows[i].angular0), _mm_blend_ps((invR0 * angular0) * sqrtInvInertia0, angular0, 0x8));
-
-        const auto angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
-        _mm_store_ps(glm::value_ptr(constraintRows[i].angular1), _mm_blend_ps((invR1 * angular1) * sqrtInvInertia1, angular1, 0x8));
-    }
+    int row = 0;
+    (applyTransformAndMassScale<Blocks>(data, rows, row, *context.invR0, *context.invR1, sqrtInvMass0, sqrtInvMass1, sqrtInvInertia0, sqrtInvInertia1), ...);
 }
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
@@ -189,7 +195,9 @@ void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorld
     Constraint1DDescriptor constraintRows[Layout::count];
     Impl::makeConstraints(worldSpaceData, additionalData, constraintRows);
 
-    applyTransformAndMassScale<Layout::count>(constraintRows, context);
+    const Data& data = *static_cast<const Data*>(additionalData);
+
+    applyTransformAndMassScale(Layout{}, data, constraintRows, context);
 
     constexpr int n = Layout::hardEqualityCount;
     if constexpr (n > 1) {
@@ -201,7 +209,7 @@ void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorld
         orthogonalize<n, numAngular>(constraintRows, L);
     }
 
-    writeConstraints(Layout{}, *static_cast<const Data*>(additionalData), constraintRows, constraints);
+    writeConstraints(Layout{}, data, constraintRows, constraints);
 }
 
 }

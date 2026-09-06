@@ -18,13 +18,14 @@ namespace physecs {
     };
 
     struct MassData {
-        alignas(16) glm::vec3 sqrtInvInertia;
-        float sqrtInvMass;
+        alignas(16) glm::vec3 sqrtInvInertia = glm::vec3(0.f);
+        float sqrtInvMass = 0.f;
     };
 
     struct TransformData {
         glm::vec3 comWorld = glm::vec3(0);
         glm::mat3 worldRotation = glm::mat3(1);
+        Mat3V invWorldRotation;
     };
 
     using BodyId = int;

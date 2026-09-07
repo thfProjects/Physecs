@@ -19,7 +19,7 @@ void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1D
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename Block>
-__forceinline float* JointImpl<Impl, Layout, Cache, Data>::getLambdas() {
+__forceinline float* JointImpl<Impl, Layout, Cache, Data>::getAccumulatedImpulses() {
     if constexpr (Block::lambdas == nullptr) return nullptr;
     else if constexpr (std::is_array_v<std::remove_reference_t<decltype(cache.*Block::lambdas)>>) {
         return cache.*Block::lambdas;
@@ -31,7 +31,7 @@ template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename Block>
 __forceinline void JointImpl<Impl, Layout, Cache, Data>::createConstraints(Constraint1DLayout& constraintLayout) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
-    constraintLayout.createConstraints<Block::flags, Block::count>(getLambdas<Block>());
+    constraintLayout.createConstraints<Block::flags, Block::count>(getAccumulatedImpulses<Block>());
 }
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
@@ -46,7 +46,7 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
         const float lambda = constraints.nextTotalLambda<Block::flags>();
-        if constexpr (Block::lambdas != nullptr) getLambdas<Block>()[i] = lambda;
+        if constexpr (Block::lambdas != nullptr) getAccumulatedImpulses<Block>()[i] = lambda;
     }
 }
 
@@ -152,29 +152,27 @@ __forceinline void orthogonalize(Constraint1DDescriptor* constraintRows, float L
     repeat<numRows - 1>([&](auto I) [[msvc::forceinline]] {
         static constexpr int i = 1 + decltype(I)::value;
 
-        auto angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
-        auto angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
+        FloatW linear0, linear1;
+        if constexpr (i > numAngularRows) {
+            linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0));
+            linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1));
+        }
 
-        repeat<std::min(i, numAngularRows)>([&angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
+        FloatW angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
+        FloatW angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
+
+        repeat<i>([&linear0, &linear1, &angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
             static constexpr int j = decltype(J)::value;
-            auto Lji = _mm_set1_ps(L[j][i]);
+            const FloatW Lji = _mm_set1_ps(L[j][i]);
+            if constexpr (j >= numAngularRows) {
+                linear0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0));
+                linear1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
+            }
             angular0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0));
             angular1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
         });
 
         if constexpr (i > numAngularRows) {
-            auto linear0 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear0));
-            auto linear1 = _mm_load_ps(glm::value_ptr(constraintRows[i].linear1));
-
-            repeat<i - numAngularRows>([&linear0, &linear1, &angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
-                static constexpr int j = numAngularRows + decltype(J)::value;
-                auto Lji = _mm_set1_ps(L[j][i]);
-                linear0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear0));
-                linear1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].linear1));
-                angular0 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0));
-                angular1 -= Lji * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
-            });
-
             _mm_store_ps(glm::value_ptr(constraintRows[i].linear0), linear0);
             _mm_store_ps(glm::value_ptr(constraintRows[i].linear1), linear1);
         }

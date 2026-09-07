@@ -114,7 +114,7 @@ namespace physecs {
         static void makeFinalConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, const Constraint1DWriterContext& context, Constraint1DWriter& constraints);
 
         template<typename Block>
-        float* getLambdas();
+        float* getAccumulatedImpulses();
         template<typename Block>
         void createConstraints(Constraint1DLayout& constraintLayout);
         template<typename... Blocks>

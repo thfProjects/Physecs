@@ -56,41 +56,12 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
     (storeAccumulatedImpulses<Blocks>(constraints), ...);
 }
 
-struct Constraint1DDescriptor {
-    alignas(16) glm::vec3 linear0;
-    union {
-        float stiffness;
-        float minForce;
-    };
-    alignas(16) glm::vec3 linear1;
-    union {
-        float damping;
-        float maxForce;
-    };
-    alignas(16) glm::vec3 angular0;
-    float targetVelocity;
-    alignas(16) glm::vec3 angular1;
-    float geometricError;
-};
-
 template<typename Block, typename Data>
 __forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
         const Constraint1DDescriptor& constraintRow = rows[row++];
-        auto constraint = constraints.next<Block::flags>();
-        if constexpr (!(Block::flags & ANGULAR)) {
-            constraint
-                .setLinear0(constraintRow.linear0)
-                .setLinear1(constraintRow.linear1);
-        }
-        constraint
-            .setAngular0(constraintRow.angular0)
-            .setAngular1(constraintRow.angular1)
-            .setC(constraintRow.geometricError)
-            .setTargetVelocity(constraintRow.targetVelocity);
-        if constexpr (Block::flags & LIMITED) constraint.setMin(constraintRow.minForce).setMax(constraintRow.maxForce);
-        if constexpr (Block::flags & SOFT) constraint.setStiffness(constraintRow.stiffness).setDamping(constraintRow.damping);
+        constraints.writeNext<Block::flags>(constraintRow);
     }
 }
 

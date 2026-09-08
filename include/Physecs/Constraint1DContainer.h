@@ -9,103 +9,6 @@
 
 namespace physecs {
 
-    template<int flags>
-    class Constraint1DView {
-        union {
-            Constraint1DW<flags>* color;
-            Constraint1D<flags>* sequential;
-        };
-        int offset;
-
-    public:
-        Constraint1DView(Constraint1DW<flags>& color, int offset) : color(&color), offset(offset) {}
-        Constraint1DView(Constraint1D<flags>& sequential) : sequential(&sequential), offset(-1) {}
-
-        __forceinline Constraint1DView& setLinear0(const glm::vec3& linear0) {
-            if (offset < 0) {
-                sequential->linear0 = linear0;
-            }
-            else {
-                color->linear0.set(linear0, offset);
-            }
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setLinear1(const glm::vec3& linear1) {
-            if (offset < 0) {
-                sequential->linear1 = linear1;
-            }
-            else {
-                color->linear1.set(linear1, offset);
-            }
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
-            if (offset < 0)
-                sequential->angular0 = angular0;
-            else
-                color->angular0.set(angular0, offset);
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
-            if (offset < 0)
-                sequential->angular1 = angular1;
-            else
-                color->angular1.set(angular1, offset);
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setTargetVelocity(float targetVelocity) {
-            if (offset < 0)
-                sequential->targetVelocity = targetVelocity;
-            else
-                color->targetVelocity.m128_f32[offset] = targetVelocity;
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setC(float c) {
-            if (offset < 0)
-                sequential->c = c;
-            else
-                color->c.m128_f32[offset] = c;
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setMin(float min) {
-            if (offset < 0)
-                sequential->min = min;
-            else
-                color->min.m128_f32[offset] = min;
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setMax(float max) {
-            if (offset < 0)
-                sequential->max = max;
-            else
-                color->max.m128_f32[offset] = max;
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setStiffness(float stiffness) {
-            if (offset < 0)
-                sequential->stiffness = stiffness;
-            else
-                color->stiffness.m128_f32[offset] = stiffness;
-            return *this;
-        }
-
-        __forceinline Constraint1DView& setDamping(float damping) {
-            if (offset < 0)
-                sequential->damping = damping;
-            else
-                color->damping.m128_f32[offset] = damping;
-            return *this;
-        }
-    };
-
     struct ConstraintRef {
         int baseIndex;
         int offset;
@@ -128,28 +31,57 @@ namespace physecs {
             }
         };
 
-        using SimdConstraints = ConstraintCollection<Constraint1DW, NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED>;
-        using OverflowConstraints = ConstraintCollection<Constraint1D, NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED>;
+        template<template<int> typename Constraint>
+        using Collection = ConstraintCollection<Constraint, NONE, ANGULAR, SOFT, LIMITED, ANGULAR | SOFT, ANGULAR | LIMITED>;
 
-        std::variant<SimdConstraints, OverflowConstraints> constraintCollection;
+        using SimdConstraints = Collection<Constraint1DW>;
+        using OverflowConstraints = Collection<Constraint1D>;
+
+        union {
+            SimdConstraints simdConstraints;
+            OverflowConstraints overflowConstraints;
+        };
 
         std::vector<ConstraintRef> constraintRefs;
 
+        bool isOverflow = false;
+
+        template<typename F>
+        void visit(F&& f);
+
+        template<typename F>
+        void forEachList(F&& f);
+
+        template<typename F>
+        void forEachConstraint(F&& f);
+
+        friend class Constraint1DLayout;
         friend class Constraint1DWriter;
         friend class Constraint1DReader;
 
     public:
+        Constraint1DContainer() {
+            std::construct_at(&simdConstraints);
+        }
+
+        ~Constraint1DContainer() {
+            if (isOverflow) std::destroy_at(&overflowConstraints);
+            else std::destroy_at(&simdConstraints);
+        }
         void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
         void solve(VelocityData* velocities, float timeStep, bool useBias = false);
         void clear();
 
-        void setOverFlow() { constraintCollection.emplace<OverflowConstraints>(); }
+        void setOverFlow() {
+            isOverflow = true;
+            std::destroy_at(&simdConstraints);
+            std::construct_at(&overflowConstraints);
+        }
 
         template<int flags>
         int createConstraint(int bodyIndex0, int bodyIndex1, float initLambda, int prevIndex) {
-            if (std::holds_alternative<SimdConstraints>(constraintCollection)) {
-                auto& constraintsCollection = std::get<SimdConstraints>(constraintCollection);
-                auto& [constraintsList, lanes] = constraintsCollection.get<flags>();
+            if (!isOverflow) {
+                auto& [constraintsList, lanes] = simdConstraints.get<flags>();
                 const auto shifted = _mm_slli_si128 (lanes, 4);
                 auto cmp = _mm_and_epi32(_mm_cmpgt_epi32(shifted, lanes), _mm_cmpgt_epi32(lanes, _mm_set1_epi32(prevIndex)));
                 cmp = _mm_shuffle_epi32(cmp, _MM_SHUFFLE(0, 1, 2, 3));
@@ -168,8 +100,7 @@ namespace physecs {
                 return currentIndex++;
             }
 
-            auto& constraintsCollection = std::get<OverflowConstraints>(constraintCollection);
-            auto& constraintsList = constraintsCollection.get<flags>().constraints;
+            auto& constraintsList = overflowConstraints.get<flags>().constraints;
             constraintRefs.emplace_back(static_cast<int>(constraintsList.size()), -1);
             constraintsList.emplace_back(bodyIndex0, bodyIndex1, initLambda);
             return 0;
@@ -223,12 +154,123 @@ namespace physecs {
         template<int flags = NONE>
         __forceinline float nextTotalLambda() {
             auto& [i, o] = container.constraintRefs[index++];
-            if (std::holds_alternative<Constraint1DContainer::SimdConstraints>(container.constraintCollection)) {
-                auto& constraintsList = std::get<Constraint1DContainer::SimdConstraints>(container.constraintCollection).get<flags>();
+            if (!container.isOverflow) {
+                auto& constraintsList = container.simdConstraints.get<flags>();
                 return constraintsList.constraints[i].totalLambda.m128_f32[o];
             }
-            auto& constraintsList = std::get<Constraint1DContainer::OverflowConstraints>(container.constraintCollection).get<flags>();
+            auto& constraintsList = container.overflowConstraints.get<flags>();
             return constraintsList.constraints[i].totalLambda;
+        }
+    };
+
+    struct Constraint1DDescriptor {
+        alignas(16) glm::vec3 linear0;
+        union {
+            float stiffness;
+            float minForce;
+        };
+        alignas(16) glm::vec3 linear1;
+        union {
+            float damping;
+            float maxForce;
+        };
+        alignas(16) glm::vec3 angular0;
+        float targetVelocity;
+        alignas(16) glm::vec3 angular1;
+        float geometricError;
+    };
+
+    template<bool isOverflow, int flags>
+    class Constraint1DView {
+        using ConstraintT = std::conditional_t<isOverflow, Constraint1D<flags>, Constraint1DW<flags>>;
+        ConstraintT* constraint;
+        int offset;
+
+    public:
+        Constraint1DView(ConstraintT& constraint, int offset) : constraint(&constraint), offset(offset) {}
+
+        __forceinline Constraint1DView& setLinear0(const glm::vec3& linear0) {
+            if constexpr (isOverflow) {
+                constraint->linear0 = linear0;
+            }
+            else {
+                constraint->linear0.set(linear0, offset);
+            }
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setLinear1(const glm::vec3& linear1) {
+            if constexpr (isOverflow) {
+                constraint->linear1 = linear1;
+            }
+            else {
+                constraint->linear1.set(linear1, offset);
+            }
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
+            if constexpr (isOverflow)
+                constraint->angular0 = angular0;
+            else
+                constraint->angular0.set(angular0, offset);
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
+            if constexpr (isOverflow)
+                constraint->angular1 = angular1;
+            else
+                constraint->angular1.set(angular1, offset);
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setTargetVelocity(float targetVelocity) {
+            if constexpr (isOverflow)
+                constraint->targetVelocity = targetVelocity;
+            else
+                constraint->targetVelocity.m128_f32[offset] = targetVelocity;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setC(float c) {
+            if constexpr (isOverflow)
+                constraint->c = c;
+            else
+                constraint->c.m128_f32[offset] = c;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setMin(float min) {
+            if constexpr (isOverflow)
+                constraint->min = min;
+            else
+                constraint->min.m128_f32[offset] = min;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setMax(float max) {
+            if constexpr (isOverflow)
+                constraint->max = max;
+            else
+                constraint->max.m128_f32[offset] = max;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setStiffness(float stiffness) {
+            if constexpr (isOverflow)
+                constraint->stiffness = stiffness;
+            else
+                constraint->stiffness.m128_f32[offset] = stiffness;
+            return *this;
+        }
+
+        __forceinline Constraint1DView& setDamping(float damping) {
+            if constexpr (isOverflow)
+                constraint->damping = damping;
+            else
+                constraint->damping.m128_f32[offset] = damping;
+            return *this;
         }
     };
 
@@ -236,21 +278,36 @@ namespace physecs {
         Constraint1DContainer& container;
         int index = 0;
 
+        template<bool isOverflow>
+        using ConstraintCollectionT = std::conditional_t<isOverflow, Constraint1DContainer::OverflowConstraints, Constraint1DContainer::SimdConstraints>;
+
+        template<bool isOverflow, int flags>
+        void writeNextImpl(ConstraintCollectionT<isOverflow>& constraintCollection, const Constraint1DDescriptor& row) {
+            auto& [i, o] = container.constraintRefs[index++];
+            auto& constraintsList = constraintCollection.template get<flags>();
+            auto& constraint = constraintsList.constraints[i];
+            auto constraintView = Constraint1DView<isOverflow, flags>(constraint, o);
+            if constexpr (!(flags & ANGULAR)) {
+                constraintView
+                    .setLinear0(row.linear0)
+                    .setLinear1(row.linear1);
+            }
+            constraintView
+                .setAngular0(row.angular0)
+                .setAngular1(row.angular1)
+                .setC(row.geometricError)
+                .setTargetVelocity(row.targetVelocity);
+            if constexpr (flags & LIMITED) constraintView.setMin(row.minForce).setMax(row.maxForce);
+            if constexpr (flags & SOFT) constraintView.setStiffness(row.stiffness).setDamping(row.damping);
+        }
+
     public:
         Constraint1DWriter(Constraint1DContainer& container) : container(container) {}
 
-        template<int flags = NONE>
-        __forceinline Constraint1DView<flags> next() {
-            auto& [i, o] = container.constraintRefs[index++];
-            if (std::holds_alternative<Constraint1DContainer::SimdConstraints>(container.constraintCollection)) {
-                auto& constraintsCollection = std::get<Constraint1DContainer::SimdConstraints>(container.constraintCollection);
-                auto& constraintList = constraintsCollection.get<flags>();
-                return Constraint1DView<flags>(constraintList.constraints[i], o);
-            }
-
-            auto& constraintsCollection = std::get<Constraint1DContainer::OverflowConstraints>(container.constraintCollection);
-            auto& constraintList = constraintsCollection.get<flags>();
-            return Constraint1DView<flags>(constraintList.constraints[i]);
+        template<int flags>
+        _forceinline void writeNext(const Constraint1DDescriptor& row) {
+            if (!container.isOverflow) writeNextImpl<false, flags>(container.simdConstraints, row);
+            else writeNextImpl<true, flags>(container.simdConstraints, row);
         }
     };
 }

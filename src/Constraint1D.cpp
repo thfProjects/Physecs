@@ -3,7 +3,7 @@
 #include "Constraint1DFlags.h"
 
 template<int flags>
-void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
+__forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
     invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
     if constexpr (!(flags & ANGULAR)) {
         invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
@@ -45,7 +45,7 @@ void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelo
 }
 
 template<int flags>
-void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
+__forceinline void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
     if (!invEffMass) return;
 
     glm::vec3 velocity0(0);

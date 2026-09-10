@@ -4,7 +4,7 @@
 namespace physecs {
 
 template<auto member, typename T>
-Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
+__forceinline Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
     const FloatW& row0 = data[bodies[0]].*member;
     const FloatW& row1 = data[bodies[1]].*member;
     const FloatW& row2 = data[bodies[2]].*member;
@@ -23,7 +23,7 @@ Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
 }
 
 template<auto member, typename T>
-void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
+__forceinline void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
     const FloatW tmp0 = _mm_unpacklo_ps(v.x, v.y);
     const FloatW tmp1 = _mm_unpacklo_ps(v.z, _mm_setzero_ps());
     const FloatW tmp2 = _mm_unpackhi_ps(v.x, v.y);
@@ -38,7 +38,7 @@ void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
 }
 
 template<int flags>
-void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
+__forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
     Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     if constexpr (!(flags & SOFT)) {
@@ -131,7 +131,7 @@ void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVel
 }
 
 template<int flags>
-void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
+__forceinline void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
     Vec3W velocity0, velocity1;
     if constexpr (!(flags & ANGULAR)) {
         velocity0 = gatherVec3W<&VelocityData::velocity>(velocities, bodies0);

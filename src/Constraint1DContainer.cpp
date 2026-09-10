@@ -11,8 +11,8 @@ _forceinline void physecs::Constraint1DContainer::visit(F&& f) {
 
 template<typename F>
 _forceinline void physecs::Constraint1DContainer::forEachList(F&& f) {
-    visit([&f](auto& constraintsCollection) {
-        std::apply([&f](auto&... constraintsLists) {
+    visit([&f](auto& constraintsCollection) [[msvc::forceinline]] {
+        std::apply([&f](auto&... constraintsLists) [[msvc::forceinline]] {
             (f(constraintsLists), ...);
         }, constraintsCollection.constraints);
     });
@@ -20,7 +20,7 @@ _forceinline void physecs::Constraint1DContainer::forEachList(F&& f) {
 
 template<typename F>
 _forceinline void physecs::Constraint1DContainer::forEachConstraint(F&& f) {
-    forEachList([&f](auto& constraintsList) {
+    forEachList([&f](auto& constraintsList) [[msvc::forceinline]] {
         for (auto& constraint : constraintsList.constraints) {
             f(constraint);
         }
@@ -28,19 +28,19 @@ _forceinline void physecs::Constraint1DContainer::forEachConstraint(F&& f) {
 }
 
 void physecs::Constraint1DContainer::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
-    forEachConstraint([=](auto& constraint) [[msvs::forceinline]] {
+    forEachConstraint([=](auto& constraint) [[msvc::forceinline]] {
         constraint.preSolve(velocities, pseudoVelocities);
     });
 }
 
 void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool useBias) {
-    forEachConstraint([=](auto& constraint) [[msvs::forceinline]] {
+    forEachConstraint([=](auto& constraint) [[msvc::forceinline]] {
         constraint.solve(velocities, timeStep, useBias);
     });
 }
 
 void physecs::Constraint1DContainer::clear() {
-    forEachList([](auto& constraintsList) [[msvs::forceinline]] {
+    forEachList([](auto& constraintsList) [[msvc::forceinline]] {
         constraintsList.constraints.clear();
         constraintsList.lanes = _mm_setzero_si128();
     });

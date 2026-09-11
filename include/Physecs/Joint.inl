@@ -213,7 +213,7 @@ void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorld
     applyTransformAndMassScale(Layout{}, data, constraintRows, context);
 
     constexpr int n = Layout::hardEqualityCount;
-    float effMasses[n];
+    float effMasses[std::max(n, 1)];
     if constexpr (n > 0) {
         float L[n][n]; // column major lower triangular L and upper triangular DL^T
 

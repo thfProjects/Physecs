@@ -4,26 +4,29 @@
 
 template<int flags>
 __forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities, float timeStep) {
-    float invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
-    if constexpr (!(flags & ANGULAR)) {
-        invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
-    }
-
     if constexpr (flags & SOFT) {
         const float stiffness = timeStep * springParams.stiffness;
         const float damping = timeStep * springParams.damping;
         springParams.cfm = 1.f / (damping + timeStep * stiffness + 1e-8f);
         springParams.erp = stiffness * springParams.cfm;
 
+        float invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
+        if constexpr (!(flags & ANGULAR)) {
+            invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
+        }
+
         effMass = 1.f / (invEffMass + springParams.cfm);
 
         return;
     }
-    else {
-        effMass = 1.f / (invEffMass + 1e-8f);
-    }
 
     if constexpr (flags & LIMITED) {
+        float invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
+        if constexpr (!(flags & ANGULAR)) {
+            invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
+        }
+
+        effMass = 1.f / (invEffMass + 1e-8f);
         min *= timeStep;
         max *= timeStep;
     }

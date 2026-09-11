@@ -419,7 +419,7 @@ void physecs::Scene::simulate(float timeStep) {
     }
 
     float h = timeStep / numSubSteps;
-    const float jointBaumgarteFactor = 0.2f / h;
+    const float jointBaumgarteFactor = jointBaumgarteBias / h;
     for (int m = 0; m < numSubSteps; ++m) {
 
         //update contact constraints

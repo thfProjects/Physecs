@@ -57,18 +57,19 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
 }
 
 template<typename Block, typename Data>
-__forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, int& row, Constraint1DWriter& constraints) {
+__forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, float* effMasses, int& row, Constraint1DWriter& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
-        const Constraint1DDescriptor& constraintRow = rows[row++];
-        constraints.writeNext<Block::flags>(constraintRow);
+        const int idx = row++;
+        const Constraint1DDescriptor& constraintRow = rows[idx];
+        constraints.writeNext<Block::flags>(constraintRow, effMasses[idx]);
     }
 }
 
 template<typename Data, typename... Blocks>
-__forceinline void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, Constraint1DWriter& constraints) {
+__forceinline void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, float* effMasses, Constraint1DWriter& constraints) {
     int row = 0;
-    (writeConstraints<Blocks>(data, rows, row, constraints), ...);
+    (writeConstraints<Blocks>(data, rows, effMasses, row, constraints), ...);
 }
 
 template<int numAngularRows, int i, int j>
@@ -93,25 +94,27 @@ __forceinline void repeat(F&& f) {
 }
 
 template<int numRows, int numAngularRows>
-__forceinline void LDLtFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* D) {
-    // LDLt factorization of JM^-1J^T
+__forceinline void LUFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* effMasses) {
+    constexpr float invMassScale = 1.01f;
+    // LU factorization of JM^-1J^T
     repeat<numRows>([&](auto I) [[msvc::forceinline]] {
         static constexpr int i = decltype(I)::value;
-        float d = computeInvEffMassEntry<numAngularRows, i, i>(constraintRows);
-        repeat<i>([&d, L, D](auto J) [[msvc::forceinline]] {
+        float d = computeInvEffMassEntry<numAngularRows, i, i>(constraintRows) * invMassScale + 1e-8f;
+        repeat<i>([&d, L](auto J) [[msvc::forceinline]] {
             static constexpr int j = decltype(J)::value;
-            d -= L[j][i] * L[j][i] * D[j];
+            d -= L[i][j] * L[j][i];
         });
-        D[i] = d;
-        const float effMass = 1.f / (d + 1e-8f);
-        repeat<numRows-i-1>([effMass, constraintRows, L, D](auto J) [[msvc::forceinline]] {
+        const float effMass = 1.f / d;
+        effMasses[i] = effMass;
+        repeat<numRows-i-1>([effMass, constraintRows, L](auto J) [[msvc::forceinline]] {
             static constexpr int j = i + 1 + decltype(J)::value;
             float l = computeInvEffMassEntry<numAngularRows, j, i>(constraintRows);
-            repeat<i>([&l, L, D](auto K) [[msvc::forceinline]] {
+            repeat<i>([&l, L](auto K) [[msvc::forceinline]] {
                 static constexpr int k = decltype(K)::value;
-                l -= D[k] * L[k][i] * L[k][j];
+                l -= L[i][k] * L[k][j];
             });
             L[i][j] = l * effMass;
+            L[j][i] = l;
         });
     });
 }
@@ -210,16 +213,16 @@ void JointImpl<Impl, Layout, Cache, Data>::makeFinalConstraints(const JointWorld
     applyTransformAndMassScale(Layout{}, data, constraintRows, context);
 
     constexpr int n = Layout::hardEqualityCount;
-    if constexpr (n > 1) {
-        float L[n][n]; // column major lower triangular
-        float D[n]; // diagonal
+    float effMasses[n];
+    if constexpr (n > 0) {
+        float L[n][n]; // column major lower triangular L and upper triangular DL^T
 
         constexpr int numAngular = Layout::hardEqualityAngularCount;
-        LDLtFactorize<n, numAngular>(constraintRows, L, D);
+        LUFactorize<n, numAngular>(constraintRows, L, effMasses);
         orthogonalize<n, numAngular>(constraintRows, L);
     }
 
-    writeConstraints(Layout{}, data, constraintRows, constraints);
+    writeConstraints(Layout{}, data, constraintRows, effMasses, constraints);
 }
 
 }

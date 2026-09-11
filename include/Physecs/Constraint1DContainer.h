@@ -272,6 +272,14 @@ namespace physecs {
                 constraint->springParams.damping.m128_f32[offset] = damping;
             return *this;
         }
+
+        __forceinline Constraint1DView& setEffMass(float effMass) {
+            if constexpr (isOverflow)
+                constraint->effMass = effMass;
+            else
+                constraint->effMass.m128_f32[offset] = effMass;
+            return *this;
+        }
     };
 
     class Constraint1DWriter {
@@ -282,7 +290,7 @@ namespace physecs {
         using ConstraintCollectionT = std::conditional_t<isOverflow, Constraint1DContainer::OverflowConstraints, Constraint1DContainer::SimdConstraints>;
 
         template<bool isOverflow, int flags>
-        void writeNextImpl(ConstraintCollectionT<isOverflow>& constraintCollection, const Constraint1DDescriptor& row) {
+        void writeNextImpl(ConstraintCollectionT<isOverflow>& constraintCollection, const Constraint1DDescriptor& row, float effMass) {
             auto& [i, o] = container.constraintRefs[index++];
             auto& constraintsList = constraintCollection.template get<flags>();
             auto& constraint = constraintsList.constraints[i];
@@ -298,16 +306,17 @@ namespace physecs {
                 .setC(row.geometricError)
                 .setTargetVelocity(row.targetVelocity);
             if constexpr (flags & LIMITED) constraintView.setMin(row.minForce).setMax(row.maxForce);
-            if constexpr (flags & SOFT) constraintView.setStiffness(row.stiffness).setDamping(row.damping);
+            else if constexpr (flags & SOFT) constraintView.setStiffness(row.stiffness).setDamping(row.damping);
+            else constraintView.setEffMass(effMass);
         }
 
     public:
         Constraint1DWriter(Constraint1DContainer& container) : container(container) {}
 
         template<int flags>
-        _forceinline void writeNext(const Constraint1DDescriptor& row) {
-            if (!container.isOverflow) writeNextImpl<false, flags>(container.simdConstraints, row);
-            else writeNextImpl<true, flags>(container.overflowConstraints, row);
+        _forceinline void writeNext(const Constraint1DDescriptor& row, float effMass) {
+            if (!container.isOverflow) writeNextImpl<false, flags>(container.simdConstraints, row, effMass);
+            else writeNextImpl<true, flags>(container.overflowConstraints, row, effMass);
         }
     };
 }

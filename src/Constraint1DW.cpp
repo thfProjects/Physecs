@@ -57,15 +57,15 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
         pseudoAngularVelocity1 = gatherVec3W<&PseudoVelocityData::pseudoAngularVelocity>(pseudoVelocities, bodies1);
     }
 
-    FloatW invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
-    if constexpr (!(flags & ANGULAR)) {
-        invEffMass += dotW(linear0, linear0) + dotW(linear1, linear1);
-    }
-
     const FloatW timeStepW = _mm_set1_ps(timeStep);
     const FloatW one = _mm_set1_ps(1.f);
 
     if constexpr (flags & SOFT) {
+        FloatW invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
+        if constexpr (!(flags & ANGULAR)) {
+            invEffMass += dotW(linear0, linear0) + dotW(linear1, linear1);
+        }
+
         const FloatW stiffness = timeStepW * springParams.stiffness;
         const FloatW damping = timeStepW * springParams.damping;
         springParams.cfm = one / (damping + timeStepW * stiffness + _mm_set1_ps(1e-8f));
@@ -75,11 +75,13 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
 
         return;
     }
-    else {
-        effMass = one / (invEffMass + _mm_set1_ps(1e-8f));
-    }
 
     if constexpr (flags & LIMITED) {
+        FloatW invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
+        if constexpr (!(flags & ANGULAR)) {
+            invEffMass += dotW(linear0, linear0) + dotW(linear1, linear1);
+        }
+        effMass = one / (invEffMass + _mm_set1_ps(1e-8f));
         min *= timeStepW;
         max *= timeStepW;
     }

@@ -30,6 +30,4 @@ namespace physecs {
 
     using BodyId = int;
     constexpr BodyId INVALID_BODY_ID = -1;
-
-    constexpr float baumgarteBias = 0.2f;
 }

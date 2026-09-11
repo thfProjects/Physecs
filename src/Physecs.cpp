@@ -419,6 +419,7 @@ void physecs::Scene::simulate(float timeStep) {
     }
 
     float h = timeStep / numSubSteps;
+    const float jointBaumgarteFactor = 0.2f / h;
     for (int m = 0; m < numSubSteps; ++m) {
 
         //update contact constraints
@@ -539,7 +540,7 @@ void physecs::Scene::simulate(float timeStep) {
             constraints.preSolve(velocityTemp.getData());
         }
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.preSolve(velocityTemp.getData(), pseudoVelocityTemp.getData());
+            color.jointConstraints.preSolve(velocityTemp.getData(), pseudoVelocityTemp.getData(), h);
         }
         PhysecsZoneEnd(ctx8);
 
@@ -547,7 +548,7 @@ void physecs::Scene::simulate(float timeStep) {
         for (int i = 0; i < numIterations; ++i) {
             PhysecsZoneScopedN("constraint solve");
             for (auto& color : jointGraph.colors) {
-                color.jointConstraints.solve(velocityTemp.getData(), h, true);
+                color.jointConstraints.solve(velocityTemp.getData(), jointBaumgarteFactor);
             }
             for (auto& constraints : contactConstraints) {
                 constraints.solve(velocityTemp.getData(), true, h);
@@ -570,7 +571,7 @@ void physecs::Scene::simulate(float timeStep) {
         //relaxation
         PhysecsZoneN(ctx5, "relaxation", true);
         for (auto& color : jointGraph.colors) {
-            color.jointConstraints.solve(velocityTemp.getData(), h, false);
+            color.jointConstraints.solve(velocityTemp.getData(), 0.f);
         }
         for (auto& constraints : contactConstraints) {
             if (constraints.isSoft) continue;

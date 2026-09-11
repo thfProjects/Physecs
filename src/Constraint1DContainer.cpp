@@ -27,15 +27,15 @@ _forceinline void physecs::Constraint1DContainer::forEachConstraint(F&& f) {
     });
 }
 
-void physecs::Constraint1DContainer::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
+void physecs::Constraint1DContainer::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep) {
     forEachConstraint([=](auto& constraint) [[msvc::forceinline]] {
-        constraint.preSolve(velocities, pseudoVelocities);
+        constraint.preSolve(velocities, pseudoVelocities, timeStep);
     });
 }
 
-void physecs::Constraint1DContainer::solve(VelocityData* velocities, float timeStep, bool useBias) {
+void physecs::Constraint1DContainer::solve(VelocityData* velocities, float baumgarteFactor) {
     forEachConstraint([=](auto& constraint) [[msvc::forceinline]] {
-        constraint.solve(velocities, timeStep, useBias);
+        constraint.solve(velocities, baumgarteFactor);
     });
 }
 

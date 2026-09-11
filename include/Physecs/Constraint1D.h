@@ -3,9 +3,19 @@
 #include "SolverData.h"
 
 namespace physecs {
+    struct SpringParams {
+        union {
+            float stiffness;
+            float erp;
+        };
 
-    struct VelocityData;
-    struct PseudoVelocityData;
+        union {
+            float damping;
+            float cfm;
+        };
+
+        SpringParams() : stiffness(0.f), damping(0.f) {}
+    };
 
     template<int flags>
     struct Constraint1D {
@@ -19,13 +29,12 @@ namespace physecs {
         float c = 0;
         float min = std::numeric_limits<float>::lowest();
         float max = std::numeric_limits<float>::max();
-        float stiffness = 0;
-        float damping = 0;
-        float invEffMass = 0;
+        SpringParams springParams;
+        float effMass = 0;
         float totalLambda = 0;
 
         Constraint1D(int b0, int b1, float initLambda) : b0(b0), b1(b1), totalLambda(initLambda) {};
-        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool useBias);
+        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep);
+        void solve(VelocityData* velocities, float baumgarteFactor);
     };
 }

@@ -3,13 +3,30 @@
 #include "Constraint1DFlags.h"
 
 template<int flags>
-__forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities) {
-    invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
+__forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities, float timeStep) {
+    float invEffMass = glm::dot(angular0, angular0) + glm::dot(angular1, angular1);
     if constexpr (!(flags & ANGULAR)) {
         invEffMass += glm::dot(linear0, linear0) + glm::dot(linear1, linear1);
     }
 
-    if constexpr (flags & SOFT) return;
+    if constexpr (flags & SOFT) {
+        const float stiffness = timeStep * springParams.stiffness;
+        const float damping = timeStep * springParams.damping;
+        springParams.cfm = 1.f / (damping + timeStep * stiffness + 1e-8f);
+        springParams.erp = stiffness * springParams.cfm;
+
+        effMass = 1.f / (invEffMass + springParams.cfm);
+
+        return;
+    }
+    else {
+        effMass = 1.f / (invEffMass + 1e-8f);
+    }
+
+    if constexpr (flags & LIMITED) {
+        min *= timeStep;
+        max *= timeStep;
+    }
 
     // warm start
     if (glm::abs(c) > 1e-4 || glm::abs(totalLambda) > 10000) {
@@ -27,11 +44,14 @@ __forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velociti
         velocities[b1].angularVelocity -= totalLambda * angular1;
     }
 
-    if (!c || !invEffMass) return;
+    if (!c) return;
 
-    float lambda = c / invEffMass;
-    if constexpr (flags & LIMITED)
-        lambda = glm::clamp(lambda, min, max);
+    float lambda = c * effMass;
+    if constexpr (flags & LIMITED) {
+        const float lo = min < 0.f ? std::numeric_limits<float>::lowest() : 0.f;
+        const float hi = max > 0.f ? std::numeric_limits<float>::max() : 0.f;
+        lambda = glm::clamp(lambda, lo, hi);
+    }
 
     if constexpr (!(flags & ANGULAR))
         pseudoVelocities[b0].pseudoVelocity += lambda * linear0;
@@ -45,9 +65,7 @@ __forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velociti
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
-    if (!invEffMass) return;
-
+__forceinline void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
     glm::vec3 velocity0(0);
     if constexpr (!(flags & ANGULAR))
         velocity0 = asVec3(velocities[b0].velocity);
@@ -63,19 +81,12 @@ __forceinline void physecs::Constraint1D<flags>::solve(VelocityData* velocities,
         relativeVelocity += glm::dot(linear1, velocity1) - glm::dot(linear0, velocity0);
     }
 
-    float lambda;
-    if constexpr (flags & SOFT) {
-        const float gamma = 1.f / (damping + timeStep * stiffness);
-        const float beta = timeStep * stiffness / (damping + timeStep * stiffness);
-        lambda = (relativeVelocity + beta * c / timeStep) / (invEffMass + gamma / timeStep);
-    } else {
-        lambda = (relativeVelocity - targetVelocity + (useBias ? baumgarteBias : 0.f) * c / timeStep) / invEffMass;
-    }
+    float lambda = (relativeVelocity - targetVelocity + (flags & SOFT ? springParams.erp : baumgarteFactor) * c) * effMass;
 
     if constexpr (flags & LIMITED) {
         const float prevLambda = totalLambda;
         totalLambda += lambda;
-        totalLambda = glm::clamp(totalLambda, min * timeStep, max * timeStep);
+        totalLambda = glm::clamp(totalLambda, min, max);
         lambda = totalLambda - prevLambda;
     }
     else {

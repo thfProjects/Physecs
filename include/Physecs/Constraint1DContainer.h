@@ -68,8 +68,8 @@ namespace physecs {
             if (isOverflow) std::destroy_at(&overflowConstraints);
             else std::destroy_at(&simdConstraints);
         }
-        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool useBias = false);
+        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep);
+        void solve(VelocityData* velocities, float baumgarteFactor);
         void clear();
 
         void setOverFlow() {
@@ -259,17 +259,17 @@ namespace physecs {
 
         __forceinline Constraint1DView& setStiffness(float stiffness) {
             if constexpr (isOverflow)
-                constraint->stiffness = stiffness;
+                constraint->springParams.stiffness = stiffness;
             else
-                constraint->stiffness.m128_f32[offset] = stiffness;
+                constraint->springParams.stiffness.m128_f32[offset] = stiffness;
             return *this;
         }
 
         __forceinline Constraint1DView& setDamping(float damping) {
             if constexpr (isOverflow)
-                constraint->damping = damping;
+                constraint->springParams.damping = damping;
             else
-                constraint->damping.m128_f32[offset] = damping;
+                constraint->springParams.damping.m128_f32[offset] = damping;
             return *this;
         }
     };

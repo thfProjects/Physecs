@@ -4,6 +4,20 @@
 #include "SolverData.h"
 
 namespace physecs {
+    struct SpringParamsW {
+        union {
+            FloatW stiffness;
+            FloatW erp;
+        };
+
+        union {
+            FloatW damping;
+            FloatW cfm;
+        };
+
+        SpringParamsW() : stiffness(_mm_setzero_ps()), damping(_mm_setzero_ps()) {}
+    };
+
     template<int flags>
     struct Constraint1DW {
         BodyId bodies0[4] = { INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID, INVALID_BODY_ID };
@@ -16,13 +30,12 @@ namespace physecs {
         FloatW c = _mm_setzero_ps();
         FloatW min = _mm_set1_ps(std::numeric_limits<float>::lowest());
         FloatW max = _mm_set1_ps(std::numeric_limits<float>::max());
-        FloatW stiffness = _mm_setzero_ps();
-        FloatW damping = _mm_setzero_ps();
-        FloatW invEffMass = _mm_setzero_ps();
+        SpringParamsW springParams;
+        FloatW effMass = _mm_setzero_ps();
         FloatW totalLambda = _mm_setzero_ps();
 
-        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities);
-        void solve(VelocityData* velocities, float timeStep, bool useBias);
+        void preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep);
+        void solve(VelocityData* velocities, float baumgarteFactor);
     };
 }
 

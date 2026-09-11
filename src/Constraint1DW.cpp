@@ -38,7 +38,7 @@ __forceinline void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities) {
+__forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep) {
     Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     if constexpr (!(flags & SOFT)) {
@@ -57,12 +57,32 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
         pseudoAngularVelocity1 = gatherVec3W<&PseudoVelocityData::pseudoAngularVelocity>(pseudoVelocities, bodies1);
     }
 
-    invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
+    FloatW invEffMass = dotW(angular0, angular0) + dotW(angular1, angular1);
     if constexpr (!(flags & ANGULAR)) {
         invEffMass += dotW(linear0, linear0) + dotW(linear1, linear1);
     }
 
-    if constexpr (flags & SOFT) return;
+    const FloatW timeStepW = _mm_set1_ps(timeStep);
+    const FloatW one = _mm_set1_ps(1.f);
+
+    if constexpr (flags & SOFT) {
+        const FloatW stiffness = timeStepW * springParams.stiffness;
+        const FloatW damping = timeStepW * springParams.damping;
+        springParams.cfm = one / (damping + timeStepW * stiffness + _mm_set1_ps(1e-8f));
+        springParams.erp = stiffness * springParams.cfm;
+
+        effMass = one / (invEffMass + springParams.cfm);
+
+        return;
+    }
+    else {
+        effMass = one / (invEffMass + _mm_set1_ps(1e-8f));
+    }
+
+    if constexpr (flags & LIMITED) {
+        min *= timeStepW;
+        max *= timeStepW;
+    }
 
     // warm start
     const auto warmStartCMask = _mm_cmplt_ps(_mm_abs_ps(c), _mm_set1_ps(1e-4));
@@ -90,15 +110,16 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
     scatterVec3W<&VelocityData::angularVelocity>(angularVelocity1, velocities, bodies1);
 
     // pseudo velocities
-    const auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
-    const auto pseudoVelocityCMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
-
-    const auto pseudoVelocityMask = _mm_and_ps(pseudoVelocityCMask, invEffMassMask);
+    const auto pseudoVelocityMask = _mm_cmpneq_ps(c, _mm_setzero_ps());
 
     if (!isZero(pseudoVelocityMask)) {
-        auto lambda = c / invEffMass;
+        auto lambda = c * effMass;
         if constexpr (flags & LIMITED) {
-            lambda = _mm_min_ps(_mm_max_ps(lambda, min), max);
+            FloatW minMask = _mm_cmplt_ps(min, _mm_setzero_ps());
+            FloatW maxMask = _mm_cmpgt_ps(max, _mm_setzero_ps());
+            const FloatW lo = _mm_blendv_ps(_mm_set1_ps(std::numeric_limits<float>::lowest()), _mm_setzero_ps(), minMask);
+            const FloatW hi = _mm_blendv_ps(_mm_set1_ps(std::numeric_limits<float>::max()), _mm_setzero_ps(), maxMask);
+            lambda = _mm_min_ps(_mm_max_ps(lambda, lo), hi);
         }
 
         lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, pseudoVelocityMask);
@@ -131,7 +152,7 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float timeStep, bool useBias) {
+__forceinline void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
     Vec3W velocity0, velocity1;
     if constexpr (!(flags & ANGULAR)) {
         velocity0 = gatherVec3W<&VelocityData::velocity>(velocities, bodies0);
@@ -140,38 +161,18 @@ __forceinline void physecs::Constraint1DW<flags>::solve(VelocityData* velocities
     Vec3W angularVelocity0 = gatherVec3W<&VelocityData::angularVelocity>(velocities, bodies0);
     Vec3W angularVelocity1 = gatherVec3W<&VelocityData::angularVelocity>(velocities, bodies1);
 
-    auto invEffMassMask = _mm_cmpneq_ps(invEffMass, _mm_setzero_ps());
-    if (isZero(invEffMassMask)) return;
-
     auto relativeVelocityW = dotW(angular1, angularVelocity1) - dotW(angular0, angularVelocity0);
     if constexpr (!(flags & ANGULAR)) {
         relativeVelocityW += dotW(linear1, velocity1) - dotW(linear0, velocity0);
     }
 
-    const auto one = _mm_set1_ps(1.f);
-    const auto biasFactor = _mm_set1_ps((useBias ? baumgarteBias : 0.f) / timeStep);
-
-    const auto effMass = one / invEffMass;
-
-    const auto timeStepW = _mm_set1_ps(timeStep);
-
-    FloatW lambda;
-    if constexpr (flags & SOFT) {
-        auto gamma = one / (damping + timeStepW * stiffness);
-        auto beta = timeStepW * stiffness * gamma;
-        lambda = (relativeVelocityW + beta * c / timeStepW) / (invEffMass + gamma / timeStepW);
-    }
-    else {
-        lambda = (relativeVelocityW - targetVelocity + biasFactor * c) * effMass;
-    }
-
-    lambda = _mm_blendv_ps(_mm_setzero_ps(), lambda, invEffMassMask);
+    FloatW lambda = (relativeVelocityW - targetVelocity + (flags & SOFT ? springParams.erp : _mm_set1_ps(baumgarteFactor)) * c) * effMass;
 
     auto prevLambda = totalLambda;
 
     if constexpr (flags & LIMITED) {
         totalLambda += lambda;
-        totalLambda = _mm_min_ps(_mm_max_ps(totalLambda, min * timeStepW), max * timeStepW);
+        totalLambda = _mm_min_ps(_mm_max_ps(totalLambda, min ), max );
         lambda = totalLambda - prevLambda;
     }
     else {

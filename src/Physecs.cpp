@@ -14,6 +14,7 @@
 #include "Overlap.h"
 #include "Raycast.h"
 #include "ContactManifold.h"
+#include "BitScan.h"
 #include "Profiling.h"
 #include "SolverData.h"
 
@@ -785,7 +786,7 @@ void physecs::Scene::addJoint(Joint *joint) {
     const auto colorsUnion = colors0 | colors1;
 
     unsigned long i;
-    _BitScanForward(&i, ~colorsUnion);
+    bitScanForward(&i, ~colorsUnion);
 
     colors0 |= 1 << i;
     colors1 |= 1 << i;

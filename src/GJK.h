@@ -7,6 +7,7 @@
 #include "ConvexMesh.h"
 #include "MathUtil.h"
 #include "glm/gtx/norm.hpp"
+#include "immintrin.h"
 
 namespace physecs {
 
@@ -93,7 +94,7 @@ namespace physecs {
             int indicesArr[4];
 
             _mm_storeu_ps(valuesArr, maxValues);
-            _mm_storeu_epi32(indicesArr, maxIndices);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(indicesArr), maxIndices);
 
             int maxIndex = indicesArr[0];
             float maxValue = valuesArr[0];

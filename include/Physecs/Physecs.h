@@ -145,7 +145,7 @@ namespace physecs {
             static constexpr int maxColors = 8;
             static constexpr int overflowIndex = maxColors;
             JointGraphColor colors[maxColors + 1];
-            std::unordered_map<entt::entity, unsigned char> bitsets;
+            std::unordered_map<entt::entity, uint8_t> bitsets;
 
             JointGraph() {
                 colors[overflowIndex].jointConstraints.setOverFlow();

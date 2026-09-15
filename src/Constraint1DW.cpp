@@ -1,10 +1,11 @@
 #include "Constraint1DW.h"
 #include "Constraint1DFlags.h"
+#include "PhysecsPlatform.h"
 
 namespace physecs {
 
 template<auto member, typename T>
-__forceinline Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
+PHYSECS_FORCE_INLINE Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
     const FloatW& row0 = data[bodies[0]].*member;
     const FloatW& row1 = data[bodies[1]].*member;
     const FloatW& row2 = data[bodies[2]].*member;
@@ -23,7 +24,7 @@ __forceinline Vec3W gatherVec3W(const T* data, const BodyId (&bodies)[4]) {
 }
 
 template<auto member, typename T>
-__forceinline void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
+PHYSECS_FORCE_INLINE void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
     const FloatW tmp0 = _mm_unpacklo_ps(v.x, v.y);
     const FloatW tmp1 = _mm_unpacklo_ps(v.z, _mm_setzero_ps());
     const FloatW tmp2 = _mm_unpackhi_ps(v.x, v.y);
@@ -38,7 +39,7 @@ __forceinline void scatterVec3W(Vec3W v, T* data, const BodyId (&bodies)[4]) {
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep) {
+PHYSECS_FORCE_INLINE void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocities, PseudoVelocityData* pseudoVelocities, float timeStep) {
     Vec3W pseudoVelocity0, pseudoVelocity1, pseudoAngularVelocity0, pseudoAngularVelocity1;
     Vec3W velocity0, velocity1, angularVelocity0, angularVelocity1;
     if constexpr (!(flags & SOFT)) {
@@ -146,7 +147,7 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
         const BodyId b0 = bodies0[i];
         const BodyId b1 = bodies1[i];
 
-        if (pseudoVelocityMask.m128_i32[i]) {
+        if (laneI32(pseudoVelocityMask, i)) {
             ++pseudoVelocities[b0].constraintCount;
             ++pseudoVelocities[b1].constraintCount;
         }
@@ -154,7 +155,7 @@ __forceinline void physecs::Constraint1DW<flags>::preSolve(VelocityData* velocit
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
+PHYSECS_FORCE_INLINE void physecs::Constraint1DW<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
     Vec3W velocity0, velocity1;
     if constexpr (!(flags & ANGULAR)) {
         velocity0 = gatherVec3W<&VelocityData::velocity>(velocities, bodies0);

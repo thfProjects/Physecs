@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PhysecsAPI.h"
+#include "PhysecsPlatform.h"
 #include <glm/glm.hpp>
 
 namespace physecs {

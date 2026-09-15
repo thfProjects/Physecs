@@ -6,6 +6,8 @@
 #include <MathUtil.h>
 #include <variant>
 #include <Constraint1DFlags.h>
+#include <PhysecsPlatform.h>
+#include <BitScan.h>
 
 namespace physecs {
 
@@ -83,19 +85,19 @@ namespace physecs {
             if (!isOverflow) {
                 auto& [constraintsList, lanes] = simdConstraints.get<flags>();
                 const auto shifted = _mm_slli_si128 (lanes, 4);
-                auto cmp = _mm_and_epi32(_mm_cmpgt_epi32(shifted, lanes), _mm_cmpgt_epi32(lanes, _mm_set1_epi32(prevIndex)));
+                auto cmp = _mm_and_si128(_mm_cmpgt_epi32(shifted, lanes), _mm_cmpgt_epi32(lanes, _mm_set1_epi32(prevIndex)));
                 cmp = _mm_shuffle_epi32(cmp, _MM_SHUFFLE(0, 1, 2, 3));
                 const auto mask = _mm_movemask_ps(_mm_castsi128_ps(cmp));
                 unsigned long i;
-                const bool res = _BitScanForward(&i, mask);
+                const bool res = bitScanForward(&i, mask);
                 const int lane = res * (3 - i);
-                int& currentIndex = lanes.m128i_i32[lane];
+                int& currentIndex = laneI32(lanes, lane);
                 if (currentIndex == constraintsList.size()) {
                     constraintsList.emplace_back();
                 }
                 constraintsList[currentIndex].bodies0[lane] = bodyIndex0;
                 constraintsList[currentIndex].bodies1[lane] = bodyIndex1;
-                constraintsList[currentIndex].totalLambda.m128_f32[lane] = initLambda;
+                laneF32(constraintsList[currentIndex].totalLambda, lane) = initLambda;
                 constraintRefs.emplace_back(currentIndex, lane);
                 return currentIndex++;
             }
@@ -152,11 +154,11 @@ namespace physecs {
         Constraint1DReader(Constraint1DContainer& container) : container(container) {}
 
         template<int flags = NONE>
-        __forceinline float nextTotalLambda() {
+        PHYSECS_FORCE_INLINE float nextTotalLambda() {
             auto& [i, o] = container.constraintRefs[index++];
             if (!container.isOverflow) {
                 auto& constraintsList = container.simdConstraints.get<flags>();
-                return constraintsList.constraints[i].totalLambda.m128_f32[o];
+                return laneF32(constraintsList.constraints[i].totalLambda, o);
             }
             auto& constraintsList = container.overflowConstraints.get<flags>();
             return constraintsList.constraints[i].totalLambda;
@@ -189,7 +191,7 @@ namespace physecs {
     public:
         Constraint1DView(ConstraintT& constraint, int offset) : constraint(&constraint), offset(offset) {}
 
-        __forceinline Constraint1DView& setLinear0(const glm::vec3& linear0) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setLinear0(const glm::vec3& linear0) {
             if constexpr (isOverflow) {
                 constraint->linear0 = linear0;
             }
@@ -199,7 +201,7 @@ namespace physecs {
             return *this;
         }
 
-        __forceinline Constraint1DView& setLinear1(const glm::vec3& linear1) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setLinear1(const glm::vec3& linear1) {
             if constexpr (isOverflow) {
                 constraint->linear1 = linear1;
             }
@@ -209,7 +211,7 @@ namespace physecs {
             return *this;
         }
 
-        __forceinline Constraint1DView& setAngular0(const glm::vec3& angular0) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setAngular0(const glm::vec3& angular0) {
             if constexpr (isOverflow)
                 constraint->angular0 = angular0;
             else
@@ -217,7 +219,7 @@ namespace physecs {
             return *this;
         }
 
-        __forceinline Constraint1DView& setAngular1(const glm::vec3& angular1) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setAngular1(const glm::vec3& angular1) {
             if constexpr (isOverflow)
                 constraint->angular1 = angular1;
             else
@@ -225,59 +227,59 @@ namespace physecs {
             return *this;
         }
 
-        __forceinline Constraint1DView& setTargetVelocity(float targetVelocity) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setTargetVelocity(float targetVelocity) {
             if constexpr (isOverflow)
                 constraint->targetVelocity = targetVelocity;
             else
-                constraint->targetVelocity.m128_f32[offset] = targetVelocity;
+                laneF32(constraint->targetVelocity, offset) = targetVelocity;
             return *this;
         }
 
-        __forceinline Constraint1DView& setC(float c) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setC(float c) {
             if constexpr (isOverflow)
                 constraint->c = c;
             else
-                constraint->c.m128_f32[offset] = c;
+                laneF32(constraint->c, offset) = c;
             return *this;
         }
 
-        __forceinline Constraint1DView& setMin(float min) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setMin(float min) {
             if constexpr (isOverflow)
                 constraint->min = min;
             else
-                constraint->min.m128_f32[offset] = min;
+                laneF32(constraint->min, offset) = min;
             return *this;
         }
 
-        __forceinline Constraint1DView& setMax(float max) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setMax(float max) {
             if constexpr (isOverflow)
                 constraint->max = max;
             else
-                constraint->max.m128_f32[offset] = max;
+                laneF32(constraint->max, offset) = max;
             return *this;
         }
 
-        __forceinline Constraint1DView& setStiffness(float stiffness) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setStiffness(float stiffness) {
             if constexpr (isOverflow)
                 constraint->springParams.stiffness = stiffness;
             else
-                constraint->springParams.stiffness.m128_f32[offset] = stiffness;
+                laneF32(constraint->springParams.stiffness, offset) = stiffness;
             return *this;
         }
 
-        __forceinline Constraint1DView& setDamping(float damping) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setDamping(float damping) {
             if constexpr (isOverflow)
                 constraint->springParams.damping = damping;
             else
-                constraint->springParams.damping.m128_f32[offset] = damping;
+                laneF32(constraint->springParams.damping, offset) = damping;
             return *this;
         }
 
-        __forceinline Constraint1DView& setEffMass(float effMass) {
+        PHYSECS_FORCE_INLINE Constraint1DView& setEffMass(float effMass) {
             if constexpr (isOverflow)
                 constraint->effMass = effMass;
             else
-                constraint->effMass.m128_f32[offset] = effMass;
+                laneF32(constraint->effMass, offset) = effMass;
             return *this;
         }
     };
@@ -314,7 +316,7 @@ namespace physecs {
         Constraint1DWriter(Constraint1DContainer& container) : container(container) {}
 
         template<int flags>
-        _forceinline void writeNext(const Constraint1DDescriptor& row, float effMass) {
+        PHYSECS_FORCE_INLINE void writeNext(const Constraint1DDescriptor& row, float effMass) {
             if (!container.isOverflow) writeNextImpl<false, flags>(container.simdConstraints, row, effMass);
             else writeNextImpl<true, flags>(container.overflowConstraints, row, effMass);
         }

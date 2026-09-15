@@ -1,4 +1,5 @@
 #include "ThreadPool.h"
+#include <xmmintrin.h>
 
 void physecs::ThreadPool::doTasks() {
     int i = currentTask.load();

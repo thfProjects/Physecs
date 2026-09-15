@@ -5,6 +5,36 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace physecs {
+    namespace detail {
+        union F32x4 { __m128 reg; float lanes[4]; };
+        union I32x4AsF32 { __m128 reg; int lanes[4]; };
+        union I32x4 { __m128i reg; int lanes[4]; };
+    }
+
+    inline float& laneF32(__m128& v, int i) {
+        return reinterpret_cast<detail::F32x4*>(&v)->lanes[i];
+    }
+
+    inline float laneF32(const __m128& v, int i) {
+        return reinterpret_cast<const detail::F32x4*>(&v)->lanes[i];
+    }
+
+    inline int& laneI32(__m128& v, int i) {
+        return reinterpret_cast<detail::I32x4AsF32*>(&v)->lanes[i];
+    }
+
+    inline int laneI32(const __m128& v, int i) {
+        return reinterpret_cast<const detail::I32x4AsF32*>(&v)->lanes[i];
+    }
+
+    inline int& laneI32(__m128i& v, int i) {
+        return reinterpret_cast<detail::I32x4*>(&v)->lanes[i];
+    }
+
+    inline int laneI32(const __m128i& v, int i) {
+        return reinterpret_cast<const detail::I32x4*>(&v)->lanes[i];
+    }
+
     typedef __m128 FloatW;
 
     struct Vec3W {
@@ -51,15 +81,15 @@ namespace physecs {
         }
 
         void set(const glm::vec3& v, int offset) {
-            x.m128_f32[offset] = v.x;
-            y.m128_f32[offset] = v.y;
-            z.m128_f32[offset] = v.z;
+            laneF32(x, offset) = v.x;
+            laneF32(y, offset) = v.y;
+            laneF32(z, offset) = v.z;
         }
 
         void get(glm::vec3& v, int offset) const {
-            v.x = x.m128_f32[offset];
-            v.y = y.m128_f32[offset];
-            v.z = z.m128_f32[offset];
+            v.x = laneF32(x, offset);
+            v.y = laneF32(y, offset);
+            v.z = laneF32(z, offset);
         }
     };
 
@@ -114,17 +144,17 @@ namespace physecs {
         }
 
         void set(const glm::quat& q, int offset) {
-            x.m128_f32[offset] = q.x;
-            y.m128_f32[offset] = q.y;
-            z.m128_f32[offset] = q.z;
-            w.m128_f32[offset] = q.w;
+            laneF32(x, offset) = q.x;
+            laneF32(y, offset) = q.y;
+            laneF32(z, offset) = q.z;
+            laneF32(w, offset) = q.w;
         }
 
         void get(glm::quat& q, int offset) const {
-            q.x = x.m128_f32[offset];
-            q.y = y.m128_f32[offset];
-            q.z = z.m128_f32[offset];
-            q.w = w.m128_f32[offset];
+            q.x = laneF32(x, offset);
+            q.y = laneF32(y, offset);
+            q.z = laneF32(z, offset);
+            q.w = laneF32(w, offset);
         }
     };
 
@@ -152,6 +182,7 @@ namespace physecs {
         return result;
     }
 
+#if defined(_MSC_VER)
     inline __m128 operator+ (__m128 a, __m128 b) {
         return _mm_add_ps(a, b);
     }
@@ -184,6 +215,7 @@ namespace physecs {
         const auto zero = _mm_setzero_ps();
         return _mm_sub_ps(zero, a);
     }
+#endif
 
     inline Vec3W operator* (__m128 a, const Vec3W &b) {
         return Vec3W(a * b.x, a * b.y, a * b.z);
@@ -268,15 +300,15 @@ namespace physecs {
     }
 
     inline void operator+= (__m128& a, glm::vec3 v) {
-        a.m128_f32[0] += v.x;
-        a.m128_f32[1] += v.y;
-        a.m128_f32[2] += v.z;
+        laneF32(a, 0) += v.x;
+        laneF32(a, 1) += v.y;
+        laneF32(a, 2) += v.z;
     }
 
     inline void operator-= (__m128& a, glm::vec3 v) {
-        a.m128_f32[0] -= v.x;
-        a.m128_f32[1] -= v.y;
-        a.m128_f32[2] -= v.z;
+        laneF32(a, 0) -= v.x;
+        laneF32(a, 1) -= v.y;
+        laneF32(a, 2) -= v.z;
     }
 
     inline glm::vec3& asVec3(__m128& a) {

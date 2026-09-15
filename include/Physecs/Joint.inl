@@ -19,7 +19,7 @@ void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1D
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename Block>
-__forceinline float* JointImpl<Impl, Layout, Cache, Data>::getAccumulatedImpulses() {
+PHYSECS_FORCE_INLINE float* JointImpl<Impl, Layout, Cache, Data>::getAccumulatedImpulses() {
     if constexpr (Block::lambdas == nullptr) return nullptr;
     else if constexpr (std::is_array_v<std::remove_reference_t<decltype(cache.*Block::lambdas)>>) {
         return cache.*Block::lambdas;
@@ -29,20 +29,20 @@ __forceinline float* JointImpl<Impl, Layout, Cache, Data>::getAccumulatedImpulse
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename Block>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::createConstraints(Constraint1DLayout& constraintLayout) {
+PHYSECS_FORCE_INLINE void JointImpl<Impl, Layout, Cache, Data>::createConstraints(Constraint1DLayout& constraintLayout) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     constraintLayout.createConstraints<Block::flags, Block::count>(getAccumulatedImpulses<Block>());
 }
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename... Blocks>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::createConstraints(ConstraintLayout<Blocks...>, Constraint1DLayout& constraintLayout) {
+PHYSECS_FORCE_INLINE void JointImpl<Impl, Layout, Cache, Data>::createConstraints(ConstraintLayout<Blocks...>, Constraint1DLayout& constraintLayout) {
     (createConstraints<Blocks>(constraintLayout), ...);
 }
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename Block>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1DReader& constraints) {
+PHYSECS_FORCE_INLINE void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(Constraint1DReader& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
         const float lambda = constraints.nextTotalLambda<Block::flags>();
@@ -52,12 +52,12 @@ __forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulse
 
 template<typename Impl, typename Layout, typename Cache, typename Data>
 template<typename... Blocks>
-__forceinline void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(ConstraintLayout<Blocks...>, Constraint1DReader& constraints) {
+PHYSECS_FORCE_INLINE void JointImpl<Impl, Layout, Cache, Data>::storeAccumulatedImpulses(ConstraintLayout<Blocks...>, Constraint1DReader& constraints) {
     (storeAccumulatedImpulses<Blocks>(constraints), ...);
 }
 
 template<typename Block, typename Data>
-__forceinline void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, float* effMasses, int& row, Constraint1DWriter& constraints) {
+PHYSECS_FORCE_INLINE void writeConstraints(const Data& data, const Constraint1DDescriptor* rows, float* effMasses, int& row, Constraint1DWriter& constraints) {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
     for (int i = 0; i < Block::count; ++i) {
         const int idx = row++;
@@ -67,13 +67,13 @@ __forceinline void writeConstraints(const Data& data, const Constraint1DDescript
 }
 
 template<typename Data, typename... Blocks>
-__forceinline void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, float* effMasses, Constraint1DWriter& constraints) {
+PHYSECS_FORCE_INLINE void writeConstraints(ConstraintLayout<Blocks...>, const Data& data, const Constraint1DDescriptor* rows, float* effMasses, Constraint1DWriter& constraints) {
     int row = 0;
     (writeConstraints<Blocks>(data, rows, effMasses, row, constraints), ...);
 }
 
 template<int numAngularRows, int i, int j>
-__forceinline float computeInvEffMassEntry(const Constraint1DDescriptor* constraintRows) {
+PHYSECS_FORCE_INLINE float computeInvEffMassEntry(const Constraint1DDescriptor* constraintRows) {
     auto products = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular0))
         + _mm_load_ps(glm::value_ptr(constraintRows[i].angular1)) * _mm_load_ps(glm::value_ptr(constraintRows[j].angular1));
     if constexpr (i >= numAngularRows && j >= numAngularRows) {
@@ -84,32 +84,32 @@ __forceinline float computeInvEffMassEntry(const Constraint1DDescriptor* constra
 }
 
 template<typename F, int... Is>
-__forceinline void repeatImpl(F&& f, std::integer_sequence<int, Is...>) {
+PHYSECS_FORCE_INLINE void repeatImpl(F&& f, std::integer_sequence<int, Is...>) {
     (f(std::integral_constant<int, Is>{}), ...);
 }
 
 template<int count, typename F>
-__forceinline void repeat(F&& f) {
+PHYSECS_FORCE_INLINE void repeat(F&& f) {
     repeatImpl(std::forward<F>(f), std::make_integer_sequence<int, count>{});
 }
 
 template<int numRows, int numAngularRows>
-__forceinline void LUFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* effMasses) {
+PHYSECS_FORCE_INLINE void LUFactorize(const Constraint1DDescriptor* constraintRows, float L[][numRows], float* effMasses) {
     constexpr float invMassScale = 1.01f;
     // LU factorization of JM^-1J^T
-    repeat<numRows>([&](auto I) [[msvc::forceinline]] {
+    repeat<numRows>([&](auto I) PHYSECS_FORCE_INLINE_LAMBDA {
         static constexpr int i = decltype(I)::value;
         float d = computeInvEffMassEntry<numAngularRows, i, i>(constraintRows) * invMassScale + 1e-8f;
-        repeat<i>([&d, L](auto J) [[msvc::forceinline]] {
+        repeat<i>([&d, L](auto J) PHYSECS_FORCE_INLINE_LAMBDA {
             static constexpr int j = decltype(J)::value;
             d -= L[i][j] * L[j][i];
         });
         const float effMass = 1.f / d;
         effMasses[i] = effMass;
-        repeat<numRows-i-1>([effMass, constraintRows, L](auto J) [[msvc::forceinline]] {
+        repeat<numRows-i-1>([effMass, constraintRows, L](auto J) PHYSECS_FORCE_INLINE_LAMBDA {
             static constexpr int j = i + 1 + decltype(J)::value;
             float l = computeInvEffMassEntry<numAngularRows, j, i>(constraintRows);
-            repeat<i>([&l, L](auto K) [[msvc::forceinline]] {
+            repeat<i>([&l, L](auto K) PHYSECS_FORCE_INLINE_LAMBDA {
                 static constexpr int k = decltype(K)::value;
                 l -= L[i][k] * L[k][j];
             });
@@ -120,10 +120,10 @@ __forceinline void LUFactorize(const Constraint1DDescriptor* constraintRows, flo
 }
 
 template<int numRows, int numAngularRows>
-__forceinline void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
+PHYSECS_FORCE_INLINE void orthogonalize(Constraint1DDescriptor* constraintRows, float L[][numRows]) {
     // solve LJ' = J by forward substitution
     // J'M^-1J'^T will be a diagonal matrix, making gauss seidel for these constraints be identical to a block solve
-    repeat<numRows - 1>([&](auto I) [[msvc::forceinline]] {
+    repeat<numRows - 1>([&](auto I) PHYSECS_FORCE_INLINE_LAMBDA {
         static constexpr int i = 1 + decltype(I)::value;
 
         FloatW linear0, linear1;
@@ -135,7 +135,7 @@ __forceinline void orthogonalize(Constraint1DDescriptor* constraintRows, float L
         FloatW angular0 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular0));
         FloatW angular1 = _mm_load_ps(glm::value_ptr(constraintRows[i].angular1));
 
-        repeat<i>([&linear0, &linear1, &angular0, &angular1, constraintRows, L](auto J) [[msvc::forceinline]] {
+        repeat<i>([&linear0, &linear1, &angular0, &angular1, constraintRows, L](auto J) PHYSECS_FORCE_INLINE_LAMBDA {
             static constexpr int j = decltype(J)::value;
             const FloatW Lji = _mm_set1_ps(L[j][i]);
             if constexpr (j >= numAngularRows) {
@@ -157,7 +157,7 @@ __forceinline void orthogonalize(Constraint1DDescriptor* constraintRows, float L
 }
 
 template<typename Block, typename Data>
-__forceinline void applyTransformAndMassScale(const Data& data, Constraint1DDescriptor* rows, int& row,
+PHYSECS_FORCE_INLINE void applyTransformAndMassScale(const Data& data, Constraint1DDescriptor* rows, int& row,
     const Mat3V& invR0, const Mat3V& invR1, const FloatW& sqrtInvMass0, const FloatW& sqrtInvMass1, const FloatW& sqrtInvInertia0, const FloatW& sqrtInvInertia1)
 {
     if constexpr (Block::gate != nullptr) if (!(data.*Block::gate)) return;
@@ -179,7 +179,7 @@ __forceinline void applyTransformAndMassScale(const Data& data, Constraint1DDesc
 }
 
 template<typename Data, typename... Blocks>
-__forceinline void applyTransformAndMassScale(ConstraintLayout<Blocks...>, const Data& data, Constraint1DDescriptor* rows, const Constraint1DWriterContext& context) {
+PHYSECS_FORCE_INLINE void applyTransformAndMassScale(ConstraintLayout<Blocks...>, const Data& data, Constraint1DDescriptor* rows, const Constraint1DWriterContext& context) {
     const FloatW one = _mm_set1_ps(1.f);
 
     const FloatW sqrtInvInertia0 = _mm_load_ps(glm::value_ptr(context.massData0->sqrtInvInertia));

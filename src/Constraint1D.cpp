@@ -1,9 +1,10 @@
 #include "Constraint1D.h"
 #include "SolverData.h"
 #include "Constraint1DFlags.h"
+#include "PhysecsPlatform.h"
 
 template<int flags>
-__forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities, float timeStep) {
+PHYSECS_FORCE_INLINE void physecs::Constraint1D<flags>::preSolve(VelocityData* velocities, PseudoVelocityData *pseudoVelocities, float timeStep) {
     if constexpr (flags & SOFT) {
         const float stiffness = timeStep * springParams.stiffness;
         const float damping = timeStep * springParams.damping;
@@ -68,7 +69,7 @@ __forceinline void physecs::Constraint1D<flags>::preSolve(VelocityData* velociti
 }
 
 template<int flags>
-__forceinline void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
+PHYSECS_FORCE_INLINE void physecs::Constraint1D<flags>::solve(VelocityData* velocities, float baumgarteFactor) {
     glm::vec3 velocity0(0);
     if constexpr (!(flags & ANGULAR))
         velocity0 = asVec3(velocities[b0].velocity);

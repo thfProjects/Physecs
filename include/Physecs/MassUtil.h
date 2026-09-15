@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PhysecsAPI.h"
+#include "PhysecsPlatform.h"
 #include "Components.h"
 
 namespace physecs {

@@ -12,6 +12,10 @@ option(BUILD_TESTS "Build tests")
 option(PROFILE "Profile")
 option(DEBUG_CONTACT_POINTS "Debug contact points")
 
+if (NOT MSVC)
+	add_compile_options(-msse4.1)
+endif ()
+
 set(PHYSECS_LIB Physecs)
 
 file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -53,6 +57,7 @@ if (PROFILE)
 	FetchContent_MakeAvailable(tracy)
 
 	set_property(TARGET TracyClient PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+	set_property(TARGET TracyClient PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 	target_link_libraries("${PHYSECS_LIB}" PUBLIC TracyClient)
 

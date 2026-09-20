@@ -44,5 +44,5 @@ void physecs::RevoluteJoint::setDriveMaxTorque(float maxTorque) {
 }
 
 namespace physecs {
-    PHYSECS_DECLARE_JOINT_IMPL(RevoluteJoint);
+    PHYSECS_DEFINE_JOINT_IMPL(RevoluteJoint);
 }

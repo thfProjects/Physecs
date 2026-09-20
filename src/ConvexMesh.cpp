@@ -9,3 +9,5 @@ physecs::ConvexMeshVertices<N>::ConvexMeshVertices(const std::vector<glm::vec3> 
     const glm::vec3 val = buffer.back();
     buffer.resize(newSize, val);
 }
+
+template class physecs::ConvexMeshVertices<4>;

@@ -1,11 +1,14 @@
 #include "PrismaticJoint.h"
 #include <limits>
 #include "Joint.inl"
+#include "JointsUtil.h"
 #include "Transform.h"
 
 void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DDescriptor* constraintRows) {
-    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
+    auto& [p0, p1, r0, r1, q0, q1] = worldSpaceData;
     auto& [upperLimit, lowerLimit, makeUpperLimit, makeLowerLimit, driveEnabled, targetPosition, driveStiffness, driveDamping] = *static_cast<PrismaticJointDef::Data*>(additionalData);
+
+    glm::mat3 u0 = glm::toMat3(q0);
 
     glm::vec3 d = p1 - p0;
 
@@ -13,26 +16,7 @@ void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSp
     const glm::vec3 a0 = r0 + d;
 
     //rotation
-    const float d01 = glm::dot(u0[0], u1[1]);
-    const glm::vec3 u11xu00 = glm::cross(u1[1], u0[0]);
-
-    constraintRows[0].angular0 = u11xu00;
-    constraintRows[0].angular1 = u11xu00;
-    constraintRows[0].geometricError = d01;
-
-    const float d02 = glm::dot(u0[0], u1[2]);
-    const glm::vec3 u12xu00 = glm::cross(u1[2], u0[0]);
-
-    constraintRows[1].angular0 = u12xu00;
-    constraintRows[1].angular1 = u12xu00;
-    constraintRows[1].geometricError = d02;
-
-    const float d12 = glm::dot(u0[1], u1[2]);
-    const glm::vec3 u12xu01 = glm::cross(u1[2], u0[1]);
-
-    constraintRows[2].angular0 = u12xu01;
-    constraintRows[2].angular1 = u12xu01;
-    constraintRows[2].geometricError = d12;
+    createAngularLockConstraint(q0, q1, constraintRows);
 
     //translation
     const float dy = glm::dot(d, u0[1]);

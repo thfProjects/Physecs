@@ -1,5 +1,6 @@
 #include "GearJoint.h"
 #include "Joint.inl"
+#include "glm/gtx/quaternion.hpp"
 
 static float angleDiff(float angle0, float angle1) {
     const float diff = fmodf(angle1 - angle0 + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
@@ -7,7 +8,7 @@ static float angleDiff(float angle0, float angle1) {
 }
 
 void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceData, void* additionalData, Constraint1DDescriptor* constraintRows) {
-    auto& [p0, p1, r0, r1, u0, u1] = worldSpaceData;
+    auto& [p0, p1, r0, r1, q0, q1] = worldSpaceData;
     auto& [gearRatio, persistentAngle0, persistentAngle1, slip, isInitialized] = *static_cast<GearJointDef::Data*>(additionalData);
 
     constexpr float epsilon = 1e-4f;
@@ -16,6 +17,9 @@ void physecs::GearJoint::makeConstraints(const JointWorldSpaceData& worldSpaceDa
         isInitialized = false;
         constraintRows[0] = Constraint1DDescriptor{};
     };
+
+    glm::mat3 u0 = glm::toMat3(q0);
+    glm::mat3 u1 = glm::toMat3(q1);
 
     glm::vec3 d = p1 - p0;
     glm::vec3 k = u0[0] + gearRatio * u1[0]; // line along which gears touch

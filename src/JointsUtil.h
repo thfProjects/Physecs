@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Constraint1DContainer.h"
 #include "Joint.inl"
 
 namespace physecs {
@@ -28,5 +29,26 @@ namespace physecs {
         constraintRows[2].angular0 = glm::vec3(a0.y, -a0.x, 0);
         constraintRows[2].angular1 = glm::vec3(r1.y, -r1.x, 0);
         constraintRows[2].geometricError = d.z;
+    }
+
+    // fills 3 1D constraints
+    inline void createAngularLockConstraint(const glm::quat& q0, const glm::quat& q1, Constraint1DDescriptor* constraintRows) {
+        // world space rotation between joint frames, constrained to be identity quaternion
+        glm::quat q = q1 * glm::conjugate(q0);
+
+        glm::vec3 axis0 = glm::vec3(q.w, q.z, -q.y);
+        constraintRows[0].angular0 = axis0;
+        constraintRows[0].angular1 = axis0;
+        constraintRows[0].geometricError = 2.f * q.x;
+
+        glm::vec3 axis1 = glm::vec3(-q.z, q.w, q.x);
+        constraintRows[1].angular0 = axis1;
+        constraintRows[1].angular1 = axis1;
+        constraintRows[1].geometricError = 2.f * q.y;
+
+        glm::vec3 axis2 = glm::vec3(q.y, -q.x, q.w);
+        constraintRows[2].angular0 = axis2;
+        constraintRows[2].angular1 = axis2;
+        constraintRows[2].geometricError = 2.f * q.z;
     }
 }

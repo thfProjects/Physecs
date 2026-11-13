@@ -17,6 +17,8 @@
 #include "BitScan.h"
 #include "Profiling.h"
 #include "SolverData.h"
+#include "glm/ext/quaternion_common.hpp"
+#include "glm/gtx/quaternion.hpp"
 
 const char* frameName = "Solver";
 
@@ -383,13 +385,13 @@ void physecs::Scene::simulate(float timeStep) {
             glm::vec3 r0 = localToCom0 * (dynamic0 && !dynamic0->isKinematic ? joint->getAnchor0Pos() - dynamic0->massProps.com : joint->getAnchor0Pos());
             glm::vec3 r1 = localToCom1 * (dynamic1 && !dynamic1->isKinematic ? joint->getAnchor1Pos() - dynamic1->massProps.com : joint->getAnchor1Pos());
 
-            glm::mat3 u0 = glm::toMat3(localToCom0 * joint->getAnchor0Or());
-            glm::mat3 u1 = glm::toMat3(localToCom1 * joint->getAnchor1Or());
+            glm::quat q0 = localToCom0 * joint->getAnchor0Or();
+            glm::quat q1 = localToCom1 * joint->getAnchor1Or();
 
             Constraint1DLayout constraintLayout(jointConstraints, b0, b1);
             auto [additionalData, makeConstraintsFunc] = joint->getSolverDesc(registry, constraintLayout);
 
-            jointSolverDataBuffer.emplace_back(b0, b1, r0, r1, u0, u1, additionalData, makeConstraintsFunc);
+            jointSolverDataBuffer.emplace_back(b0, b1, r0, r1, q0, q1, additionalData, makeConstraintsFunc);
         }
     }
     PhysecsZoneEnd(ctx7);
@@ -432,19 +434,19 @@ void physecs::Scene::simulate(float timeStep) {
             const float& sqrtInvMass0 = massTemp[contact.b0].sqrtInvMass;
             const glm::vec3& sqrtInvInertia0 = massTemp[contact.b0].sqrtInvInertia;
             const glm::vec3& com0 = transformTemp[contact.b0].comWorld;
-            const glm::mat3& rot0 = transformTemp[contact.b0].worldRotation;
+            const glm::quat& rot0 = transformTemp[contact.b0].worldRotation;
             glm::vec3 velocity0 = asVec3(velocityTemp[contact.b0].velocity) * sqrtInvMass0;
             glm::vec3 angularVelocity0 = asVec3(velocityTemp[contact.b0].angularVelocity) * sqrtInvInertia0;
 
             const float& sqrtInvMass1 = massTemp[contact.b1].sqrtInvMass;
             const glm::vec3& sqrtInvInertia1 = massTemp[contact.b1].sqrtInvInertia;
             const glm::vec3& com1 = transformTemp[contact.b1].comWorld;
-            const glm::mat3& rot1 = transformTemp[contact.b1].worldRotation;
+            const glm::quat& rot1 = transformTemp[contact.b1].worldRotation;
             glm::vec3 velocity1 = asVec3(velocityTemp[contact.b1].velocity) * sqrtInvMass1;
             glm::vec3 angularVelocity1 = asVec3(velocityTemp[contact.b1].angularVelocity) * sqrtInvInertia1;
 
-            glm::vec3 nLocal0 = multiplyTranspose(rot0, n);
-            glm::vec3 nLocal1 = multiplyTranspose(rot1, n);
+            glm::vec3 nLocal0 = glm::conjugate(rot0) * n;
+            glm::vec3 nLocal1 = glm::conjugate(rot1) * n;
 
             for (int k = 0; k < contact.numPoints; ++k) {
                 auto& contactPoint = contact.contactPointConstraints[k];
@@ -470,8 +472,8 @@ void physecs::Scene::simulate(float timeStep) {
             float tLen = glm::length(t);
             if (tLen) t = t / tLen;
 
-            glm::vec3 r0xt = glm::cross(fc.r0, multiplyTranspose(rot0, t));
-            glm::vec3 r1xt = glm::cross(fc.r1, multiplyTranspose(rot1, t));
+            glm::vec3 r0xt = glm::cross(fc.r0, glm::conjugate(rot0) * t);
+            glm::vec3 r1xt = glm::cross(fc.r1,  glm::conjugate(rot1) * t);
 
             fc.t0 = t * sqrtInvMass0;
             fc.t1 = t * sqrtInvMass1;
@@ -496,8 +498,8 @@ void physecs::Scene::simulate(float timeStep) {
                     transformTemp[jointSolverData.b1].comWorld + r1,
                     r0,
                     r1,
-                    transformTemp[jointSolverData.b0].worldRotation * jointSolverData.u0,
-                    transformTemp[jointSolverData.b1].worldRotation * jointSolverData.u1,
+                    transformTemp[jointSolverData.b0].worldRotation * jointSolverData.q0,
+                    transformTemp[jointSolverData.b1].worldRotation * jointSolverData.q1,
                 };
 
                 Constraint1DWriterContext context = {
@@ -563,9 +565,8 @@ void physecs::Scene::simulate(float timeStep) {
 
             glm::quat deltaRotation = glm::normalize(glm::quat(1.f, 0.5f * massTemp[i].sqrtInvInertia * (h * asVec3(velocityTemp[i].angularVelocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoAngularVelocity))));
             transformTemp[i].comWorld += massTemp[i].sqrtInvMass * (h * asVec3(velocityTemp[i].velocity) + pseudoVelocityScale * asVec3(pseudoVelocityTemp[i].pseudoVelocity));
-            transformTemp[i].worldRotation = transformTemp[i].worldRotation * glm::toMat3(deltaRotation);
-            transformTemp[i].invWorldRotation = Mat3V(transformTemp[i].worldRotation);
-            transformTemp[i].invWorldRotation.transpose();
+            transformTemp[i].worldRotation = transformTemp[i].worldRotation * deltaRotation;
+            transformTemp[i].invWorldRotation = Mat3V(glm::toMat3(glm::conjugate(transformTemp[i].worldRotation)));
         }
         PhysecsZoneEnd(ctx4);
 
@@ -587,7 +588,7 @@ void physecs::Scene::simulate(float timeStep) {
 
         auto& transform = registry.get<TransformComponent>(entities.at(i));
 
-        glm::quat comToWorld = glm::normalize(glm::toQuat(transformTemp[i].worldRotation));
+        glm::quat comToWorld = glm::normalize(transformTemp[i].worldRotation);
 
         rigidDynamic.velocity = massTemp[i].sqrtInvMass * asVec3(velocityTemp[i].velocity);
         rigidDynamic.angularVelocity = comToWorld * (massTemp[i].sqrtInvInertia * asVec3(velocityTemp[i].angularVelocity));

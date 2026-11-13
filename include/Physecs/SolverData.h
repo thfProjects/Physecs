@@ -24,7 +24,7 @@ namespace physecs {
 
     struct TransformData {
         glm::vec3 comWorld = glm::vec3(0);
-        glm::mat3 worldRotation = glm::mat3(1);
+        glm::quat worldRotation = glm::quat(1, 0, 0, 0);
         Mat3V invWorldRotation;
     };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PhysecsPlatform.h"
+#include "glm/fwd.hpp"
 #include <entt.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -20,8 +21,8 @@ namespace physecs {
         glm::vec3 p1;
         glm::vec3 r0;
         glm::vec3 r1;
-        glm::mat3 u0;
-        glm::mat3 u1;
+        glm::quat q0;
+        glm::quat q1;
     };
 
     struct Constraint1DWriterContext {
@@ -38,8 +39,8 @@ namespace physecs {
         int b1;
         glm::vec3 r0;
         glm::vec3 r1;
-        glm::mat3 u0;
-        glm::mat3 u1;
+        glm::quat q0;
+        glm::quat q1;
         void* additionalData;
         MakeConstraintsFunc makeConstraintsFunc;
     };

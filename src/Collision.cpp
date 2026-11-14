@@ -53,7 +53,7 @@ static bool collisionBoxConvexMesh(glm::vec3 pos0, glm::quat or0, glm::vec3 half
 
 static void generateBoxBoxFaceContacts(glm::mat3 uRef, glm::vec3 posRef, glm::vec3 halfExtentsRef, glm::mat3 uInc, glm::vec3 posInc, glm::vec3 halfExtentsInc, int referenceAxis, ContactPoint* contactPoints, int& numPoints) {
 
-    glm::vec3 axis = uRef[referenceAxis];
+    const glm::vec3& axis = uRef[referenceAxis];
     float refSign = glm::dot(axis, posInc - posRef) < 0 ? -1 : 1;
 
     //find incidence face
@@ -77,7 +77,7 @@ static void generateBoxBoxFaceContacts(glm::mat3 uRef, glm::vec3 posRef, glm::ve
     int incAxis1 = (incAxis + 1) % 3, incAxis2 = (incAxis + 2) % 3;
 
     //perform clip in local frame of reference box
-    glm::mat3 inverseURef = glm::inverse(uRef);
+    glm::mat3 inverseURef = glm::transpose(uRef);
 
     glm::vec3 incPlaneOrig = inverseURef * (posInc + uInc[incAxis] * halfExtentsInc[incAxis] * incSign - posRef);
 
@@ -823,7 +823,7 @@ static bool collisionCapsuleConvexMesh(glm::vec3 pos0, glm::quat or0, float half
 
     result.normal = EPA<CapsuleSupportFunction, ConvexMeshSupportFunction>::epa(capsuleSupport, convexMeshSupport, s, result.points[0].position0, result.points[0].position1);
 
-    glm::mat3 worldToConvex = glm::inverse(convexToWorld);
+    glm::mat3 worldToConvex = glm::transpose(convexToWorld);
     glm::vec3 p = worldToConvex * (pos0 - pos1);
     glm::vec3 axisLc = worldToConvex * capsuleAxis;
     generateCapsuleConvexMeshContacts(p + axisLc * halfHeight0, p - axisLc * halfHeight0, radius0, pos1, convexToWorld, mesh1, scale1, result);

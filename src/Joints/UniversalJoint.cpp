@@ -1,14 +1,7 @@
 #include "UniversalJoint.h"
 #include "JointsUtil.h"
+#include "MathUtil.h"
 #include "Joint.inl"
-
-// third column of rotation matrix of quat q
-static glm::vec3 col2(const glm::quat& q) {
-    return glm::vec3(
-        2.f * (q.x * q.z + q.w * q.y),
-        2.f * (q.y * q.z - q.w * q.x),
-        1.f - 2.f * (q.x * q.x + q.y * q.y));
-}
 
 void physecs::UniversalJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DDescriptor* constraintRows) {
     auto& [p0, p1, r0, r1, q0, q1] = worldSpaceData;

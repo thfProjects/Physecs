@@ -1,24 +1,43 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace physecs {
-    inline glm::vec3 multiplyTranspose(const glm::mat3& m, glm::vec3 v) {
-        return glm::vec3(glm::dot(v, m[0]), glm::dot(v, m[1]), glm::dot(v, m[2]));
-    }
 
-    inline glm::vec3 solve33(const glm::mat3& A, glm::vec3 b) {
-        //solve A * x = b
-        glm::vec3 cross12 = glm::cross(A[1], A[2]);
-        float det = glm::dot(A[0], cross12);
-        if (det == 0.f) return glm::vec3(0);
-        float invDet = 1.f / det;
-        return glm::vec3(
-            invDet * glm::dot(b, cross12),
-            invDet * glm::dot(A[0], glm::cross(b, A[2])),
-            invDet * glm::dot(A[0], glm::cross(A[1], b))
-        );
-    }
+inline glm::vec3 multiplyTranspose(const glm::mat3& m, glm::vec3 v) {
+    return glm::vec3(glm::dot(v, m[0]), glm::dot(v, m[1]), glm::dot(v, m[2]));
+}
 
-    void diagonalizeSymmetric3x3(glm::mat3 m, glm::vec3& outDiagonal, glm::mat3& outRotation);
+inline glm::vec3 solve33(const glm::mat3& A, glm::vec3 b) {
+    //solve A * x = b
+    glm::vec3 cross12 = glm::cross(A[1], A[2]);
+    float det = glm::dot(A[0], cross12);
+    if (det == 0.f) return glm::vec3(0);
+    float invDet = 1.f / det;
+    return glm::vec3(
+        invDet * glm::dot(b, cross12),
+        invDet * glm::dot(A[0], glm::cross(b, A[2])),
+        invDet * glm::dot(A[0], glm::cross(A[1], b))
+    );
+}
+
+// first column of rotation matrix of quat q
+inline glm::vec3 col0(const glm::quat& q) {
+    return glm::vec3(
+        1.f - 2.f * (q.y * q.y + q.z * q.z),
+        2.f * (q.x * q.y + q.w * q.z),
+        2.f * (q.x * q.z - q.w * q.y));
+}
+
+// third column of rotation matrix of quat q
+inline glm::vec3 col2(const glm::quat& q) {
+    return glm::vec3(
+        2.f * (q.x * q.z + q.w * q.y),
+        2.f * (q.y * q.z - q.w * q.x),
+        1.f - 2.f * (q.x * q.x + q.y * q.y));
+}
+
+void diagonalizeSymmetric3x3(glm::mat3 m, glm::vec3& outDiagonal, glm::mat3& outRotation);
+
 }

@@ -1,54 +1,72 @@
 #pragma once
 
 #include "Constraint1DContainer.h"
-#include "Joint.inl"
 
 namespace physecs {
 
-    // fills 3 1D constraints
-    inline void createPointToPointConstraint(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& r0, const glm::vec3& r1, Constraint1DDescriptor* constraintRows) {
-        const glm::vec3 d = p1 - p0;
+// fills 3 1D constraints
+inline void createPointToPointConstraint(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& r0, const glm::vec3& r1, Constraint1DDescriptor* constraintRows) {
+    const glm::vec3 d = p1 - p0;
 
-        // prevents creating net torque on body pair, forces must be applied on same point
-        const glm::vec3 a0 = r0 + d;
+    // prevents creating net torque on body pair, forces must be applied on same point
+    const glm::vec3 a0 = r0 + d;
 
-        constraintRows[0].linear0 = glm::vec3(1, 0, 0);
-        constraintRows[0].linear1 = glm::vec3(1, 0, 0);
-        constraintRows[0].angular0 = glm::vec3(0, a0.z, -a0.y);
-        constraintRows[0].angular1 = glm::vec3(0, r1.z, -r1.y);
-        constraintRows[0].geometricError = d.x;
+    constraintRows[0].linear0 = glm::vec3(1, 0, 0);
+    constraintRows[0].linear1 = glm::vec3(1, 0, 0);
+    constraintRows[0].angular0 = glm::vec3(0, a0.z, -a0.y);
+    constraintRows[0].angular1 = glm::vec3(0, r1.z, -r1.y);
+    constraintRows[0].geometricError = d.x;
 
-        constraintRows[1].linear0 = glm::vec3(0, 1, 0);
-        constraintRows[1].linear1 = glm::vec3(0, 1, 0);
-        constraintRows[1].angular0 = glm::vec3(-a0.z, 0, a0.x);
-        constraintRows[1].angular1 = glm::vec3(-r1.z, 0, r1.x);
-        constraintRows[1].geometricError = d.y;
+    constraintRows[1].linear0 = glm::vec3(0, 1, 0);
+    constraintRows[1].linear1 = glm::vec3(0, 1, 0);
+    constraintRows[1].angular0 = glm::vec3(-a0.z, 0, a0.x);
+    constraintRows[1].angular1 = glm::vec3(-r1.z, 0, r1.x);
+    constraintRows[1].geometricError = d.y;
 
-        constraintRows[2].linear0 = glm::vec3(0, 0, 1);
-        constraintRows[2].linear1 = glm::vec3(0, 0, 1);
-        constraintRows[2].angular0 = glm::vec3(a0.y, -a0.x, 0);
-        constraintRows[2].angular1 = glm::vec3(r1.y, -r1.x, 0);
-        constraintRows[2].geometricError = d.z;
+    constraintRows[2].linear0 = glm::vec3(0, 0, 1);
+    constraintRows[2].linear1 = glm::vec3(0, 0, 1);
+    constraintRows[2].angular0 = glm::vec3(a0.y, -a0.x, 0);
+    constraintRows[2].angular1 = glm::vec3(r1.y, -r1.x, 0);
+    constraintRows[2].geometricError = d.z;
+}
+
+// fills 3 1D constraints
+inline void createAngularLockConstraint(const glm::quat& q0, const glm::quat& q1, Constraint1DDescriptor* constraintRows) {
+    // world space rotation between joint frames, constrained to be identity quaternion
+    glm::quat q = q1 * glm::conjugate(q0);
+
+    glm::vec3 axis0 = glm::vec3(q.w, q.z, -q.y);
+    constraintRows[0].angular0 = axis0;
+    constraintRows[0].angular1 = axis0;
+    constraintRows[0].geometricError = 2.f * q.x;
+
+    glm::vec3 axis1 = glm::vec3(-q.z, q.w, q.x);
+    constraintRows[1].angular0 = axis1;
+    constraintRows[1].angular1 = axis1;
+    constraintRows[1].geometricError = 2.f * q.y;
+
+    glm::vec3 axis2 = glm::vec3(q.y, -q.x, q.w);
+    constraintRows[2].angular0 = axis2;
+    constraintRows[2].angular1 = axis2;
+    constraintRows[2].geometricError = 2.f * q.z;
+}
+
+// fills 2 1D constraints
+inline void createAngularHingeConstraint(const glm::quat& q0, const glm::quat& q1, Constraint1DDescriptor* constraintRows) {
+    // constraining relative rotation q = conj(q0) * q1, which is local joint frame 0, to be pure rotation around x axis
+    {
+        const glm::quat q = q0 * glm::quat(q1.y, -q1.z, q1.w, q1.x);
+        constraintRows[0].angular0 = glm::vec3(q.x, q.y, q.z);
+        constraintRows[0].angular1 = glm::vec3(q.x, q.y, q.z);
+        constraintRows[0].geometricError = 2.f * q.w;
     }
 
-    // fills 3 1D constraints
-    inline void createAngularLockConstraint(const glm::quat& q0, const glm::quat& q1, Constraint1DDescriptor* constraintRows) {
-        // world space rotation between joint frames, constrained to be identity quaternion
-        glm::quat q = q1 * glm::conjugate(q0);
-
-        glm::vec3 axis0 = glm::vec3(q.w, q.z, -q.y);
-        constraintRows[0].angular0 = axis0;
-        constraintRows[0].angular1 = axis0;
-        constraintRows[0].geometricError = 2.f * q.x;
-
-        glm::vec3 axis1 = glm::vec3(-q.z, q.w, q.x);
-        constraintRows[1].angular0 = axis1;
-        constraintRows[1].angular1 = axis1;
-        constraintRows[1].geometricError = 2.f * q.y;
-
-        glm::vec3 axis2 = glm::vec3(q.y, -q.x, q.w);
-        constraintRows[2].angular0 = axis2;
-        constraintRows[2].angular1 = axis2;
-        constraintRows[2].geometricError = 2.f * q.z;
+    {
+        const glm::quat q = q0 * glm::quat(q1.z, q1.y, -q1.x, q1.w);
+        constraintRows[1].angular0 = glm::vec3(q.x, q.y, q.z);
+        constraintRows[1].angular1 = glm::vec3(q.x, q.y, q.z);
+        constraintRows[1].geometricError = 2.f * q.w;
     }
+}
+
 }

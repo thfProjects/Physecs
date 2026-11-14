@@ -1,8 +1,8 @@
 #include "PrismaticJoint.h"
 #include <limits>
-#include "Joint.inl"
 #include "JointsUtil.h"
 #include "Transform.h"
+#include "Joint.inl"
 
 void physecs::PrismaticJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void *additionalData, Constraint1DDescriptor* constraintRows) {
     auto& [p0, p1, r0, r1, q0, q1] = worldSpaceData;

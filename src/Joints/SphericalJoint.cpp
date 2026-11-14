@@ -1,5 +1,5 @@
 #include "SphericalJoint.h"
-#include <JointsUtil.h>
+#include "JointsUtil.h"
 #include "Joint.inl"
 
 void physecs::SphericalJoint::makeConstraints(const JointWorldSpaceData &worldSpaceData, void* /*additionalData*/, Constraint1DDescriptor* constraintRows) {
